@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Arm
+Comment=Arm Program
+Encoding=UTF-8
+Exec=bash /home/ubuntu/software/armpi_fpv_control/arm.sh
+Terminal=false
+MultipleArgs=false
+Type=Application
+Categories=Application;Development;
+StartupNotify=true
+Icon=/home/ubuntu/software/armpi_fpv_control/resources/arm.ico

@@ -1,184 +1,354 @@
-以下是一份完整的 Markdown 格式文档，可直接复制保存为 `README.md` 文件。
+# 多车协作 · ArmPi Pro 任务控制台
 
-# 多机器人协作服务系统
+> 一个跑在 Windows 浏览器里的机器人控制台，通过局域网遥控 **ArmPi Pro 麦轮小车**，
+> 支持底盘全向移动、6 轴机械臂、深度相机画面、路径录制/回放与「自动送水」编排。
+>
+> **远期目标**：让它自主完成「抓取指定物品 → 运送到指定地点（座位 / 坐标 / 人）」的通用搬运任务。送水只是其中一个实例。
 
-## 项目简介
+---
 
-本项目实现了一个**主从式多机器人协作系统**，用于在室内环境中完成用户通过网页下达的服务任务（如“给我拿一杯水”）。系统由一个主机器人负责环境建图、任务调度与监控，多个工作机器人负责执行具体的导航、抓取和配送任务。用户可通过网页前端提交指令，并实时查看任务进度。
+## 目录
+
+- [当前状态](#当前状态)
+- [硬件与软件环境](#硬件与软件环境)
+- [系统架构](#系统架构)
+- [快速开始](#快速开始)
+- [控制台功能](#控制台功能)
+- [关键话题与参数](#关键话题与参数)
+- [目录结构](#目录结构)
+- [已知问题](#已知问题)
+- [开发路线](#开发路线)
+- [排错](#排错)
+
+---
+
+## 当前状态
+
+**阶段 0 已基本可用**：手动遥控 + 相机画面 + 路径录制/回放 + 自动送水编排。
+
+| 能用的 | 还不能用的 |
+|---|---|
+| 底盘全向移动（麦轮） | 自主导航（缺雷达，等硬件） |
+| 6 轴机械臂 + 夹爪 | 视觉识别物品（阶段 3） |
+| 深度相机 RGB 画面（实时 MJPEG） | 深度图在网页上显示（需转色节点） |
+| 路径录制 / 回放 | 相机开机自启（现在是手动启动） |
+| 自动送水编排 | 动作组预设（节点未跑） |
+| 电量/按键/IMU 状态监控 | 多车协作（目前只有 1 台车） |
+
+---
+
+## 硬件与软件环境
+
+### 小车侧
+
+| 项 | 实际配置 |
+|---|---|
+| 车型 | ArmPi Pro 麦轮智能小车（全向底盘 + 6 轴机械臂） |
+| 主控 | **Raspberry Pi 4 Model B Rev 1.5**，aarch64 |
+| 宿主系统 | Debian 12 (bookworm)，**宿主本身不装 ROS** |
+| ROS | **ROS 1 Noetic**，全部跑在 Docker 容器 `armpi_pro` 里 |
+| 容器 | 镜像 `ros:noetic`，`Privileged=true`，Binds `/dev:/dev`（USB 设备插上即透传） |
+| 深度相机 | **安思疆 Angstrong Nuwa-HP60C**（单目结构光，USB ID `3482:6723`） |
+| 激光雷达 | **乐动 LD06**（已选定，待加装） |
+| 网络 | Wi-Fi，**IP 每次开机都可能变** |
+
+> ⚠️ **重要**：本项目的实车是 **ROS 1 + 单目/深度相机**，不是 ROS 2 + Nav2 + RealSense。
+> 子目录 `多车协作/ReadMe.md`、`开发文档.md` 是早期的设计稿（ROS 2 Humble + Nav2 + MoveIt 2 + YOLOv8），
+> **与实际硬件不符，尚未改写**，仅作参考。
+
+### 电脑侧
+
+| 项 | 配置 |
+|---|---|
+| 系统 | Windows |
+| Python | `C:\Users\Administrator\.workbuddy\binaries\python\envs\default\Scripts\python.exe`（带 paramiko 5.0.0） |
+| 本地代理 | `proxy_server(1).py`，监听 `127.0.0.1:8000` |
+| 浏览器 | 任意现代浏览器（推荐 Edge / Chrome） |
+
+---
 
 ## 系统架构
 
 ```mermaid
-flowchart TD
-    Web["网页前端<br/>(按钮/语音)"] <-->|"HTTP/WebSocket"| Backend["后端服务<br/>(FastAPI/Node)"]
-    Backend <-->|"ROS 2 / MQTT"| Master["主机器人<br/>建图(SLAM) / 任务分配<br/>地图发布 / 监控协调"]
-    Master -->|"地图/任务/状态"| W1["工作机器人1<br/>导航/抓取"]
-    Master -->|"地图/任务/状态"| W2["工作机器人2<br/>导航/抓取"]
-    Master -->|"地图/任务/状态"| W3["工作机器人3<br/>导航/抓取"]
+flowchart LR
+    subgraph PC["Windows 电脑"]
+        B["浏览器<br/>robot_console.html"]
+        P["本地代理<br/>proxy_server(1).py<br/>127.0.0.1:8000"]
+        B -->|"页面 / 视频流"| P
+    end
+
+    subgraph CAR["ArmPi Pro 小车 (Raspberry Pi 4B / 192.168.x.x)"]
+        RB["rosbridge_websocket<br/>:9090"]
+        WV["web_video_server<br/>:8080"]
+        subgraph DC["Docker 容器 armpi_pro (ROS 1 Noetic)"]
+            RM["rosmaster :11311"]
+            CH["chassis_control<br/>底盘"]
+            SV["hiwonder_servo<br/>机械臂 / 夹爪"]
+            VP["visual_processing<br/>lab_config_manager"]
+            CA["ascamera_node<br/>HP60C 深度相机"]
+        end
+    end
+
+    B -->|"WebSocket (roslib.js)<br/>话题/服务/动作"| RB
+    B -->|"HTTP MJPEG"| P
+    P -->|"直连转发"| WV
+    RB --- RM
+    WV --- RM
+    CH --- RM
+    SV --- RM
+    VP --- RM
+    CA --- RM
 ```
 
-## 功能特性
+**两条链路，各司其职：**
 
-- **网页指令下达**：用户可通过网页按钮或文本输入发起任务（如“拿一杯水”）。
-- **主机器人建图与调度**：主机器人使用SLAM构建环境地图，并将地图分发给工作机器人；同时根据机器人状态进行任务分配。
-- **多机器人协作**：多个工作机器人可并行执行任务，主机器人协调路径避免冲突。
-- **视觉抓取**：工作机器人通过深度相机和YOLO识别目标物体，并使用机械臂完成抓取。
-- **异常处理与安全**：具备电量监测、碰撞检测、通信中断恢复、任务取消等安全机制。
-- **实时状态反馈**：网页端实时显示机器人位置、任务状态和进度。
+| 链路 | 端口 | 协议 | 用途 |
+|---|---|---|---|
+| rosbridge | `9090` | WebSocket | 控制指令、状态订阅（roslib.js） |
+| web_video_server | `8080` | HTTP MJPEG | 相机实时画面 |
 
-## 工作流程
+> 电脑侧为什么要多一个本地代理？
+> 因为 `file://` 打开页面时取 `8080` 会**跨域被拦**，所以页面经 `127.0.0.1:8000` 加载，
+> 视频请求变成同源，再由代理转发到小车。
 
-### 总体流程
+---
 
-1. **任务发起**：用户在网页点击或输入指令。
-2. **后端解析**：后端将指令转换为结构化任务（物品、目标位置等）。
-3. **主机器人决策**：检查地图、选择工作机器人、下发任务（包含地图、导航点、抓取参数）。
-4. **工作机器人执行**：定位、导航至取物点、视觉识别抓取、导航至送达点、放置物品。
-5. **状态反馈**：工作机器人实时上报状态，主机器人更新至网页，用户可查看进度。
+## 快速开始
 
-详细流程见下图（Mermaid 流程图，可在支持 Mermaid 的编辑器中查看）：
+### 1. 电脑侧 —— 双击 `启动控制台.bat`
 
-**主任务流程：**
+它会自动启动本地代理并打开浏览器到 `http://127.0.0.1:8000`。
+（端口 8000 已在监听时会跳过启动，不会重复起）
 
-```mermaid
-flowchart TD
-    Start([用户发起任务]) --> Backend[后端解析生成任务]
-    Backend --> Master[主机器人接收任务]
-    Master --> CheckMap{地图最新?}
-    CheckMap -- 否 --> BuildMap[建图/更新地图]
-    BuildMap --> PublishMap[发布地图]
-    PublishMap --> CheckMap
-    CheckMap -- 是 --> SelectRobot[选择工作机器人]
-    SelectRobot --> SendTask[下发任务]
-    SendTask --> Worker[工作机器人执行]
-    Worker --> Localize[定位]
-    Localize --> NavToPick[导航至取物点]
-    NavToPick --> Detect{视觉识别目标}
-    Detect -- 失败 --> Retry{重试<3?}
-    Retry -- 是 --> Detect
-    Retry -- 否 --> FailPick[上报失败]
-    FailPick --> Reassign{主机器人重新分配?}
-    Reassign -- 是 --> SelectRobot
-    Reassign -- 否 --> NotifyFail[通知用户失败]
-    Detect -- 成功 --> Grasp[抓取]
-    Grasp --> GraspOK{成功?}
-    GraspOK -- 否 --> FailPick
-    GraspOK -- 是 --> NavToUser[导航至用户]
-    NavToUser --> Place[放置物品]
-    Place --> Complete[上报完成]
-    Complete --> NotifySuccess[通知用户成功]
+手动两步的等价做法：
+
+```bat
+cd /d D:\多车协作
+"C:\Users\Administrator\.workbuddy\binaries\python\envs\default\Scripts\python.exe" "proxy_server(1).py"
 ```
 
-**异常与安全监控流程：**
+然后浏览器打开 `http://127.0.0.1:8000`。
 
-```mermaid
-flowchart TD
-    Monitor([持续监控]) --> CheckBattery{电量不足?}
-    CheckBattery -- 是 --> Charge[中断任务去充电] --> Monitor
-    CheckBattery -- 否 --> CheckCollision{碰撞/急停?}
-    CheckCollision -- 是 --> Stop[停止动作]
-    Stop --> SafetyCheck[安全检查]
-    SafetyCheck --> Resume{可继续?}
-    Resume -- 是 --> ResumeTask[恢复执行任务]
-    Resume -- 否 --> Cancel1[取消任务]
-    CheckCollision -- 否 --> CheckComm{通信中断?}
-    CheckComm -- 是 --> RetryComm[重试/等待] --> CheckComm
-    CheckComm -- 否 --> CheckCancel{用户取消?}
-    CheckCancel -- 是 --> Cancel2[通知停止并返回]
-    CheckCancel -- 否 --> Monitor
+> ⚠️ **不要双击 `robot_console.html`**。`file://` 协议下取视频会因跨域失败。
+
+### 2. 页面侧
+
+1. 「小车 IP」填当前地址 → 点 **「连接」**（左上角变绿点即成功）
+2. 「画面源」选 **深度相机RGB /ascamera_hp60c/rgb0/image**
+3. 画面若暂时是黑的，页面会**自动重试**（每 3 秒一次、最多 5 次）；也可以**点画面**强制刷新
+
+### 3. 小车侧（小车重启过才需要）
+
+小车 **IP 每次开机都会变**，先查：
+
+```bat
+ping raspberrypi
 ```
 
-### 异常处理
+然后启动**深度相机节点**（它不在开机自启链条里，重启就丢）：
 
-- **电量不足**：工作机器人自动中断任务，导航至充电桩充电，主机器人重新分配任务。
-- **碰撞/急停**：立即停止所有动作，等待人工检查或自动恢复；若不能继续则取消任务。
-- **通信中断**：主从之间心跳检测，自动重试；超时则触发保护机制。
-- **用户取消**：网页端可随时取消任务，主机器人通知工作机器人安全返回。
-- **抓取失败**：视觉识别或抓取失败重试3次，仍失败则上报，由主机器人决定是否换机器人或终止任务。
+```bat
+ssh pi@<小车IP> "docker exec -d -w /home/ubuntu armpi_pro bash -lc 'bash /home/ubuntu/run_ascam_hp60c.sh > /tmp/ascam_run.log 2>&1'"
+```
 
-## 技术栈
+密码 `raspberrypi`（**输入时不显示字符**是正常的）。
 
-- **机器人操作系统**：ROS 2 Humble
-- **建图与定位**：SLAM Toolbox（2D）、Cartographer（可选）、AMCL
-- **导航**：Nav2
-- **视觉识别**：YOLOv8 + OpenCV + Intel RealSense深度相机
-- **机械臂控制**：MoveIt 2 + ROS 2 Control
-- **网页通信**：rosbridge_suite + roslibjs，后端FastAPI/Node.js
-- **任务分配**：自定义调度节点（Python/C++）
-- **通信中间件**：ROS 2 Topic/Service/Action，MQTT可选
+> 📖 **完整恢复清单（含三个"静默杀手"的规避方法）见 [`开机恢复.md`](开机恢复.md)**
 
-## 安装与运行
+---
 
-### 环境要求
+## 控制台功能
 
-- Ubuntu 22.04
-- ROS 2 Humble
-- Python 3.10+
-- 依赖库：`numpy`, `opencv-python`, `fastapi`, `uvicorn`, `rosbridge_suite` 等
+| 卡片 | 说明 |
+|---|---|
+| **摄像头** | 经 `web_video_server :8080` 看实时画面；可切换画面源、截图、备用播放（iframe） |
+| **底盘移动** | 麦克纳姆轮全向：前后左右 + 斜向 + 原地旋转；速度/角速度可调 |
+| **机械臂关节** | 6 个关节角度滑块（弧度）+ 全部回中 + 夹爪张开/闭合/走到该位置 |
+| **预设动作组** | 通过 `ActionGroupRunner` action 执行预录动作组（⚠️ 节点当前未跑，见已知问题） |
+| **视觉任务** | 调用 `std_srvs/Trigger` 开关视觉功能（巡线 / 颜色识别 / 目标跟踪等） |
+| **外设** | 蜂鸣器、LED、RGB 灯、摄像头开关 |
+| **自动送水编排** | 录制「去程 / 回程」路径 → 一键自动送水；支持放弃本次录制 |
+| **状态监控** | 电量、按键、角速度 Z、线加速度 X |
+| **日志** | 所有发布/服务调用/连接事件的滚动日志 |
 
-### 安装步骤
+**路径录制 → 回放 → 自动送水** 的工作方式：
 
-1. 安装ROS 2 Humble（参考[官方文档](https://docs.ros.org/en/humble/Installation.html)）
-2. 创建工作空间并克隆本项目：
-   ```bash
-   mkdir -p ~/robot_ws/src
-   cd ~/robot_ws/src
-   git clone https://github.com/your-repo/multi-robot-service.git
-   ```
-3. 安装依赖：
-   ```bash
-   cd ~/robot_ws
-   rosdep install --from-paths src --ignore-src -r -y
-   pip install -r src/multi-robot-service/requirements.txt
-   ```
-4. 编译：
-   ```bash
-   colcon build --symlink-install
-   source install/setup.bash
-   ```
+1. 点「录制」，手动遥控车走一遍**去程**，存为 `go`
+2. 同样录制**回程**，存为 `back`
+3. 点「自动送水」→ 车自动执行 去程 → 抓取（夹爪动作）→ 回程 → 放下
+4. 路径存在浏览器 `localStorage` 里，刷新不丢
 
-### 运行系统
+---
 
-1. **启动主机器人**（建图+调度）：
-   ```bash
-   ros2 launch master_robot master_bringup.launch.py
-   ```
-2. **启动工作机器人**（可启动多个，需修改命名空间）：
-   ```bash
-   ros2 launch worker_robot worker_bringup.launch.py robot_name:=worker1
-   ```
-3. **启动后端服务**：
-   ```bash
-   ros2 run web_backend backend_node
-   ```
-4. **启动网页前端**：
-   ```bash
-   cd web_frontend
-   npm install
-   npm start
-   ```
-5. 打开浏览器访问 `http://localhost:3000`，即可通过网页下达任务。
+## 关键话题与参数
 
-## 使用说明
+### 深度相机（安思疆 HP60C）
 
-- 在网页界面点击预设任务按钮（如“拿一杯水”）或输入自然语言指令。
-- 系统会自动解析并分配任务，用户可在页面查看机器人实时位置和任务状态。
-- 可随时点击“取消任务”按钮终止当前任务。
-- 紧急情况下可按下页面上的“急停”按钮，所有机器人立即停止。
+| 话题 | 类型 | 实测 |
+|---|---|---|
+| `/ascamera_hp60c/rgb0/image` | `sensor_msgs/Image` | 640×480 **bgr8**，step 1920，**~12.4 Hz** |
+| `/ascamera_hp60c/depth0/image_raw` | `sensor_msgs/Image` | 640×480 **16UC1**，step 1280，**单位 mm** |
+| `/ascamera_hp60c/depth0/points` | `PointCloud2` | — |
+| `/ascamera_hp60c/rgb0/camera_info`、`/depth0/camera_info` | `CameraInfo` | — |
 
-## 未来改进方向
+- `frame_id` = `ascamera_hp60c_color_0`
+- 深度实测：有效像素 39%，量程 263 ~ 1286 mm
 
-- **自然语言理解**：集成大语言模型，支持更复杂的指令解析。
-- **多用户权限管理**：支持多用户并发操作，设置不同权限级别。
-- **云端调度**：将调度和地图存储迁移至云端，支持多地点远程部署。
-- **强化学习优化**：使用强化学习优化任务分配和路径规划，提高效率。
-- **动态环境适应**：增强地图更新和物体位置跟踪能力，适应变化的环境。
+### 机械臂夹爪标定
 
-## 许可证
+```
+pulse = 700 + pos × 318.3        工作窗口 525 ~ 655
+GOPEN  = -0.14                   张开
+GCLOSE = -0.55                   闭合
+```
 
-本项目采用 MIT 许可证，详见 [LICENSE](LICENSE) 文件。
+### 视觉处理话题
 
-## 联系方式
+- `/visual_processing/image_result`
+- `/lab_config_manager/image_result`
+- `/object_tracking/image_result`、`/line_following/image_result`、`/hand_trajectory/image_result`
+  （具体有哪些取决于本次开机拉起的功能节点）
 
-如有问题或建议，请联系：463613510@qq.com
+---
 
+## 目录结构
+
+```
+D:\多车协作\
+├─ 启动控制台.bat            ← 一键启动（本地代理 + 浏览器）
+├─ robot_console.html        ← 控制台前端（单文件，内嵌 roslib.js 1.3.0）
+├─ proxy_server(1).py        ← 本地代理，转发视频流到小车 8080
+├─ 开机恢复.md               ← 关机后恢复步骤 + 排错速查
+├─ README.md                 ← 本文件
+│
+├─ 多车协作\                 ← 原厂资料 + 早期设计稿
+│  ├─ ReadMe.md 开发文档.md   （⚠️ ROS 2 设计稿，与实车不符）
+│  ├─ ROS1配置及使用\         ← 安思疆 HP60C 的 ROS1 SDK 资料包
+│  └─ 安思疆深度相机\
+│
+├─ ArmPi Pro麦轮智能小车\     ← 原厂教程 / 源码 / 镜像 / 硬件资料
+│
+├─ Many-Robot-Work-Together\ ← GitHub 备份仓库（见下）
+│
+└─ .workbuddy\
+   ├─ scripts\               ← 可复用工具（见下表）
+   ├─ memory\                ← 项目记忆（长期事实 + 每日工作日志）
+   └─ shots\                 ← 调试截图 / 抓帧
+```
+
+### GitHub 仓库结构
+
+仓库：<https://github.com/sususu123545/Many-Robot-Work-Together>
+
+```
+Many-Robot-Work-Together/
+├─ README.md                      ← 本文件
+├─ armpi_pro/                     ← 车端 ROS 源码 + 原厂软件（21 个功能包）
+├─ web_console/
+│  ├─ robot_console.html          ← ✅ 当前在用的控制台（rosbridge 直连版）
+│  ├─ proxy_server(1).py          ← ✅ 当前在用的本地代理
+│  ├─ 启动控制台.bat               ← ✅ 一键启动
+│  ├─ server.py                   ← ⚠️ 早期 FastAPI 版后端（未使用，留档）
+│  └─ static/index.html           ← ⚠️ 早期 FastAPI 版前端（未使用，留档）
+├─ car_setup/                     ← 车端部署用的定制文件
+│  ├─ run_ascam_hp60c.sh          ← 容器内启动 HP60C 相机节点
+│  └─ start_camera.launch         ← 已注释掉 usb_cam 的版本（防它抢占 /dev/video0）
+├─ docs/
+│  ├─ 开机恢复.md                  ← 关机后恢复 + 排错
+│  ├─ 开发文档.md                  ← 早期设计稿（与实车不符）
+│  └─ 设计稿-ROS2版.md             ← 早期 README（ROS 2 架构，与实车不符）
+└─ tools/                         ← 命令行工具
+   ├─ pi_run.py  pi_upload.py  pi_pull.py
+   ├─ car_grab.py  net_scan.py
+```
+
+> ⚠️ `web_console/server.py` + `static/index.html` 是**早期 FastAPI 版**（带 `SimAdapter` 模拟执行器），
+> 现已不维护。当前实际使用的是 `robot_console.html`（浏览器直连 rosbridge，无需后端进程）。
+
+### `.workbuddy\scripts\` 工具
+
+| 脚本 | 用途 |
+|---|---|
+| `pi_run.py` | 在车上执行命令（带超时、重试、部分输出保留） |
+| `pi_upload.py` | 上传文件到车上（SFTP 优先，sha256 校验） |
+| `pi_pull.py` | 从车上取文件（SFTP → base64 兜底，两端 sha256） |
+| `car_grab.py` | 从相机 MJPEG 流抓一帧存本地，**自动丢弃全黑的首帧** |
+| `net_scan.py` | 扫局域网找小车 |
+
+用法示例：
+
+```bat
+python .workbuddy\scripts\car_grab.py --ip 10.120.150.178 --out shots\cam.jpg
+python .workbuddy\scripts\pi_run.py --host 10.120.150.178 --cmd "ps -ef | grep ascamera"
+```
+
+---
+
+## 已知问题
+
+| # | 问题 | 影响 | 计划 |
+|---|---|---|---|
+| 1 | **相机节点不在开机自启链条里** | 每次重启/掉电都得手动 ssh 拉起 | ⭐ 最高优先，接进 `start_functions.launch` |
+| 2 | 「截图」按钮得到全黑图 | `/snapshot` 每次都新建订阅 → 命中 SDK 全黑的第 0 帧 | 改成用 canvas 从流里截 |
+| 3 | 深度图无法直接上网页 | `web_video_server` 编不了 `16UC1` | 需加「深度 → 伪彩 → bgr8」转色节点 |
+| 4 | 动作组不可用 | `ActionGroupRunner` 的 `/goal` 无订阅者，节点未跑 | 查明启动方式并验证 4 个动作组名 |
+| 5 | **供电欠压** | 高负载（编译 / 取流）时 `throttled` 跳到 `0x50005`，实测已因欠压掉电重启过一次 | 换 5V/3A 电源 + 带供电 USB Hub |
+| 6 | 小车 IP 每次开机都变 | 页面 IP 要手动改 | 可考虑给路由器配静态租约 |
+| 7 | `usb_cam` 曾抢占 `/dev/video0` | 导致深度相机打不开、画面花屏 | ✅ 已注释 `start_camera.launch`，已停用 |
+
+---
+
+## 开发路线
+
+```
+阶段 0  遥控 + 录制回放          ← 当前，基本可用
+   ↓
+阶段 1  加装 LD06 激光雷达 → SLAM 建图
+   ↓
+阶段 2  自主导航（move_base / 或 Nav2 移植）
+   ↓
+阶段 3  视觉识别物品与人 → 自主抓取与送达
+```
+
+**任务模型**（泛化后）：
+
+```
+{ 目标物品, 取货点, 目的地(座位 / 坐标 / 人) }
+```
+
+送水 = `{水瓶, 饮水机/桌面, 指定座位}` 的一个实例。
+
+**传感器组合**：LD06 雷达（负责平面 SLAM/导航）+ HP60C 深度相机（负责识别/避障/抓取）。
+2D 雷达只扫一个平面，盲区靠深度相机补。
+
+---
+
+## 排错
+
+**最完整的排错清单在 [`开机恢复.md`](开机恢复.md)**，这里列最常遇到的：
+
+| 现象 | 原因 | 处理 |
+|---|---|---|
+| 页面打不开 | 本地代理没起 | 双击 `启动控制台.bat` |
+| 页面能开，但「连接」失败 | 小车 IP 变了 | `ping raspberrypi` 查新 IP |
+| 连上了但没画面，角标在数重试 | 该话题没有发布者（相机节点没起） | 拉起相机节点；页面会自动重试 |
+| 画面全黑 | 同上，或命中 SDK 全黑首帧 | 点画面刷新；或换画面源验证链路 |
+| 「截图」是黑图 | 已知问题 #2 | 看实时画面即可 |
+
+**ssh 命令"发了却什么都没发生"** —— 三个静默杀手（详见 `开机恢复.md`）：
+
+1. 必须以 **root** 跑（`ubuntu` 用户不在 `video` 组 → `uvc_open:Access denied`）
+2. 脚本没有可执行权限 → **必须写 `bash <脚本>`**
+3. 日志重定向到 root 属主的旧文件 → 重定向在跑脚本前就失败，且 `-d` 会把错误吞掉
+
+---
+
+## 相关文档
+
+| 文档 | 内容 |
+|---|---|
+| [`开机恢复.md`](开机恢复.md) | 关机后恢复步骤 + 排错速查表 |
+| `多车协作\ReadMe.md`、`开发文档.md` | 早期 ROS 2 设计稿（**与实车不符，待改写**） |
+| `多车协作\ROS1配置及使用\` | 安思疆 HP60C 的 ROS1 SDK 官方资料 |
+| `ArmPi Pro麦轮智能小车\` | 原厂教程 / 源码 / 系统镜像 / 硬件资料 |
+| `Many-Robot-Work-Together\` | GitHub 备份仓库 |

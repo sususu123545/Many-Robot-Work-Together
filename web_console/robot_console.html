@@ -526,6 +526,7 @@ function drawLidar(){
     var a0 = m.angle_min, da = m.angle_increment;
     var rmin = m.range_min || 0.05, rmax = m.range_max || 12;
     var nValid = 0, nNoise = 0;
+    var keep = [];                     /* 通过过滤的点的屏幕坐标+索引, 用于连线 */
     for(i = 0; i < rs.length; i++){
       r = rs[i];
       if(!isFinite(r) || r < rmin || r > rmax) continue;
@@ -533,14 +534,31 @@ function drawLidar(){
       a = a0 + i*da;
       px = cx + Math.sin(a)*r*s;
       py = cy - Math.cos(a)*r*s;
-      /* 越近越亮绿, 越远越暗 */
-      var g = 120 + Math.round(135 * Math.max(0, 1 - r/lidarView));
-      ctx.fillStyle = 'rgb(40,'+g+',90)';
-      ctx.fillRect(px-1.2, py-1.2, 2.4, 2.4);
+      keep.push({x: px, y: py, i: i, r: r});
       nValid++;
     }
     lidarStat.pts = nValid; lidarStat.noise = nNoise;
     prevRanges = rs.slice();     /* 留给下一帧做时间滤波 */
+
+    /* 轮廓连线: 相邻(索引差≤4)且两点间距<0.45m 才连——墙连成线, 门洞/跳跃留缺口 */
+    ctx.strokeStyle = 'rgba(80,255,150,.55)'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    for(i = 1; i < keep.length; i++){
+      var p0 = keep[i-1], p1 = keep[i];
+      if(p1.i - p0.i > 4) continue;
+      var dx = p0.x - p1.x, dy = p0.y - p1.y;
+      if(dx*dx + dy*dy > 0.2025) continue;          /* 0.45m^2 */
+      ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y);
+    }
+    ctx.stroke();
+
+    /* 点画在连线上层, 近亮远暗 */
+    for(i = 0; i < keep.length; i++){
+      var kp = keep[i];
+      var g = 120 + Math.round(135 * Math.max(0, 1 - kp.r/lidarView));
+      ctx.fillStyle = 'rgb(40,'+g+',90)';
+      ctx.fillRect(kp.x-1.2, kp.y-1.2, 2.4, 2.4);
+    }
   } else {
     ctx.fillStyle = 'rgba(255,255,255,.25)'; ctx.font = '13px sans-serif';
     ctx.fillText(scanSub ? '等待 /scan 数据…（雷达节点在跑吗？）' : '未连接 rosbridge', cx-110, cy-40);

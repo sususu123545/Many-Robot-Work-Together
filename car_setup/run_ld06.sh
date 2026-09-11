@@ -37,9 +37,14 @@ source $WS/devel/setup.bash
 # --- 3. 设备检查（串口是 root:dialout，本脚本必须 root 跑）----
 echo "=== /dev/ttyUSB* ==="
 ls -l /dev/ttyUSB* 2>/dev/null || echo "(没有 /dev/ttyUSB* 节点)"
-echo "=== USB 里的 FTDI 串口 (0403:6001) ==="
-lsusb 2>/dev/null | grep -i "0403:6001" || echo "(未在 USB 上看到 FTDI FT232R)"
+echo "=== /dev/ld06 (udev 固定名, 见 /etc/udev/rules.d/99-ld06.rules) ==="
+ls -l /dev/ld06 2>/dev/null || echo "(/dev/ld06 不存在 → 回退 ttyUSB0)"
+
+# 固定端口名优先; 没有就回退 ttyUSB0
+PORT=/dev/ld06
+[ -e "$PORT" ] || PORT=/dev/ttyUSB0
+echo "=== 使用端口: $PORT ==="
 
 echo "=== launching ld06.launch (topic=/scan 230400) ==="
 cd $WS
-exec roslaunch ldlidar_stl_ros ld06.launch
+exec roslaunch ldlidar_stl_ros ld06.launch port_name:=$PORT

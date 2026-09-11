@@ -1,0 +1,7 @@
+# LD06 激光雷达 —— 按 FT232RL 序列号固定设备名
+# ⚠️ 实测同一块雷达换不同 FT232RL 转接板后序列号会变：
+#    2026-09-11 上午的板子 = A9M9DV3R；下午换的板子 = A50285BI
+#    每换一次板子就加一行（序列号用这条命令查：udevadm info -a -n /dev/ttyUSB0 | grep serial）
+# 效果: 无论枚举成 ttyUSB0/1/2..., 始终有 /dev/ld06 指向它; MODE 0666 让所有用户可读写
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", ATTRS{serial}=="A50285BI", SYMLINK+="ld06", MODE="0666"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", ATTRS{serial}=="A9M9DV3R", SYMLINK+="ld06", MODE="0666"

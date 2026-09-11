@@ -50,7 +50,7 @@
 | ROS | **ROS 1 Noetic**，全部跑在 Docker 容器 `armpi_pro` 里 |
 | 容器 | 镜像 `ros:noetic`，`Privileged=true`，Binds `/dev:/dev`（USB 设备插上即透传） |
 | 深度相机 | **安思疆 Angstrong Nuwa-HP60C**（单目结构光，USB ID `3482:6723`） |
-| 激光雷达 | **乐动 LDROBOT LD06**（✅ 2026-09-11 已装车跑通+开机自启；FT232RL 转 USB，udev 固定名为 **`/dev/ld06`** @230400；**接线：转接板 RX→雷达 DAT**，TX 悬空，CTL 悬空=全速） |
+| 激光雷达 | **乐动 LDROBOT LD06**（✅ 2026-09-11 已装车跑通+开机自启；FT232RL 转 USB，udev 固定名为 **`/dev/ld06`** @230400；**接线：转接板 RX→雷达 DAT、TX→雷达 CTL**——CTL 被拉高后电机闭环稳速 10 圈/s，悬空会疯转到 15 圈/s） |
 | 网络 | Wi-Fi，**IP 每次开机都可能变** |
 
 > ⚠️ **重要**：本项目的实车是 **ROS 1 + 单目/深度相机**，不是 ROS 2 + Nav2 + RealSense。

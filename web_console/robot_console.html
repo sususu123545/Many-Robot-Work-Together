@@ -108,7 +108,7 @@
   <!-- 连接 -->
   <div class="bar" data-page-node-id="lwDSBQ9ZnkcGAebuLbfsRf">
     <span style="font-size:13px;color:var(--muted)" data-page-node-id="KKwzOh4ZHa6TQf3thutxob">小车 IP</span>
-    <input id="ip" value="10.120.150.178" placeholder="例如 10.120.150.178" data-page-node-id="PPvQWWoB4JXHMBfb3MW1dG">
+    <input id="ip" value="10.169.210.178" placeholder="例如 10.169.210.178" data-page-node-id="PPvQWWoB4JXHMBfb3MW1dG">
     <button id="btnConn" class="primary" data-page-node-id="PQCTl9wRi3DDGktTa5ESuc">连接</button>
     <div class="status" data-page-node-id="YTqXcu2EvaCeO3iXDX8rPX"><span class="dot" id="dot" data-page-node-id="kn9HZEzFffbGVgrdiERaEp"></span><span id="stxt" data-page-node-id="LVFqgcfYggTEwMHqEzZDfA">未连接</span></div>
     <div style="flex:1" data-page-node-id="XjwGBHvLKZu9NdsiBCCrbD"></div>
@@ -134,6 +134,15 @@
           </select>
           <button id="btnSnap" data-page-node-id="Vnl7GuVMb1Jvm3sIKgAdpj">截图</button>
           <button id="btnIframe" data-page-node-id="btnIframeNode">备用播放</button>
+        </div>
+      </div>
+
+      <!-- 雷达 -->
+      <div class="card" id="lidarCard">
+        <h2>激光雷达 <span>LD06 · /scan · 10Hz</span></h2>
+        <div class="video-box" id="lidarBox" style="position:relative">
+          <canvas id="lidarCanvas" width="640" height="480" style="width:100%;display:block"></canvas>
+          <div id="lidarBadge" style="position:absolute;left:10px;top:10px;font-size:12px;padding:3px 9px;border-radius:9px;background:rgba(0,0,0,.55);color:#ddd">未连接</div>
         </div>
       </div>
 
@@ -341,7 +350,7 @@ if(typeof ROSLIB === 'undefined'){
     $('btnConn').textContent = '断开';
     enableAll(true);
     log('rosbridge 连接成功', 'ok');
-    startVideo(); subscribeStatus();
+    startVideo(); subscribeStatus(); startLidar();
   });
   ros.on('error', function(e){
     setConn(false, '连接失败'); log('连接错误: '+e, 'er');
@@ -350,6 +359,7 @@ if(typeof ROSLIB === 'undefined'){
     setConn(false, '连接断开');
     $('btnConn').textContent = '连接';
     enableAll(false);
+    stopLidar();
     log('连接已关闭');
   });
 };
@@ -418,6 +428,113 @@ $('btnSnap').onclick = function(){
     : 'http://'+ip+':8080/snapshot?topic='+encodeURIComponent($('vtopic').value);
   window.open(u, '_blank');
 };
+
+/* ---------- 激光雷达可视化 (/scan → canvas 极坐标图) ---------- */
+var scanSub = null, scanMsg = null, lidarView = 4;   /* lidarView = 当前视图半径(米), 自适应 */
+var lidarStat = { n: 0, t0: Date.now(), hz: 0, pts: 0 };
+
+function lidarBadge(txt, bg){
+  var b = $('lidarBadge');
+  b.textContent = txt; b.style.background = bg || 'rgba(0,0,0,.55)';
+}
+function startLidar(){
+  stopLidar();                       /* 防止重复订阅 */
+  if(!ros) return;
+  scanSub = new ROSLIB.Topic({ros: ros, name: '/scan', messageType: 'sensor_msgs/LaserScan', throttle_rate: 80});
+  scanSub.subscribe(function(m){ scanMsg = m; lidarStat.n++; });
+  lidarBadge('等待数据…');
+  log('已订阅 /scan');
+}
+function stopLidar(){
+  if(scanSub){ try{ scanSub.unsubscribe(); }catch(e){} scanSub = null; }
+  scanMsg = null;
+  lidarStat = { n: 0, t0: Date.now(), hz: 0, pts: 0 };
+}
+
+function drawLidar(){
+  var cv = $('lidarCanvas'), ctx = cv.getContext('2d');
+  var W = cv.width, H = cv.height, cx = W/2, cy = H/2;
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#111'; ctx.fillRect(0, 0, W, H);
+
+  var m = scanMsg, R = Math.min(W, H)/2 - 26;
+  var i, r, a, s, px, py;
+
+  /* 自适应量程: 目标=最大有效距离*1.15, 平滑跟随, 限制在 1.5~12m */
+  if(m && m.ranges && m.ranges.length){
+    var mx = 0;
+    for(i = 0; i < m.ranges.length; i++){
+      r = m.ranges[i];
+      if(isFinite(r) && r >= (m.range_min||0.05) && r <= (m.range_max||12) && r > mx) mx = r;
+    }
+    if(mx > 0){
+      var target = Math.min(12, Math.max(1.5, Math.ceil(mx*1.15)));
+      lidarView += (target - lidarView) * 0.08;
+    }
+  }
+  s = R / lidarView;
+
+  /* 背景网格: 1m 间距的圈 + 每30°一条辐条 */
+  ctx.strokeStyle = 'rgba(255,255,255,.07)'; ctx.lineWidth = 1;
+  for(var ring = 1; ring <= Math.floor(lidarView+0.001); ring++){
+    ctx.beginPath(); ctx.arc(cx, cy, ring*s, 0, 6.2832); ctx.stroke();
+  }
+  for(i = 0; i < 12; i++){
+    a = i * Math.PI/6;
+    ctx.beginPath(); ctx.moveTo(cx, cy);
+    ctx.lineTo(cx + Math.sin(a)*R, cy - Math.cos(a)*R); ctx.stroke();
+  }
+  /* 距离标尺数字 */
+  ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.font = '10px monospace';
+  for(ring = 1; ring <= Math.floor(lidarView+0.001); ring++){
+    ctx.fillText(ring+'m', cx + 3, cy - ring*s + 11);
+  }
+
+  /* 车体(中心小三角, 车头朝上) */
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.moveTo(cx, cy-9); ctx.lineTo(cx-6, cy+7); ctx.lineTo(cx+6, cy+7);
+  ctx.closePath(); ctx.fill();
+
+  /* 扫描点: ROS 约定 angle=0 为车头正前, 逆时针为正; 屏幕上=车头向上 */
+  if(m && m.ranges && m.ranges.length){
+    var a0 = m.angle_min, da = m.angle_increment;
+    var rmin = m.range_min || 0.05, rmax = m.range_max || 12;
+    var nValid = 0;
+    for(i = 0; i < m.ranges.length; i++){
+      r = m.ranges[i];
+      if(!isFinite(r) || r < rmin || r > rmax) continue;
+      a = a0 + i*da;
+      px = cx + Math.sin(a)*r*s;
+      py = cy - Math.cos(a)*r*s;
+      /* 越近越亮绿, 越远越暗 */
+      var g = 120 + Math.round(135 * Math.max(0, 1 - r/lidarView));
+      ctx.fillStyle = 'rgb(40,'+g+',90)';
+      ctx.fillRect(px-1.2, py-1.2, 2.4, 2.4);
+      nValid++;
+    }
+    lidarStat.pts = nValid;
+  } else {
+    ctx.fillStyle = 'rgba(255,255,255,.25)'; ctx.font = '13px sans-serif';
+    ctx.fillText(scanSub ? '等待 /scan 数据…（雷达节点在跑吗？）' : '未连接 rosbridge', cx-110, cy-40);
+  }
+
+  /* 角标: 每秒刷新一次频率信息 */
+  var now = Date.now();
+  if(now - lidarStat.t0 >= 1000){
+    lidarStat.hz = lidarStat.n * 1000 / (now - lidarStat.t0);
+    lidarStat.n = 0; lidarStat.t0 = now;
+  }
+  if(scanSub){
+    lidarBadge('● /scan ' + lidarStat.pts + ' 点 · ' + lidarStat.hz.toFixed(1) + ' Hz · 视图 ' + lidarView.toFixed(1) + 'm',
+               lidarStat.pts > 0 ? 'rgba(20,140,60,.75)' : 'rgba(200,120,0,.75)');
+  } else {
+    lidarBadge('未连接');
+  }
+  requestAnimationFrame(drawLidar);
+}
+requestAnimationFrame(drawLidar);   /* 页面打开就画空雷达底图 */
+
 
 /* ---------- 底盘 ---------- */
 var SPD = 60, ANG = 0.5;   /* SPD 单位 mm/s（官方 demo 用 60） */

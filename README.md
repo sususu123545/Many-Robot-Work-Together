@@ -295,11 +295,6 @@ python .workbuddy\scripts\pi_run.py --host 10.120.150.178 --cmd "ps -ef | grep a
 | 5 | **供电欠压** | 高负载（编译 / 取流）时 `throttled` 跳到 `0x50005`，实测已因欠压掉电重启过一次 | 换 5V/3A 电源 + 带供电 USB Hub |
 | 6 | 小车 IP 每次开机都变 | 页面 IP 要手动改 | 可考虑给路由器配静态租约 |
 | 7 | `usb_cam` 曾抢占 `/dev/video0` | 导致深度相机打不开、画面花屏 | ✅ 已注释 `start_camera.launch`，已停用 |
-| 8 | ~~重复启动脚本会自己把自己搞死~~ | ~~`uvc_open:Busy` + 同名节点互杀，两个都废~~ | ✅ 已修：`run_ascam_hp60c.sh` 改为**幂等**，启动前自动清场，反复执行安全 |
-
-> 💡 排查相机时注意两点：
-> **① 数进程用 `pgrep -x ascamera_node`**，别用 `ps -ef | egrep … | egrep -v egrep`（会多算 1 个）。
-> **② `/dev/video0` 不是固定编号**，反复开关后可能只剩 `video10~video31`，相机照样能用，别据此判故障。
 
 ---
 

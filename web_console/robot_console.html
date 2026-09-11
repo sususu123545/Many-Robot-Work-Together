@@ -431,7 +431,8 @@ $('btnSnap').onclick = function(){
 
 /* ---------- 激光雷达可视化 (/scan → canvas 极坐标图) ---------- */
 var scanSub = null, scanMsg = null, lidarView = 4;   /* lidarView = 当前视图半径(米), 自适应 */
-var lidarStat = { n: 0, t0: Date.now(), hz: 0, pts: 0 };
+var prevRanges = null;                               /* 上一帧原始 ranges, 用于时间滤波 */
+var lidarStat = { n: 0, t0: Date.now(), hz: 0, pts: 0, noise: 0 };
 
 function lidarBadge(txt, bg){
   var b = $('lidarBadge');
@@ -447,8 +448,31 @@ function startLidar(){
 }
 function stopLidar(){
   if(scanSub){ try{ scanSub.unsubscribe(); }catch(e){} scanSub = null; }
-  scanMsg = null;
-  lidarStat = { n: 0, t0: Date.now(), hz: 0, pts: 0 };
+  scanMsg = null; prevRanges = null;
+  lidarStat = { n: 0, t0: Date.now(), hz: 0, pts: 0, noise: 0 };
+}
+
+/* 噪点判定: 空间(孤立凸起) 且 时间(上一帧同角度没有点) → 丢弃 */
+function isNoise(rs, i, rmin, rmax){
+  var r = rs[i], n = rs.length;
+  /* --- 空间: 比左右最近的有效邻居都远 30%+0.12m 才算孤立 --- */
+  var spatial = false, found = false;
+  var jl = i-1;
+  while(jl >= 0 && jl >= i-4){ if(isFinite(rs[jl]) && rs[jl] >= rmin && rs[jl] <= rmax){ found = true; break; } jl--; }
+  if(found && r > rs[jl]*1.3 + 0.12) spatial = true; else if(found) return false;
+  found = false;
+  var jr = i+1;
+  while(jr < n && jr <= i+4){ if(isFinite(rs[jr]) && rs[jr] >= rmin && rs[jr] <= rmax){ found = true; break; } jr++; }
+  if(found && r > rs[jr]*1.3 + 0.12) spatial = true; else if(found) return false;
+  if(!found && !spatial) return false;      /* 两侧都没邻居: 保留(视野边缘) */
+  /* --- 时间: 上一帧 ±2 索引内有距离相近(±0.25m)的点 → 真实, 保留 --- */
+  if(prevRanges && prevRanges.length === n){
+    for(var j = Math.max(0,i-2); j <= Math.min(n-1,i+2); j++){
+      var pr = prevRanges[j];
+      if(isFinite(pr) && pr >= rmin && pr <= rmax && Math.abs(r-pr) <= 0.25) return false;
+    }
+  }
+  return true;   /* 空间孤立 且 上一帧没有 → 噪点 */
 }
 
 function drawLidar(){
@@ -498,12 +522,14 @@ function drawLidar(){
 
   /* 扫描点: ROS 约定 angle=0 为车头正前, 逆时针为正; 屏幕上=车头向上 */
   if(m && m.ranges && m.ranges.length){
+    var rs = m.ranges;
     var a0 = m.angle_min, da = m.angle_increment;
     var rmin = m.range_min || 0.05, rmax = m.range_max || 12;
-    var nValid = 0;
-    for(i = 0; i < m.ranges.length; i++){
-      r = m.ranges[i];
+    var nValid = 0, nNoise = 0;
+    for(i = 0; i < rs.length; i++){
+      r = rs[i];
       if(!isFinite(r) || r < rmin || r > rmax) continue;
+      if(isNoise(rs, i, rmin, rmax)){ nNoise++; continue; }   /* 噪点丢弃 */
       a = a0 + i*da;
       px = cx + Math.sin(a)*r*s;
       py = cy - Math.cos(a)*r*s;
@@ -513,7 +539,8 @@ function drawLidar(){
       ctx.fillRect(px-1.2, py-1.2, 2.4, 2.4);
       nValid++;
     }
-    lidarStat.pts = nValid;
+    lidarStat.pts = nValid; lidarStat.noise = nNoise;
+    prevRanges = rs.slice();     /* 留给下一帧做时间滤波 */
   } else {
     ctx.fillStyle = 'rgba(255,255,255,.25)'; ctx.font = '13px sans-serif';
     ctx.fillText(scanSub ? '等待 /scan 数据…（雷达节点在跑吗？）' : '未连接 rosbridge', cx-110, cy-40);
@@ -526,7 +553,7 @@ function drawLidar(){
     lidarStat.n = 0; lidarStat.t0 = now;
   }
   if(scanSub){
-    lidarBadge('● /scan ' + lidarStat.pts + ' 点 · ' + lidarStat.hz.toFixed(1) + ' Hz · 视图 ' + lidarView.toFixed(1) + 'm',
+    lidarBadge('● /scan ' + lidarStat.pts + ' 点 · ' + lidarStat.hz.toFixed(1) + ' Hz · 滤除噪点 ' + lidarStat.noise + ' · 视图 ' + lidarView.toFixed(1) + 'm',
                lidarStat.pts > 0 ? 'rgba(20,140,60,.75)' : 'rgba(200,120,0,.75)');
   } else {
     lidarBadge('未连接');
@@ -534,6 +561,7 @@ function drawLidar(){
   requestAnimationFrame(drawLidar);
 }
 requestAnimationFrame(drawLidar);   /* 页面打开就画空雷达底图 */
+
 
 
 /* ---------- 底盘 ---------- */

@@ -146,6 +146,15 @@
         </div>
       </div>
 
+      <!-- SLAM 地图 -->
+      <div class="card" id="mapCard">
+        <h2>SLAM 建图 <span>hector · /map</span></h2>
+        <div class="video-box" id="mapBox" style="position:relative">
+          <canvas id="mapCanvas" width="640" height="480" style="width:100%;display:block"></canvas>
+          <div id="mapBadge" style="position:absolute;left:10px;top:10px;font-size:12px;padding:3px 9px;border-radius:9px;background:rgba(0,0,0,.55);color:#ddd">未连接</div>
+        </div>
+      </div>
+
       <!-- 底盘 -->
       <div class="card" data-page-node-id="wLMdtji5GFs7u58ixjjZB1">
         <h2 data-page-node-id="w4h3DAy5B1O2jKkHFiuuI7">底盘移动 <span data-page-node-id="fqARceIwNqExSdsoQAGZG5">麦克纳姆轮 · 全向</span></h2>
@@ -350,7 +359,7 @@ if(typeof ROSLIB === 'undefined'){
     $('btnConn').textContent = '断开';
     enableAll(true);
     log('rosbridge 连接成功', 'ok');
-    startVideo(); subscribeStatus(); startLidar();
+    startVideo(); subscribeStatus(); startLidar(); startMap();
   });
   ros.on('error', function(e){
     setConn(false, '连接失败'); log('连接错误: '+e, 'er');
@@ -359,7 +368,7 @@ if(typeof ROSLIB === 'undefined'){
     setConn(false, '连接断开');
     $('btnConn').textContent = '连接';
     enableAll(false);
-    stopLidar();
+    stopLidar(); stopMap();
     log('连接已关闭');
   });
 };
@@ -579,6 +588,108 @@ function drawLidar(){
   requestAnimationFrame(drawLidar);
 }
 requestAnimationFrame(drawLidar);   /* 页面打开就画空雷达底图 */
+
+/* ---------- SLAM 地图 (/map + /poseupdate → canvas) ---------- */
+var mapSub = null, poseSub = null, mapMsg = null, poseMsg = null;
+var mapStat = { n: 0, t0: Date.now(), hz: 0 };
+var mapOff = document.createElement('canvas');   /* 离屏画布: 1 cell = 1 px */
+
+function mapBadge(txt, bg){
+  var b = $('mapBadge');
+  b.textContent = txt; b.style.background = bg || 'rgba(0,0,0,.55)';
+}
+function startMap(){
+  stopMap();
+  if(!ros) return;
+  mapSub = new ROSLIB.Topic({ros: ros, name: '/map', messageType: 'nav_msgs/OccupancyGrid', throttle_rate: 1500});
+  mapSub.subscribe(function(m){ mapMsg = m; mapStat.n++; });
+  poseSub = new ROSLIB.Topic({ros: ros, name: '/poseupdate', messageType: 'geometry_msgs/PoseWithCovarianceStamped', throttle_rate: 200});
+  poseSub.subscribe(function(m){ poseMsg = m; });
+  mapBadge('等待地图数据…');
+  log('已订阅 /map + /poseupdate');
+}
+function stopMap(){
+  if(mapSub){ try{ mapSub.unsubscribe(); }catch(e){} mapSub = null; }
+  if(poseSub){ try{ poseSub.unsubscribe(); }catch(e){} poseSub = null; }
+  mapMsg = null; poseMsg = null;
+  mapStat = { n: 0, t0: Date.now(), hz: 0 };
+}
+
+function drawMap(){
+  var cv = $('mapCanvas'), ctx = cv.getContext('2d');
+  var W = cv.width, H = cv.height;
+  ctx.fillStyle = '#141414'; ctx.fillRect(0, 0, W, H);
+
+  var m = mapMsg;
+  if(m && m.info && m.data && m.info.width > 0){
+    var iw = m.info.width, ih = m.info.height, res = m.info.resolution;
+    var org = m.info.origin;
+    /* 离屏 1:1 渲染栅格 */
+    if(mapOff.width !== iw || mapOff.height !== ih){ mapOff.width = iw; mapOff.height = ih; }
+    var octx = mapOff.getContext('2d');
+    var img = octx.createImageData(iw, ih);
+    var d = img.data, dd = m.data;
+    for(var row = 0; row < ih; row++){
+      var src = (ih-1-row) * iw;          /* data 行序从下往上 */
+      for(var col = 0; col < iw; col++){
+        var v = dd[src + col], o = (row*iw + col) * 4;
+        if(v === -1){ d[o]=58; d[o+1]=58; d[o+2]=58; }        /* 未知 深灰 */
+        else if(v === 0){ d[o]=238; d[o+1]=238; d[o+2]=238; } /* 自由 白 */
+        else {                                                 /* 占用/置信: 黑~深红 */
+          var c = Math.max(0, 100-v)/100;
+          d[o]   = 40 + Math.round(c*180);
+          d[o+1] = 40;
+          d[o+2] = 40;
+        }
+        d[o+3] = 255;
+      }
+    }
+    octx.putImageData(img, 0, 0);
+
+    /* 适配画布(保持方形), 居中 */
+    var sc = Math.min(W, H) * 0.96 / Math.max(iw, ih);
+    var ox = (W - iw*sc)/2, oy = (H - ih*sc)/2;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(mapOff, ox, oy, iw*sc, ih*sc);
+
+    /* 机器人: /poseupdate (map 系) → 屏 */
+    if(poseMsg && poseMsg.pose && poseMsg.pose.pose){
+      var p = poseMsg.pose.pose.position;
+      var q = poseMsg.pose.pose.orientation;
+      var yaw = Math.atan2(2*(q.w*q.z + q.x*q.y), 1 - 2*(q.y*q.y + q.z*q.z));
+      var rx = ox + ((p.x - org.x)/res) * sc;
+      var ry = oy + (ih - (p.y - org.y)/res) * sc;
+      if(rx >= 0 && rx < W && ry >= 0 && ry < H){
+        ctx.save();
+        ctx.translate(rx, ry); ctx.rotate(-yaw);   /* 屏幕 y 向下, 转向取反 */
+        ctx.fillStyle = '#ffd54a';
+        ctx.beginPath();
+        ctx.moveTo(0, -9); ctx.lineTo(-6, 7); ctx.lineTo(6, 7);
+        ctx.closePath(); ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    var now = Date.now();
+    if(now - mapStat.t0 >= 1500){
+      mapStat.hz = mapStat.n * 1000 / (now - mapStat.t0);
+      mapStat.n = 0; mapStat.t0 = now;
+    }
+    var pt = poseMsg && poseMsg.pose && poseMsg.pose.pose ? poseMsg.pose.pose.position : null;
+    mapBadge('● 地图 ' + iw + '×' + ih + ' · ' + res.toFixed(2) + 'm/格 · 更新 ' + mapStat.hz.toFixed(1) + 'Hz' +
+             (pt ? ' · 机器人 (' + pt.x.toFixed(2) + ', ' + pt.y.toFixed(2) + ')m' : ''),
+             'rgba(20,140,60,.75)');
+  } else {
+    ctx.fillStyle = 'rgba(255,255,255,.25)'; ctx.font = '13px sans-serif';
+    ctx.fillText(scanSub || mapSub ? '等待 /map 数据…（hector 建图节点在跑吗？）' : '未连接 rosbridge', cx0(), cy0());
+    mapBadge('未连接');
+  }
+  function cx0(){ return W/2 - 110; }
+  function cy0(){ return H/2 - 40; }
+  requestAnimationFrame(drawMap);
+}
+requestAnimationFrame(drawMap);
+
 
 
 

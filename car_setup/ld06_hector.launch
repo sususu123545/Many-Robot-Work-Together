@@ -16,7 +16,7 @@
     <param name="map_resolution" value="$(arg map_resolution)"/>
     <param name="map_update_distance_thresh" value="0.04"/>
     <param name="map_update_angle_thresh"    value="0.08"/>
-    <param name="laser_min_dist" value="0.15"/>
+    <param name="laser_min_dist" value="0.35"/>  <!-- 0.15→0.35: 滤掉机械臂 0.15~0.3m 自遮挡回波, 否则推车时沿路径画黑点 -->
     <param name="laser_max_dist" value="12.0"/>
   </node>
 </launch>

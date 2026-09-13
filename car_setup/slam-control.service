@@ -1,0 +1,16 @@
+[Unit]
+Description=SLAM control node (docker exec into armpi_pro)
+# 跟在 docker / 车主服务 / 雷达后面启动; 容器由 docker 拉起
+Requires=docker.service
+After=docker.service start_node.service ld06.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# 等 rosmaster 就绪(最多 120s); 等不到也照样执行(脚本幂等, 日志留痕)
+ExecStartPre=/bin/sh -c 'i=0; while [ $i -lt 60 ]; do docker exec armpi_pro pgrep -f "[r]osmaster" >/dev/null 2>&1 && exit 0; i=$((i+1)); sleep 2; done; exit 0'
+# 幂等与启动逻辑收进容器内脚本 run_slam_control.sh（锚定 pgrep 防自匹配误判）
+ExecStart=/usr/bin/docker exec -d -w /home/ubuntu armpi_pro bash /home/ubuntu/run_slam_control.sh
+
+[Install]
+WantedBy=multi-user.target

@@ -153,6 +153,14 @@
           <canvas id="mapCanvas" width="640" height="480" style="width:100%;display:block"></canvas>
           <div id="mapBadge" style="position:absolute;left:10px;top:10px;font-size:12px;padding:3px 9px;border-radius:9px;background:rgba(0,0,0,.55);color:#ddd">未连接</div>
         </div>
+        <div class="row" style="margin-top:11px">
+          <button id="btnSlamStart" class="primary" disabled>开始建图</button>
+          <button id="btnSlamStop" class="danger" disabled>结束建图</button>
+          <label for="mapName" style="min-width:auto">地图名</label>
+          <input id="mapName" placeholder="留空自动命名" style="width:130px;padding:6px 9px;border:1px solid var(--line);border-radius:6px;font-size:13px;color:var(--text)">
+          <button id="btnSlamSave" disabled>保存地图</button>
+        </div>
+        <div class="hint" id="slamHint">控制节点离线。用法：开始建图 → 慢慢推车走一圈 → 保存地图 → 结束建图。推车要慢、别原地猛转；别让 hector 静置空转（会漂移）。</div>
       </div>
 
       <!-- 底盘 -->
@@ -325,7 +333,9 @@ function enableAll(on){
   }
 }
 function topic(name, type){
-  if(!PUB[name]) PUB[name] = new ROSLIB.Topic({ros:ros, name:name, messageType:type});
+  /* 缓存的话题必须绑定当前 ros 实例 —— 断开重连后 ros 是新对象,
+     复用旧 Topic 会把 publish 发进已关闭的 socket(日志照打, 实际全丢) */
+  if(!PUB[name] || PUB[name].ros !== ros) PUB[name] = new ROSLIB.Topic({ros:ros, name:name, messageType:type});
   return PUB[name];
 }
 function pub(name, type, msg){
@@ -359,7 +369,7 @@ if(typeof ROSLIB === 'undefined'){
     $('btnConn').textContent = '断开';
     enableAll(true);
     log('rosbridge 连接成功', 'ok');
-    startVideo(); subscribeStatus(); startLidar(); startMap();
+    startVideo(); subscribeStatus(); startLidar(); startMap(); subscribeSlam();
   });
   ros.on('error', function(e){
     setConn(false, '连接失败'); log('连接错误: '+e, 'er');
@@ -368,7 +378,7 @@ if(typeof ROSLIB === 'undefined'){
     setConn(false, '连接断开');
     $('btnConn').textContent = '连接';
     enableAll(false);
-    stopLidar(); stopMap();
+    stopLidar(); stopMap(); unsubscribeSlam();
     log('连接已关闭');
   });
 };
@@ -629,10 +639,15 @@ function drawMap(){
     var octx = mapOff.getContext('2d');
     var img = octx.createImageData(iw, ih);
     var d = img.data, dd = m.data;
+    var b = {c0:iw, c1:-1, r0:ih, r1:-1};   /* 已知格(非unknown)的包围盒 */
     for(var row = 0; row < ih; row++){
       var src = (ih-1-row) * iw;          /* data 行序从下往上 */
       for(var col = 0; col < iw; col++){
         var v = dd[src + col], o = (row*iw + col) * 4;
+        if(v !== -1){
+          if(col<b.c0)b.c0=col; if(col>b.c1)b.c1=col;
+          if(row<b.r0)b.r0=row; if(row>b.r1)b.r1=row;
+        }
         if(v === -1){ d[o]=58; d[o+1]=58; d[o+2]=58; }        /* 未知 深灰 */
         else if(v === 0){ d[o]=238; d[o+1]=238; d[o+2]=238; } /* 自由 白 */
         else {                                                 /* 占用/置信: 黑~深红 */
@@ -646,9 +661,18 @@ function drawMap(){
     }
     octx.putImageData(img, 0, 0);
 
-    /* 适配画布(保持方形), 居中 */
-    var sc = Math.min(W, H) * 0.96 / Math.max(iw, ih);
-    var ox = (W - iw*sc)/2, oy = (H - ih*sc)/2;
+    /* 自适应缩放: 有已知区域时聚焦已知区域(周围全是未知背景, 没必要占满画面);
+       上限 12px/格, 防止小地图糊脸放大 */
+    var sc, ox, oy;
+    if(b.c1 >= b.c0 && b.r1 >= b.r0){
+      var fw = b.c1 - b.c0 + 1, fh = b.r1 - b.r0 + 1;
+      sc = Math.min(W*0.96/fw, H*0.96/fh, 12);
+      ox = W/2 - (b.c0 + fw/2)*sc;
+      oy = H/2 - (b.r0 + fh/2)*sc;
+    } else {
+      sc = Math.min(W, H) * 0.96 / Math.max(iw, ih);
+      ox = (W - iw*sc)/2, oy = (H - ih*sc)/2;
+    }
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(mapOff, ox, oy, iw*sc, ih*sc);
 
@@ -682,13 +706,92 @@ function drawMap(){
   } else {
     ctx.fillStyle = 'rgba(255,255,255,.25)'; ctx.font = '13px sans-serif';
     ctx.fillText(scanSub || mapSub ? '等待 /map 数据…（hector 建图节点在跑吗？）' : '未连接 rosbridge', cx0(), cy0());
-    mapBadge('未连接');
+    mapBadge(scanSub || mapSub ? '等待地图数据…' : '未连接');
   }
   function cx0(){ return W/2 - 110; }
   function cy0(){ return H/2 - 40; }
   requestAnimationFrame(drawMap);
 }
 requestAnimationFrame(drawMap);
+
+/* ---------- SLAM 控制 (开始/结束/保存 → /slam_control/*) ---------- */
+var slamStatusSub = null;
+var slamAlive = false;        // 控制节点在线（心跳新鲜）
+var slamRunning = false;      // hector 在跑
+var slamBusy = false;         // 节点正在执行某个命令
+var slamLastTs = 0;           // 最后一次收到 status 的本地时间
+var slamLoggedKey = '';       // 防止同一条状态重复刷日志
+
+function updateSlamButtons(){
+  var conn = !!ros;
+  $('btnSlamStart').disabled = !(conn && slamAlive && !slamRunning && !slamBusy);
+  $('btnSlamStop').disabled  = !(conn && slamAlive &&  slamRunning && !slamBusy);
+  $('btnSlamSave').disabled  = !(conn && slamAlive &&  slamRunning && !slamBusy);
+}
+function setSlamHint(txt, color){
+  var h = $('slamHint');
+  h.textContent = txt;
+  h.style.color = color || 'var(--muted)';
+}
+function subscribeSlam(){
+  if(slamStatusSub){ try{ slamStatusSub.unsubscribe(); }catch(e){} slamStatusSub = null; }
+  if(!ros) return;
+  slamAlive = false; slamRunning = false; slamBusy = false; slamLastTs = 0;
+  slamLoggedKey = '';
+  updateSlamButtons();
+  setSlamHint('等待控制节点心跳…（车上 /slam_control 节点在跑吗？）');
+  slamStatusSub = new ROSLIB.Topic({ros: ros, name: '/slam_control/status', messageType: 'std_msgs/String', throttle_rate: 1000});
+  slamStatusSub.subscribe(function(m){
+    slamLastTs = Date.now();
+    try{
+      var s = JSON.parse(m.data);
+      var wasAlive = slamAlive;
+      slamAlive = true;
+      slamRunning = !!s.running;
+      slamBusy = !!s.busy;
+      var txt = '控制节点在线 · ' + (s.last || '');
+      if(s.detail) txt += ' — ' + s.detail;
+      var color = 'var(--muted)';
+      if(s.last && s.last.indexOf('失败') >= 0) color = 'var(--err)';
+      else if(s.last && (s.last.indexOf('异常') >= 0)) color = 'var(--err)';
+      else if(s.last && (s.last.indexOf('已保存') >= 0 || s.last.indexOf('已启动') >= 0 || s.last.indexOf('已停止') >= 0)) color = 'var(--ok)';
+      setSlamHint(txt, color);
+      var key = (s.last || '') + '|' + (s.detail || '');
+      if(key !== slamLoggedKey){
+        slamLoggedKey = key;
+        if(!wasAlive) log('slam_control 节点在线', 'ok');
+        if(s.last && s.last.indexOf('已保存') >= 0) log('地图已保存: ' + s.detail, 'ok');
+        else if(s.last && (s.last.indexOf('失败') >= 0 || s.last.indexOf('异常') >= 0)) log('SLAM: ' + s.last + ' ' + (s.detail || ''), 'er');
+      }
+    }catch(e){}
+    updateSlamButtons();
+  });
+}
+function unsubscribeSlam(){
+  if(slamStatusSub){ try{ slamStatusSub.unsubscribe(); }catch(e){} slamStatusSub = null; }
+  slamAlive = false; slamRunning = false; slamBusy = false;
+  updateSlamButtons();
+}
+/* 心跳看门狗：5s 没收到 status 视为节点离线 */
+setInterval(function(){
+  if(!ros) return;
+  if(slamAlive && slamLastTs && Date.now() - slamLastTs > 5000){
+    slamAlive = false; slamRunning = false; slamBusy = false;
+    setSlamHint('控制节点离线 — 需在车上启动 slam_control 节点', 'var(--warn)');
+    log('slam_control 节点心跳超时，判定离线', 'er');
+    updateSlamButtons();
+  }
+}, 2000);
+function slamCmd(c){
+  if(!ros) return;
+  pub('/slam_control/cmd', 'std_msgs/String', {data: c});
+}
+$('btnSlamStart').onclick = function(){ slamCmd('start'); };
+$('btnSlamStop').onclick  = function(){ slamCmd('stop'); };
+$('btnSlamSave').onclick  = function(){
+  var n = $('mapName').value.trim();
+  slamCmd(n ? 'save:' + n : 'save');
+};
 
 
 

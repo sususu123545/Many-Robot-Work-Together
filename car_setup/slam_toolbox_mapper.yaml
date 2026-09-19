@@ -28,8 +28,9 @@ throttle_scans: 1
 transform_publish_period: 0.02   # 50Hz 发 map->odom
 map_update_interval: 2.0         # 每 2s 出一版 /map
 resolution: 0.05                 # 与 hector 一致
-max_laser_range: 8.0             # ⭐ 09-18 由 12.0 降到 8.0: LD06 室内有效距离约 6~8m,
-                                 #    12m 会把远处噪点全收进来 -> 地图散射/放射状白线
+max_laser_range: 10.0            # ⭐ 09-19 由 8.0 提到 10.0: 空旷区墙都 >8m 全被丢弃
+                                 #    → 扫描匹配无特征 → 位姿冻结 → 地图不更新(用户实测)
+                                 #    10m 是"保特征"与"滤远噪"的折中
 min_laser_range: 0.40            # ⭐ 09-18 由 0.35 提到 0.40: 实测 <0.35m 有车体自射
                                  #    (318°~324° 有 8 个 0.06~0.08m 的固定点)
 minimum_time_interval: 0.1

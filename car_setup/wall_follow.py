@@ -68,19 +68,22 @@ class P(object):
     turn_rate = 0.25           # 转向角速度 rad/s (低速, 降打滑)
     target_wall_dist = 0.55    # 目标墙距 m
     wall_kp = 60.0             # 墙距 P 增益 (mm/s per m)
-    front_slow_dist = 0.80     # 前距小于此开始减速 m
-    front_turn_dist = 0.45     # 前距小于此进入 TURN m
-    front_clear_dist = 0.65    # TURN 中前距大于此回 FOLLOW m
+    front_slow_dist = 1.0      # 前距小于此开始减速 m (09-19 由 0.8 提高: 更早减速)
+    front_turn_dist = 0.55     # 前距小于此进入 TURN m (09-19 由 0.45 加硬)
+    front_clear_dist = 0.75    # TURN 中前距大于此回 FOLLOW m
     wall_lost_dist = 1.05      # 侧距大于此视为墙丢失 m
     wall_lost_secs = 6.0       # 墙丢失持续 -> 向墙侧转
-    estop_dist = 0.16          # 急停距离 m
+    estop_dist = 0.20          # 急停距离 m (09-19 由 0.16 加硬: 实测撞家具腿)
     min_valid_range = 0.10     # 滤车体自射 (实测 0.06~0.08m)
     max_valid_range = 8.0
     # ⭐ 车体自射方位屏蔽(扫描坐标系角度, 09-19 多帧实测 72 帧):
-    #    310°~330° 线缆/支架 0.06m (371 hits) —— 主遮挡, 落急停锥内会触发假急停
-    #    240°~270° 右侧结构 0.081m (16 hits) —— 次遮挡, 污染右侧墙距测量
-    #    两侧各留 ±4° 余量。此区间内读数一律丢弃。
+    #    310°~330° 线缆/支架 0.06m (371 hits) —— 主遮挡
+    #    240°~270° 右侧结构 0.081m (16 hits) —— 次遮挡
+    # ⭐⭐ 09-19 二修: 这些自射读数全部 <0.12m (贴着雷达的结构),
+    #    所以屏蔽带内只丢 <mask_max_range 的读数、保留远处读数——
+    #    否则右前斜方(沿右墙最先撞家具腿的方向)会被整个戳瞎!
     self_mask = [(306.0, 334.0), (236.0, 274.0)]
+    mask_max_range = 0.12      # 屏蔽带内只丢 <此距离 的读数
     loop_close_dist = 0.5      # 距起点小于此(且路程足够) → DONE
     min_path_len = 5.0         # DONE 所需最小路程 m
     max_seconds = 300          # 总超时
@@ -182,21 +185,20 @@ class WallFollower(object):
             return None
         lyaw = self.laser_yaw_offset()
         side = P.wall_side  # +1 右墙(负方位角侧)
-        # 扇区(车体方位角, 度) —— 已避开 self_mask 遮挡带:
-        #   右墙侧墙距用 -87..-66°(=扫描 273..294°, 实测干净窗口);
-        #   front_side 拆两段, 绕过 306..334° 遮挡带。
+        # 扇区(车体方位角, 度) —— self_mask 现在只丢 <0.12m 的近读数,
+        # 远处读数全保留, 扇区不再需要避让遮挡带(右前斜方视野恢复)
         if side > 0:
             secs = {
                 'front':      [(-20, 20)],
-                'front_side': [(-64, -53), (-27, -21)],
-                'side':       [(-87, -66)],
+                'front_side': [(-65, -25)],
+                'side':       [(-110, -70)],
                 'estop':      [(-45, 45)],
             }
         else:
             secs = {
                 'front':      [(-20, 20)],
-                'front_side': [(53, 64), (21, 27)],
-                'side':       [(66, 87)],
+                'front_side': [(25, 65)],
+                'side':       [(70, 110)],
                 'estop':      [(-45, 45)],
             }
         out = {k: P.max_valid_range for k in secs}
@@ -212,7 +214,7 @@ class WallFollower(object):
             deg = math.degrees(a) % 360.0
             skip = False
             for lo, hi in masks:
-                if lo <= deg <= hi:
+                if lo <= deg <= hi and r < P.mask_max_range:
                     skip = True
                     break
             if skip:

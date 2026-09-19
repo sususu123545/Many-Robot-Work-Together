@@ -1,0 +1,16 @@
+[Unit]
+Description=Mecanum wheel odometry node (docker exec into armpi_pro)
+# 跟在 docker 和车主服务后面启动; 容器由 docker 拉起
+Requires=docker.service
+After=docker.service start_node.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# 等 rosmaster 就绪(最多 120s); 等不到也照样执行(脚本幂等, 日志留痕)
+ExecStartPre=/bin/sh -c 'i=0; while [ $i -lt 60 ]; do docker exec armpi_pro pgrep -f "[r]osmaster" >/dev/null 2>&1 && exit 0; i=$((i+1)); sleep 2; done; exit 0'
+# -u ubuntu: odom 只订阅话题、不碰 I2C, 无需 root; 日志落 ubuntu 家目录避免属主冲突
+ExecStart=/usr/bin/docker exec -d -u ubuntu -w /home/ubuntu armpi_pro bash -lc "bash /home/ubuntu/run_odom.sh > /home/ubuntu/odom_run.log 2>&1"
+
+[Install]
+WantedBy=multi-user.target

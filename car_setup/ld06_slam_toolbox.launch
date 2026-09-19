@@ -1,0 +1,26 @@
+<launch>
+  <!-- LD06 + slam_toolbox 建图 (与 hector 并列的备选方案, 2026-09-18)  ROS1 Noetic
+       依赖: 与 ld06_hector.launch 完全相同
+         - ld06.launch   已在跑 → 发布 /scan + base_link->base_laser 静态 tf
+         - odom.service  已在跑 → 发布 /odom + odom->base_link tf
+       TF 链: map -> odom -> base_link -> base_laser
+       ⚠️ 不要和 hector 同时跑! 两者都会发 map->odom, 会互相打架。
+          slam_control.py 已能 stop/start hector; 切到本方案前先 stop hector。
+
+       ⚠️ 启动时必须带 ROS_MASTER_URI=http://raspberrypi:11311
+          (否则节点连 localhost:11311 失败, 会安静退出)
+
+       ⚠️ scan_topic 必须是绝对名 "/scan" (2026-09-18 踩坑):
+          node 在私有命名空间下, 写相对名 "scan" 会被解析成 /slam_toolbox/scan,
+          而雷达发的是 /scan → 节点订阅了一个不存在的话题,
+          现象是: 进程活着、参数全对、但 /map 永远不发布 (rostopic info /scan
+          的 Subscribers 里看不到 /slam_toolbox), 进程停在内核 futex 等待。 -->
+  <arg name="scan_topic" default="/scan"/>
+  <arg name="config" default="/home/ubuntu/slam_toolbox_mapper.yaml"/>
+
+  <node pkg="slam_toolbox" type="async_slam_toolbox_node" name="slam_toolbox"
+        output="screen">
+    <rosparam command="load" file="$(arg config)"/>
+    <param name="scan_topic" value="$(arg scan_topic)"/>
+  </node>
+</launch>

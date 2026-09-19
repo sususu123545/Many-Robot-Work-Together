@@ -1,0 +1,81 @@
+# slam_toolbox 建图参数 — ArmPi Pro (LD06 雷达 + 麦轮里程计)  ★ROS1 Noetic 版★
+# 场景: 室内过道, 两侧桌椅; 车静止时不写图(靠 minimum_travel_* 门槛)
+# TF 链保持与 hector 一致: map -> odom -> base_link -> base_laser
+#
+# ⚠️ ROS1 与 ROS2 的参数文件格式不同!
+#    ROS2 写法:  slam_toolbox: / ros__parameters: / <参数>
+#    ROS1 写法:  直接顶层写 <参数>  (本文件采用)
+#    写错会把参数塞到 /slam_toolbox/slam_toolbox/ros__parameters/ 下,
+#    节点根本读不到, 全部回退默认值 (症状: max_laser_range 报 25.0 而非 12.0)
+
+# ---- 求解器 (位姿图优化, 这是相对 hector 的核心升级) ----
+solver_plugin: solver_plugins::CeresSolver
+ceres_linear_solver: SPARSE_NORMAL_CHOLESKY
+ceres_preconditioner: SCHUR_JACOBI
+ceres_trust_strategy: LEVENBERG_MARQUARDT
+ceres_dogleg_type: TRADITIONAL_DOGLEG
+ceres_loss_function: None
+
+# ---- 坐标系 / 话题 (与 hector 配置对齐) ----
+odom_frame: odom
+map_frame: map
+base_frame: base_link
+scan_topic: /scan
+mode: mapping            # mapping = 建图; localization = 用已存图定位
+
+debug_logging: false
+throttle_scans: 1
+transform_publish_period: 0.02   # 50Hz 发 map->odom
+map_update_interval: 2.0         # 每 2s 出一版 /map
+resolution: 0.05                 # 与 hector 一致
+max_laser_range: 8.0             # ⭐ 09-18 由 12.0 降到 8.0: LD06 室内有效距离约 6~8m,
+                                 #    12m 会把远处噪点全收进来 -> 地图散射/放射状白线
+min_laser_range: 0.40            # ⭐ 09-18 由 0.35 提到 0.40: 实测 <0.35m 有车体自射
+                                 #    (318°~324° 有 8 个 0.06~0.08m 的固定点)
+minimum_time_interval: 0.1
+transform_timeout: 0.2
+tf_buffer_duration: 30.0
+stack_size_to_use: 40000000
+enable_interactive_mode: false
+
+# ---- 通用 ----
+use_scan_matching: true
+use_scan_barycenter: true
+# ⭐⭐ 09-18 重要修正: 原值 0.2/0.2 太大 -> 遥控慢速走车时"攒一批才算"→ 累积误差 → 地图整体倾斜!
+#     hector 用的是 0.04/0.08 (灵敏 5 倍), 这就是"以前 hector 看着更好"的原因。
+#     改成与 hector 同量级, 让 slam_toolbox 跟得上车的移动。
+minimum_travel_distance: 0.05
+minimum_travel_heading: 0.05
+scan_buffer_size: 10
+scan_buffer_maximum_scan_distance: 10.0
+link_match_minimum_response_fine: 0.1
+link_scan_maximum_distance: 1.5
+do_loop_closing: true            # ⭐ 回环检测 — hector 没有的能力
+loop_search_maximum_distance: 3.5
+loop_match_minimum_chain_size: 10
+loop_match_maximum_variance_coarse: 3.0
+# ⭐ 09-18 放宽回环门槛, 让闭环更容易触发 (原 0.35/0.45 偏严, 走完一圈不咬合)
+loop_match_minimum_response_coarse: 0.25
+loop_match_minimum_response_fine: 0.35
+
+# ---- 相关性搜索 ----
+correlation_search_space_dimension: 0.5
+correlation_search_space_resolution: 0.01
+correlation_search_space_smear_deviation: 0.1
+
+# ---- 回环搜索空间 ----
+loop_search_space_dimension: 8.0
+loop_search_space_resolution: 0.05
+loop_search_space_smear_deviation: 0.03
+
+# ---- 扫描匹配惩罚项 (有里程计, 可以适当收紧) ----
+distance_variance_penalty: 0.5
+angle_variance_penalty: 1.0
+fine_search_angle_offset: 0.00349
+coarse_search_angle_offset: 0.349
+coarse_angle_resolution: 0.0349
+minimum_angle_penalty: 0.9
+minimum_distance_penalty: 0.5
+use_response_expansion: true
+min_pass_through: 2
+occupancy_threshold: 0.1

@@ -148,19 +148,27 @@
 
       <!-- SLAM 地图 -->
       <div class="card" id="mapCard">
-        <h2>SLAM 建图 <span>hector · /map</span></h2>
+        <h2>SLAM 建图 <span id="slamEngineTag">hector · /map</span></h2>
         <div class="video-box" id="mapBox" style="position:relative">
           <canvas id="mapCanvas" width="640" height="480" style="width:100%;display:block"></canvas>
           <div id="mapBadge" style="position:absolute;left:10px;top:10px;font-size:12px;padding:3px 9px;border-radius:9px;background:rgba(0,0,0,.55);color:#ddd">未连接</div>
         </div>
         <div class="row" style="margin-top:11px">
+          <label for="slamEngine" style="min-width:auto">算法</label>
+          <select id="slamEngine" disabled style="padding:6px 9px;border:1px solid var(--line);border-radius:6px;font-size:13px;color:var(--text);background:var(--panel)">
+            <option value="hector">hector（快 · 无回环）</option>
+            <option value="slam_toolbox">slam_toolbox（有回环）</option>
+          </select>
+          <span id="engineSwitchNote" style="font-size:12px;color:var(--warn)"></span>
+        </div>
+        <div class="row" style="margin-top:8px">
           <button id="btnSlamStart" class="primary" disabled>开始建图</button>
           <button id="btnSlamStop" class="danger" disabled>结束建图</button>
           <label for="mapName" style="min-width:auto">地图名</label>
           <input id="mapName" placeholder="留空自动命名" style="width:130px;padding:6px 9px;border:1px solid var(--line);border-radius:6px;font-size:13px;color:var(--text)">
           <button id="btnSlamSave" disabled>保存地图</button>
         </div>
-        <div class="hint" id="slamHint">控制节点离线。用法：开始建图 → 慢慢推车走一圈 → 保存地图 → 结束建图。推车要慢、别原地猛转；别让 hector 静置空转（会漂移）。</div>
+        <div class="hint" id="slamHint">控制节点离线。用法：选算法 → 开始建图 → 慢慢推车走一圈 → 保存地图 → 结束建图。推车要慢、别原地猛转；别让建图节点静置空转（会漂移）。换算法前先「结束建图」。</div>
       </div>
 
       <!-- 底盘 -->
@@ -705,7 +713,7 @@ function drawMap(){
              'rgba(20,140,60,.75)');
   } else {
     ctx.fillStyle = 'rgba(255,255,255,.25)'; ctx.font = '13px sans-serif';
-    ctx.fillText(scanSub || mapSub ? '等待 /map 数据…（hector 建图节点在跑吗？）' : '未连接 rosbridge', cx0(), cy0());
+    ctx.fillText(scanSub || mapSub ? '等待 /map 数据…（建图节点在跑吗？）' : '未连接 rosbridge', cx0(), cy0());
     mapBadge(scanSub || mapSub ? '等待地图数据…' : '未连接');
   }
   function cx0(){ return W/2 - 110; }
@@ -717,16 +725,42 @@ requestAnimationFrame(drawMap);
 /* ---------- SLAM 控制 (开始/结束/保存 → /slam_control/*) ---------- */
 var slamStatusSub = null;
 var slamAlive = false;        // 控制节点在线（心跳新鲜）
-var slamRunning = false;      // hector 在跑
+var slamRunning = false;      // 当前引擎在跑
 var slamBusy = false;         // 节点正在执行某个命令
 var slamLastTs = 0;           // 最后一次收到 status 的本地时间
 var slamLoggedKey = '';       // 防止同一条状态重复刷日志
+var slamEngine = 'hector';    // 当前引擎（与车上对齐）
+var slamEngineDirty = false;  // 前端选择已改、等待车上确认
 
+var ENGINE_LABEL = {hector: 'hector', slam_toolbox: 'slam_toolbox'};
+
+function applyEngineUI(){
+  var sel = $('slamEngine');
+  if(sel && sel.value !== slamEngine) sel.value = slamEngine;
+  var tag = $('slamEngineTag');
+  if(tag) tag.textContent = slamEngine + ' · /map';
+  var note = $('engineSwitchNote');
+  if(note){
+    if(slamEngineDirty) note.textContent = '切换中…';
+    else if(slamRunning) note.textContent = '换算法前请先「结束建图」';
+    else note.textContent = '';
+  }
+}
+function logEngineHint(){
+  if(slamEngine === 'slam_toolbox'){
+    setSlamHint('slam_toolbox 会做闭环校正，适合走大圈/绕回原地；走完记得回到起点附近让它有机会闭环。');
+  }else{
+    setSlamHint('hector 无回环，走远了会累积漂移；适合小范围快速建图。');
+  }
+}
 function updateSlamButtons(){
   var conn = !!ros;
   $('btnSlamStart').disabled = !(conn && slamAlive && !slamRunning && !slamBusy);
   $('btnSlamStop').disabled  = !(conn && slamAlive &&  slamRunning && !slamBusy);
   $('btnSlamSave').disabled  = !(conn && slamAlive &&  slamRunning && !slamBusy);
+  var sel = $('slamEngine');
+  if(sel) sel.disabled = !(conn && slamAlive && !slamBusy);
+  applyEngineUI();
 }
 function setSlamHint(txt, color){
   var h = $('slamHint');
@@ -749,7 +783,11 @@ function subscribeSlam(){
       slamAlive = true;
       slamRunning = !!s.running;
       slamBusy = !!s.busy;
-      var txt = '控制节点在线 · ' + (s.last || '');
+      if(s.engine && ENGINE_LABEL[s.engine]){
+        slamEngine = s.engine;
+        slamEngineDirty = false;
+      }
+      var txt = '控制节点在线 · [' + slamEngine + '] ' + (s.last || '');
       if(s.detail) txt += ' — ' + s.detail;
       var color = 'var(--muted)';
       if(s.last && s.last.indexOf('失败') >= 0) color = 'var(--err)';
@@ -791,6 +829,14 @@ $('btnSlamStop').onclick  = function(){ slamCmd('stop'); };
 $('btnSlamSave').onclick  = function(){
   var n = $('mapName').value.trim();
   slamCmd(n ? 'save:' + n : 'save');
+};
+$('slamEngine').onchange = function(){
+  var want = this.value;
+  if(want === slamEngine){ applyEngineUI(); return; }
+  slamEngineDirty = true;
+  applyEngineUI();
+  slamCmd('engine:' + want);
+  log('切换建图算法 → ' + want, 'ok');
 };
 
 

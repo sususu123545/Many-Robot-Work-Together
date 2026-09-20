@@ -58,6 +58,12 @@
     border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;
   }
   .card h2 span{font-weight:400;font-size:12px;color:var(--muted)}
+  /* ---- 卡片收纳: 点标题折叠/展开 ---- */
+  .card > h2{cursor:pointer;user-select:none}
+  .card > h2::after{content:'▾';margin-left:10px;color:var(--muted);font-size:12px;flex:none}
+  .card.collapsed > h2::after{content:'▸'}
+  .card.collapsed{opacity:.82}
+  .card.collapsed > *:not(h2){display:none !important}
 
   /* 视频 */
   .video-box{background:#111;border-radius:8px;overflow:hidden;min-height:260px;display:flex;align-items:center;justify-content:center}
@@ -103,7 +109,7 @@
 </head>
 <body data-page-node-id="1O2rSUQ9NXDrmJGrKUpQxw">
 <div class="wrap" data-page-node-id="Vtpf5Mn1GEHgk9U8AuqZ7h">
-  <h1 data-page-node-id="lW30MlkwGR1pX0FaEVtDjQ">ArmPi Pro 任务控制台 <small data-page-node-id="I6LmeNFBr4KOMF5cpoz2V2">rosbridge · 单步控制</small></h1>
+  <h1 data-page-node-id="lW30MlkwGR1pX0FaEVtDjQ">ArmPi Pro 任务控制台 <small data-page-node-id="I6LmeNFBr4KOMF5cpoz2V2">rosbridge · 单步控制</small> <button id="btnExpandAll" style="padding:4px 10px;font-size:12px">全部展开</button> <button id="btnCollapseAll" style="padding:4px 10px;font-size:12px">全部收起</button></h1>
 
   <!-- 连接 -->
   <div class="bar" data-page-node-id="lwDSBQ9ZnkcGAebuLbfsRf">
@@ -1180,7 +1186,61 @@ function subscribeStatus(){
 }
 
 $('btnClear').onclick = function(){ $('log').innerHTML = ''; };
-log('就绪：填入小车 IP 后点「连接」。小车需与本机在同一网段。');
+log('就绪：填入小车 IP 后点「连接」。小车需与本机同一网段。');
 </script>
+
+<script>
+/* ---------- 卡片收纳：点标题折叠/展开，状态存 localStorage ----------
+   首次访问默认全部收起（要用哪张点哪张），之后记住你的选择。
+   卡片标识优先用 id，没有 id 的用标题文本。 */
+(function(){
+  var KEY = 'cardCollapsed_v1';
+  var cards = Array.prototype.slice.call(document.querySelectorAll('.card'));
+  function cardKey(card){
+    if(card.id) return '#'+card.id;
+    var h = card.querySelector(':scope > h2');
+    var t = h ? (h.childNodes[0] ? h.childNodes[0].textContent : h.textContent) : '';
+    return (t || '').trim() || ('card-'+cards.indexOf(card));
+  }
+  var collapsed = {};
+  try{ collapsed = JSON.parse(localStorage.getItem(KEY) || '') || {}; }catch(e){}
+  var firstVisit = Object.keys(collapsed).length === 0 && !localStorage.getItem(KEY);
+
+  function apply(card, isCollapsed){
+    card.classList.toggle('collapsed', !!isCollapsed);
+  }
+  function save(){
+    try{ localStorage.setItem(KEY, JSON.stringify(collapsed)); }catch(e){}
+  }
+  cards.forEach(function(card){
+    var k = cardKey(card);
+    apply(card, firstVisit ? true : !!collapsed[k]);
+    var h2 = card.querySelector(':scope > h2');
+    if(!h2) return;
+    h2.addEventListener('click', function(ev){
+      if(ev.target.closest('button,select,input,a')) return;  /* 标题里的按钮不触发折叠 */
+      var now = !card.classList.contains('collapsed');
+      apply(card, now);
+      collapsed[k] = now;
+      save();
+    });
+  });
+  /* 全部展开 / 全部收起 */
+  var be = $('btnExpandAll'), bc = $('btnCollapseAll');
+  if(be) be.onclick = function(){
+    cards.forEach(function(c){ apply(c, false); collapsed[cardKey(c)] = false; });
+    save();
+  };
+  if(bc) bc.onclick = function(){
+    cards.forEach(function(c){ apply(c, true); collapsed[cardKey(c)] = true; });
+    save();
+  };
+  if(firstVisit){
+    cards.forEach(function(c){ collapsed[cardKey(c)] = true; });  /* 默认收起也要落盘, 否则下次刷新被当成"全展开" */
+    save();
+  }
+})();
+</script>
+
 </body>
 </html>

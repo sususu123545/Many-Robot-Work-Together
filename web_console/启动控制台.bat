@@ -7,7 +7,7 @@ echo    ArmPi Pro 任务控制台  -  一键启动
 echo ============================================
 echo.
 
-set "PY=C://Users//Administrator//.workbuddy//binaries//python//envs//default//Scripts//python.exe"
+set "PY=C:\Users\46361\AppData\Local\Programs\Python312-embed\python.exe"
 
 if not exist "%PY%" goto nopython
 

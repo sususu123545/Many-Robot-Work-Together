@@ -49,7 +49,9 @@ minimum_travel_distance: 0.05
 minimum_travel_heading: 0.05
 scan_buffer_size: 10
 scan_buffer_maximum_scan_distance: 10.0
-link_match_minimum_response_fine: 0.1
+# ⭐ 09-20 0.1 → 0.15: 匹配响应低于阈值的弱匹配更多被判无效,
+#     位姿退回里程计预测, 而不是被空旷区的噪声回波拉走
+link_match_minimum_response_fine: 0.15
 link_scan_maximum_distance: 1.5
 do_loop_closing: true            # ⭐ 回环检测 — hector 没有的能力
 loop_search_maximum_distance: 3.5
@@ -60,7 +62,11 @@ loop_match_minimum_response_coarse: 0.25
 loop_match_minimum_response_fine: 0.35
 
 # ---- 相关性搜索 ----
-correlation_search_space_dimension: 0.5
+# ⭐⭐ 09-20 空旷区优化: 0.5 → 0.2。这是扫描匹配围绕"里程计预测位姿"的搜索窗
+#     (0.5 = 半径±0.25m)。空旷处特征少, 大窗口里弱响应匹配会把位姿从里程计
+#     预测上拽走 → 漂移。收窄 = 更信里程计; 特征丰富时修正仍在窗内完成。
+#     若后续实测墙变锯齿(修正被卡住), 再往 0.3 放。
+correlation_search_space_dimension: 0.2
 correlation_search_space_resolution: 0.01
 correlation_search_space_smear_deviation: 0.1
 
@@ -73,10 +79,17 @@ loop_search_space_smear_deviation: 0.03
 distance_variance_penalty: 0.5
 angle_variance_penalty: 1.0
 fine_search_angle_offset: 0.00349
-coarse_search_angle_offset: 0.349
+# ⭐ 09-20 同理收窄角度搜索窗: ±20° → ±11.5°, 旋转量更听里程计的
+coarse_search_angle_offset: 0.2
 coarse_angle_resolution: 0.0349
 minimum_angle_penalty: 0.9
 minimum_distance_penalty: 0.5
 use_response_expansion: true
-min_pass_through: 2
-occupancy_threshold: 0.1
+# ⭐⭐ 09-20 过道噪点优化: 2 → 4 / 0.1 → 0.25。这两个值决定一个格子要被
+#     多少次观测"确认"才标为占用: 原值下单次噪声回波就能落格 → 灰色噪点、
+#     墙有毛边(桌椅腿/远距弱回波时有时无,置信度上不去)。
+#     提高后: 噪点要连续 4 次命中且命中率 >25% 才上图 → 地图干净平滑;
+#     代价是真实细腿物(椅子腿)也要多扫几帧才显形,慢速推车无影响。
+#     实测若噪点仍在: min_pass_through 提到 6; 若椅子腿丢失: 回到 3。
+min_pass_through: 4
+occupancy_threshold: 0.25

@@ -1,0 +1,15 @@
+[Unit]
+Description=Safe automatic lidar mapping controller
+Requires=docker.service
+After=docker.service start_node.service ld06.service slam-control.service
+
+[Service]
+Type=simple
+Restart=on-failure
+RestartSec=3
+ExecStartPre=/bin/sh -c 'i=0; while [ $i -lt 60 ]; do docker exec armpi_pro pgrep -f "[r]osmaster" >/dev/null 2>&1 && exit 0; i=$((i+1)); sleep 2; done; exit 1'
+ExecStart=/usr/bin/docker exec -w /home/ubuntu armpi_pro bash /home/ubuntu/run_auto_mapping.sh
+ExecStop=/usr/bin/docker exec armpi_pro pkill -TERM -f ^python3[[:space:]]/home/ubuntu/auto_mapping_control.py
+
+[Install]
+WantedBy=multi-user.target

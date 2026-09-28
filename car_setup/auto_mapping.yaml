@@ -1,0 +1,66 @@
+# 自动建图安全参数 (ROS 1 private namespace: /auto_mapping_control)
+# 目标：宁可停车等待，也不要在 10cm 附近继续运动。
+cruise_speed: 25.0
+# 后视摄像头朝向车尾，自动巡航以车尾为行驶前方。
+travel_direction: -1
+backup_speed: 15.0
+strafe_max: 6.0
+turn_rate: 0.20
+wall_kp: 30.0
+prefer_turning: true
+wall_turn_threshold: 0.15
+wall_turn_rate: 0.10
+front_slow_dist: 0.70
+front_turn_dist: 0.40
+front_clear_dist: 0.55
+estop_dist: 0.30
+# 0.34m 以下才先停车观察；0.34~0.40m 交给减速/转向逻辑处理。
+# 硬急停 estop_dist 仍保持 0.30m，不因本次放宽而改变。
+obstacle_pause_dist: 0.34
+obstacle_clear_dist: 0.50
+obstacle_wait_secs: 2.5
+obstacle_clear_secs: 1.0
+side_pause_dist: 0.25
+side_clear_dist: 0.35
+side_estop_dist: 0.22
+turn_clear_dist: 0.40
+# 独立于转向准入距离，保留转向路径的近距离停车保护。
+turn_stop_dist: 0.32
+rear_clear_dist: 0.45
+scan_timeout: 0.50
+# 连续有效移动 5cm 后清零卡死计数，避免分散的小卡顿累计误中止。
+stuck_reset_dist: 0.05
+
+# LD06 滤波：空间中值去孤立毛刺，时间 EMA 让墙面距离更稳定。
+# 新出现的近障碍会立即采用，不会等 EMA 慢慢下降。
+filter_enabled: true
+spatial_filter_radius: 1
+ema_alpha: 0.35
+sector_percentile: 10.0
+
+# 仍然用 slam_toolbox 时，回环由 car_setup/slam_toolbox_mapper.yaml 控制。
+max_seconds: 900
+wall_side: 1
+enable_motion: true
+
+# 地图前沿优先：只选已知自由、按车体半径留出余量的直线路径；
+# 若无可达前沿才回退到墙跟随/测量位移脱困。实际车体半径须按实测尺寸复核。
+frontier_enabled: true
+# 车体约 0.30x0.25m: 半对角线 0.196m + 约 5cm 余量。
+frontier_clearance_radius: 0.25
+frontier_max_range: 3.0
+frontier_min_range: 0.45
+frontier_goal_tolerance: 0.35
+frontier_turn_tolerance: 0.18
+frontier_map_timeout: 4.0
+frontier_blacklist_secs: 30.0
+
+# 区域驻留策略：超时后优先切换到地图前沿；回退脱困须用位姿确认位移，
+# 仅仅经过固定时间不会再被当作“已离开”。障碍物或硬急停仍优先停车。
+area_dwell_secs: 30.0
+area_dwell_radius: 0.60
+area_escape_turn_secs: 2.0
+area_escape_min_clear: 0.55
+area_escape_speed: 25.0
+area_escape_progress: 0.45
+area_escape_timeout: 35.0

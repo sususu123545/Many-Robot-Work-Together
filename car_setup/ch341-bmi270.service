@@ -1,0 +1,21 @@
+[Unit]
+Description=CH341 I2C BMI270 ROS IMU
+Documentation=https://github.com/gschorcht/i2c-ch341-usb
+Requires=docker.service start_node.service
+After=docker.service start_node.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=5
+TimeoutStartSec=180
+# The node discovers the adapter by /sys/class/i2c-adapter/*/name,
+# so USB re-enumeration does not break it when the bus number changes.
+ExecStartPre=/bin/sh -c 'i=0; while [ $i -lt 90 ]; do for f in /sys/class/i2c-adapter/i2c-*/name; do grep -qi i2c-ch341-usb "$f" && exit 0; done; i=$((i+1)); sleep 2; done; echo "CH341 I2C adapter not ready" >&2; exit 1'
+ExecStartPre=/bin/sh -c 'i=0; while [ $i -lt 90 ]; do docker exec armpi_pro pgrep -f "[r]osmaster" >/dev/null 2>&1 && exit 0; i=$((i+1)); sleep 2; done; echo "ROS master not ready" >&2; exit 1'
+ExecStart=/usr/bin/docker exec -w /home/ubuntu/share/tmp armpi_pro bash -lc "source /opt/ros/noetic/setup.bash; export ROS_MASTER_URI=http://raspberrypi:11311; exec python3 /home/ubuntu/share/tmp/bmi270_imu_node.py"
+KillMode=control-group
+
+[Install]
+WantedBy=multi-user.target

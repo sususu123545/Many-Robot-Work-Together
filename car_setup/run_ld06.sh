@@ -34,7 +34,42 @@ export ROS_HOSTNAME=raspberrypi
 source /opt/ros/noetic/setup.bash
 source $WS/devel/setup.bash
 
-# --- 3. 设备检查（串口是 root:dialout，本脚本必须 root 跑）----
+# --- 3. 等设备和 ROS Master 完全稳定 ---------------------------
+# 开机时 /dev/ttyUSB0 可能先枚举、后建立稳定串口；同时 roscore
+# 可能在 start_node 中刚启动或刚换 run_id。只检查 pgrep 会让
+# roslaunch 在 run_id 切换窗口注册，产生“run_id 不匹配”并退出。
+echo "=== 等待 LD06 设备和稳定 ROS run_id（最多 180s）==="
+stable_run_id=''
+stable_count=0
+i=0
+while [ "$i" -lt 90 ]; do
+    PORT=/dev/ld06
+    [ -e "$PORT" ] || PORT=/dev/ttyUSB0
+    run_id=$(rosparam get /run_id 2>/dev/null | tr -d '[:space:]' || true)
+    if [ -e "$PORT" ] && [ -n "$run_id" ]; then
+        if [ "$run_id" = "$stable_run_id" ]; then
+            stable_count=$((stable_count + 1))
+        else
+            stable_run_id="$run_id"
+            stable_count=1
+        fi
+        if [ "$stable_count" -ge 3 ]; then
+            echo "ROS run_id stable: $run_id"
+            break
+        fi
+    else
+        stable_count=0
+        stable_run_id=''
+    fi
+    i=$((i + 1))
+    sleep 2
+done
+if [ "$stable_count" -lt 3 ]; then
+    echo "LD06 device or stable ROS run_id not ready; retrying via systemd" >&2
+    exit 1
+fi
+
+# --- 4. 设备检查（串口是 root:dialout，本脚本必须 root 跑）----
 echo "=== /dev/ttyUSB* ==="
 ls -l /dev/ttyUSB* 2>/dev/null || echo "(没有 /dev/ttyUSB* 节点)"
 echo "=== /dev/ld06 (udev 固定名, 见 /etc/udev/rules.d/99-ld06.rules) ==="

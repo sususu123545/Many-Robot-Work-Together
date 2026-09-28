@@ -2,14 +2,21 @@
     <!--lab参数加载-->
     <include file="$(find lab_config)/launch/lab_config_manager.launch" />
     
-    <!--摄像头画面网页传输-->
-    <node name="web_video_server" pkg="web_video_server" type="web_video_server" required="true" output="screen" />
+    <!--摄像头画面网页传输；相机是可选硬件，不能阻断底盘/rosbridge启动-->
+    <node name="web_video_server" pkg="web_video_server" type="web_video_server" required="false" output="screen" />
     
     <!--舵机控制-->
     <include file="$(find hiwonder_servo_controllers)/launch/start.launch"/>
     
     <!--底盘控制-->
-    <node name="chassis_control" pkg="chassis_control" type="chassis_control_node.py" required="true" output="screen" />
+    <!--底盘节点故障不能关闭 rosbridge；底盘不可用时仍允许诊断和非底盘功能连接控制台-->
+    <node name="chassis_control" pkg="chassis_control" type="chassis_control_node.py" required="false" output="screen" />
+
+    <!-- BMI270 安装时相对车体绕 Z 轴旋转 +90°：imu_link 的 X 轴指向车体左方，
+         Y 轴指向车体后方。保留 IMU 节点发布的原始传感器坐标，统一由 TF 转换到 base_link。 -->
+    <node name="base_to_imu" pkg="tf" type="static_transform_publisher"
+          args="0 0 0 0 0 1.57079632679 base_link imu_link 50"
+          required="false" output="screen" />
 
     <!--app控制-->
     <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch" >

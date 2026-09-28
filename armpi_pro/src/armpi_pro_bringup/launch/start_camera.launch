@@ -1,6 +1,6 @@
 <launch>
-  <!--usb摄像头-->
-  <arg name="camera_name" default="usb_cam" />
+  <!-- 后视 USB 摄像头（安装方向为小车后方） -->
+  <arg name="camera_name" default="rear_camera" />
 
   <node name="$(arg camera_name)" pkg="usb_cam" type="usb_cam_node" respawn="true" respawn_delay="2" output="screen" >
     <param name="video_device" value="/dev/video0" />

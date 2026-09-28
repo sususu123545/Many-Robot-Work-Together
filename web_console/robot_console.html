@@ -42,6 +42,7 @@
   button.danger:hover{background:#fef2f2}
 
   .status{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--muted)}
+  .repair-msg{font-size:12px;color:var(--muted);min-width:180px}
   .dot{width:9px;height:9px;border-radius:50%;background:var(--muted)}
   .dot.on{background:var(--ok);box-shadow:0 0 0 3px rgba(22,163,74,.16)}
   .dot.err{background:var(--err);box-shadow:0 0 0 3px rgba(220,38,38,.16)}
@@ -114,9 +115,11 @@
   <!-- 连接 -->
   <div class="bar" data-page-node-id="lwDSBQ9ZnkcGAebuLbfsRf">
     <span style="font-size:13px;color:var(--muted)" data-page-node-id="KKwzOh4ZHa6TQf3thutxob">小车 IP</span>
-    <input id="ip" value="10.169.210.178" placeholder="例如 10.169.210.178" data-page-node-id="PPvQWWoB4JXHMBfb3MW1dG">
+    <input id="ip" value="192.168.19.178" placeholder="例如 192.168.19.178" data-page-node-id="PPvQWWoB4JXHMBfb3MW1dG">
     <button id="btnConn" class="primary" data-page-node-id="PQCTl9wRi3DDGktTa5ESuc">连接</button>
+    <button id="btnRepair" type="button" hidden title="仅重建本机 SSH 隧道并验证 rosbridge，不重启小车节点">修复连接</button>
     <div class="status" data-page-node-id="YTqXcu2EvaCeO3iXDX8rPX"><span class="dot" id="dot" data-page-node-id="kn9HZEzFffbGVgrdiERaEp"></span><span id="stxt" data-page-node-id="LVFqgcfYggTEwMHqEzZDfA">未连接</span></div>
+    <span id="repairMsg" class="repair-msg" aria-live="polite"></span>
     <div style="flex:1" data-page-node-id="XjwGBHvLKZu9NdsiBCCrbD"></div>
     <button id="btnStopAll" class="danger" disabled data-page-node-id="pkgVM9gRBnpC7tUxLS6vx2">紧急停止</button>
   </div>
@@ -130,11 +133,12 @@
         <div class="row" style="margin-top:11px" data-page-node-id="rxxopL40tgZMcdA4MlDWQX">
           <label data-page-node-id="9Y4ja9d6e7mGwsDeimMIEa">画面源</label>
           <select id="vtopic" style="flex:1" data-page-node-id="WhRv6psleCWYFCkitd0TWt">
-            <option value="/ascamera_hp60c/rgb0/image" selected data-page-node-id="ascamHp60cRgbOpt">深度相机RGB /ascamera_hp60c/rgb0/image（需先启动相机节点）</option>
+            <option value="/rear_camera/image_raw" selected>后视摄像头 /rear_camera/image_raw（640×480）</option>
+            <option value="/ascamera_hp60c/rgb0/image" data-page-node-id="ascamHp60cRgbOpt">深度相机RGB /ascamera_hp60c/rgb0/image（需先启动相机节点）</option>
             <option value="/object_tracking/image_result" data-page-node-id="objTrackingImgOpt">目标跟踪 /object_tracking/image_result</option>
             <option value="/line_following/image_result" data-page-node-id="lineFollowingImgOpt">巡线 /line_following/image_result</option>
             <option value="/hand_trajectory/image_result" data-page-node-id="handTrajectoryImgOpt">手势轨迹 /hand_trajectory/image_result</option>
-            <option value="/usb_cam/image_raw" data-page-node-id="teZ0YzApVt5SV6lv2CRNbG">原始画面 /usb_cam/image_raw（已停用）</option>
+            <option value="/usb_cam/image_raw" data-page-node-id="teZ0YzApVt5SV6lv2CRNbG">旧 USB 相机 /usb_cam/image_raw</option>
             <option value="/visual_processing/image_result" data-page-node-id="WhMCz2Jh53ipC5gwolJ2dj">视觉处理 /visual_processing/image_result</option>
             <option value="/lab_config_manager/image_result" data-page-node-id="S943hafuH6Dcu8Z5zD07EZ">颜色识别 /lab_config_manager/image_result</option>
           </select>
@@ -177,6 +181,17 @@
         <div class="hint" id="slamHint">控制节点离线。用法：选算法 → 开始建图 → 慢慢推车走一圈 → 保存地图 → 结束建图。推车要慢、别原地猛转；别让建图节点静置空转（会漂移）。换算法前先「结束建图」。</div>
       </div>
 
+      <!-- 自动建图：SLAM + 雷达安全巡航 -->
+      <div class="card" id="autoMapCard">
+        <h2>自动建图 <span>地图前沿探索 · 雷达避障 · 安全停车</span></h2>
+        <div class="row">
+          <button id="btnAutoMapStart" class="primary" disabled>开始自动建图</button>
+          <button id="btnAutoMapStop" class="danger" disabled>停止自动建图</button>
+          <span id="autoMapState" class="status"><span class="dot" id="autoMapDot"></span><span>控制节点离线</span></span>
+        </div>
+        <div class="hint" id="autoMapHint">建议使用 slam_toolbox。启动后小车先保持停止，SLAM 与雷达正常后才开始沿墙低速倒车巡航；检测到人/障碍会停车，连续确认安全后恢复，持续阻挡才尝试向空旷侧绕行。低于雷达高度的椅脚仍需人工看护。</div>
+      </div>
+
       <!-- 底盘 -->
       <div class="card" data-page-node-id="wLMdtji5GFs7u58ixjjZB1">
         <h2 data-page-node-id="w4h3DAy5B1O2jKkHFiuuI7">底盘移动 <span data-page-node-id="fqARceIwNqExSdsoQAGZG5">麦克纳姆轮 · 全向</span></h2>
@@ -199,7 +214,14 @@
           <input type="range" id="ang" min="0.1" max="1.5" step="0.1" value="0.5" data-page-node-id="JelXxcKI6cTkMRdnKiuM5t">
           <span class="val" id="angv" data-page-node-id="gQ5iUkRCtsTRDyFeMlYrDD">0.50</span>
         </div>
-        <div class="hint" data-page-node-id="dxLMZxqRDKDn5xga0ZgJ5u">点一下动一下（松开不停，需点 ■ 停止）。先低速试，确认方向映射无误再提速。</div>
+        <div class="row" style="margin-top:4px">
+          <label>闭环旋转</label>
+          <input type="range" id="turnTarget" min="15" max="180" step="15" value="90">
+          <span class="val" id="turnTargetV">90°</span>
+          <button disabled id="btnTurnClosedL">↺ 达到角度停止</button>
+          <button disabled id="btnTurnClosedR">↻ 达到角度停止</button>
+        </div>
+        <div class="hint" data-page-node-id="dxLMZxqRDKDn5xga0ZgJ5u">普通方向键是持续运动，需点 ■ 停止；闭环旋转会实时读取 /odom，达到目标角度后自动停车，并带有超时与 /odom 断流保护。</div>
       </div>
 
       <!-- 视觉 -->
@@ -234,19 +256,23 @@
       <!-- 机械臂 -->
       <div class="card" data-page-node-id="GVFoHb38BftC0klDBaHWNE">
         <h2 data-page-node-id="ZU8FfPaIIaN3ReIX75NUG4">机械臂关节 <span data-page-node-id="qrJyBQ0Lz2a3KEdo8tRIdQ">弧度 · 建议小幅调整</span></h2>
+        <div id="armPoseReference" role="note" style="margin:8px 0 12px;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:var(--panel);font-size:12px;color:var(--muted)">
+          <div style="font-weight:600;color:var(--text);margin-bottom:4px">基准姿态（本次硬件读数，仅作显示，非实时反馈）</div>
+          底座 0.017rad（1.0°） · 大臂 0.519rad（29.8°） · 小臂 −1.395rad（−79.9°） · 腕部 −1.780rad（−102.0°） · 腕部旋转 0.013rad（0.7°） · 夹爪 −1.920rad（−110.0°）
+          <div style="margin-top:4px">页面加载不会驱动机械臂；滑块仅在手动拖动后发送目标。夹爪最近实读 90 脉冲、57°C，请勿据此反复驱动。</div>
+        </div>
         <div id="joints" data-page-node-id="rNWUoCoQ14OXbO6tf9So8r"></div>
         <div class="chips" style="margin-top:11px" data-page-node-id="WYJcioXJnRwS73ImAtaVib">
-          <button disabled id="btnHome" data-page-node-id="5fpdvUBH7Bx7KI7BiB7dBy">全部回中</button>
-          <button disabled id="btnGripOpen" data-page-node-id="77NcFHNNL4OCYUjJ2OHjv5">夹爪张开</button>
-          <button disabled id="btnGripClose" data-page-node-id="1owWQ6gxY8ycmwADSLC29T">夹爪闭合</button>
+          <button disabled id="btnHome" data-page-node-id="5fpdvUBH7Bx7KI7BiB7dBy">默认设置</button>
         </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">“默认设置”会将五个关节移动到上方记录的基准姿态；不会驱动夹爪。仅点击按钮时执行，页面加载不会运动。</div>
         <div class="row" style="margin-top:11px" data-page-node-id="gripCalRow">
           <label data-page-node-id="gripCalLbl">夹爪位置</label>
-          <input type="range" id="gpos" min="-0.60" max="-0.10" step="0.01" value="-0.30" data-page-node-id="gripCalRange">
-          <span class="val" id="gposv" data-page-node-id="gripCalVal">-0.30</span>
+          <input type="range" id="gpos" min="-1.9635" max="-0.20" step="0.01" value="-1.9635" data-page-node-id="gripCalRange">
+          <span class="val" id="gposv" data-page-node-id="gripCalVal">-1.96</span>
           <button disabled id="btnGripTry" data-page-node-id="gripCalTry">走到该位置</button>
         </div>
-        <div style="font-size:11px;color:var(--muted);margin-top:4px" data-page-node-id="gripCalHint">实测可动窗口：−0.55≈脉冲525(闭合堵转点) ↔ −0.14≈脉冲655(张开堵转点)。窗口外两端均是堵转，不会继续动 —— 行程过小请检查夹爪机械结构。</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px" data-page-node-id="gripCalHint">范围按舵机零位700、r_joint 180°换算：最大张开实读约75脉冲（−1.9635rad）；闭合端保留旧软件上限约636脉冲（−0.20rad）。滑杆加载在实测张开位置，不会自动运动；点击测试会驱动舵机，请先确保空载、夹爪周围无人手。</div>
         <div class="row" style="margin-top:11px" data-page-node-id="pXEFIFKBSfrXvmC7BnxujW">
           <label data-page-node-id="Vo5SJxE3Aqi5cfpvoRhYiz">动作时长</label>
           <input type="range" id="dur" min="0.3" max="3" step="0.1" value="1" data-page-node-id="ENgmI8R7eZAD2oqRh5uqta">
@@ -323,6 +349,61 @@
 var ros = null;
 var PUB = {};              // 话题缓存
 var visActive = {};        // 视觉功能开关状态
+var reconnectWanted = false;
+var reconnectTimer = null;
+var reconnectDelay = 1500;
+var robotStatus = {state:'starting', ip:null, message:'正在发现小车…'};
+var discoveredRobotIp = null;
+var connectedRobotIp = null;
+var statusPollBusy = false;
+var repairRequestPending = false;
+var repairRequestId = null;
+function isLocalConsole(){
+  return location.hostname === '127.0.0.1' || location.hostname === 'localhost';
+}
+function renderRepairStatus(status){
+  var button = $('btnRepair'), note = $('repairMsg');
+  if(!button || !isLocalConsole()) return;
+  status = status || {};
+  var heartbeat = Number(status.supervisor_heartbeat || 0);
+  var repairReady = status.repair_supported === true && heartbeat > 0 &&
+    (Date.now()/1000 - heartbeat) <= 15;
+  if(!repairReady){
+    button.disabled = true;
+    button.textContent = '待启用';
+    note.textContent = '本机隧道监督器尚未更新；请在小车静止时重启本机控制台一次';
+    return;
+  }
+  if(status.state === 'port_conflict'){
+    button.disabled = true;
+    button.textContent = '端口冲突';
+    note.textContent = status.message || '本机 9090 被其他程序占用，未触碰该程序';
+    return;
+  }
+  if(!status.ip){
+    button.disabled = true;
+    button.textContent = '等待发现';
+    note.textContent = status.message || '尚未通过 MAC 确认小车';
+    return;
+  }
+  var repair = status.repair;
+  var state = repair && repair.state;
+  if(repairRequestPending && repairRequestId && repair &&
+      repair.request_id === repairRequestId && state !== 'restarting' && state !== 'verifying'){
+    repairRequestPending = false;
+    repairRequestId = null;
+  }
+  if(state === 'restarting' || state === 'verifying' || repairRequestPending){
+    button.disabled = true;
+    button.textContent = '修复中…';
+    note.textContent = (repair && repair.message) || '修复请求已提交，等待本机监督器处理…';
+  } else {
+    button.disabled = false;
+    button.textContent = '修复连接';
+    note.textContent = (state === 'complete' || state === 'failed')
+      ? (repair.message || '') : '';
+  }
+}
 
 /* ---------- 工具 ---------- */
 function log(msg, cls){
@@ -337,7 +418,7 @@ function setConn(on, txt){
   $('stxt').textContent = txt;
 }
 function enableAll(on){
-  document.querySelectorAll('button[data-m],button[data-v],button[data-a],#btnHome,#btnGripOpen,#btnGripClose,#btnGripTry,#btnBuzz,#btnLed,#btnRgbOn,#btnRgbOff,#btnSnap,#btnStopAll,#btnRec,#btnRecDiscard,#btnReplay,#btnAuto,#btnExport')
+  document.querySelectorAll('button[data-m],button[data-v],button[data-a],#btnHome,#btnGripTry,#btnBuzz,#btnLed,#btnRgbOn,#btnRgbOff,#btnSnap,#btnStopAll,#btnTurnClosedL,#btnTurnClosedR,#btnRec,#btnRecDiscard,#btnReplay,#btnAuto,#btnExport')
     .forEach(function(b){ b.disabled = !on; });
   if(on){
     /* 录制中：停止保存/放弃仍可用；缺路径时自动送水保持禁用 */
@@ -366,36 +447,162 @@ function call(svc, type, req, okMsg){
 }
 
 /* ---------- 连接 ---------- */
-$('btnConn').onclick = function(){
-  var ip = $('ip').value.trim();
+function scheduleReconnect(){
+  if(!reconnectWanted || reconnectTimer) return;
+  var delay = reconnectDelay;
+  reconnectDelay = Math.min(reconnectDelay * 2, 10000);
+  reconnectTimer = setTimeout(function(){
+    reconnectTimer = null;
+    if(reconnectWanted && !ros) connectRos();
+  }, delay);
+  log('连接断开，'+(delay/1000).toFixed(1)+'秒后自动重连');
+}
+function disconnectRos(client, message){
+  if(ros !== client) return;
+  ros = null;
+  connectedRobotIp = null;
+  setConn(false, '连接断开');
+  $('btnConn').textContent = reconnectWanted ? '取消连接' : '连接';
+  enableAll(false);
+  stopLidar(); stopMap(); unsubscribeSlam(); unsubscribeAutoMapping();
+  if(message) log(message);
+  if(reconnectWanted) scheduleReconnect();
+}
+function applyRobotStatus(status){
+  if(!status || typeof status !== 'object') return;
+  renderRepairStatus(status);
+  var previousIp = discoveredRobotIp;
+  robotStatus = status;
+  if(status.ip && /^\d{1,3}(\.\d{1,3}){3}$/.test(status.ip)){
+    discoveredRobotIp = status.ip;
+    if($('ip').value.trim() !== status.ip) $('ip').value = status.ip;
+  } else {
+    discoveredRobotIp = null;
+  }
+
+  if(ros && (status.state !== 'tunnel_listening' ||
+      (previousIp && discoveredRobotIp && previousIp !== discoveredRobotIp) ||
+      (connectedRobotIp && discoveredRobotIp && connectedRobotIp !== discoveredRobotIp))){
+    var old = ros;
+    log('小车隧道状态或 IP 已变化，重建 ROS 连接');
+    try{ old.close(); }catch(e){}
+    disconnectRos(old, '等待自动隧道恢复');
+  }
+
+  if(!ros && reconnectWanted && !reconnectTimer && status.state === 'tunnel_listening')
+    connectRos();
+  else if(!ros && status.state !== 'tunnel_listening' && status.message)
+    setConn(false, status.message);
+}
+function pollRobotStatus(){
+  if(!isLocalConsole() || statusPollBusy) return;
+  statusPollBusy = true;
+  fetch('/api/robot?ts='+Date.now(), {cache:'no-store'})
+    .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+    .then(applyRobotStatus)
+    .catch(function(e){
+      if(!ros && !robotStatus.apiErrorShown){
+        robotStatus.apiErrorShown = true;
+        setConn(false, '本地自动发现服务不可用');
+        log('无法读取 /api/robot：'+e, 'er');
+      }
+    })
+    .finally(function(){ statusPollBusy = false; });
+}
+function connectRos(){
+var ip = $('ip').value.trim();
+  if(isLocalConsole() && robotStatus.state !== 'tunnel_listening'){
+    setConn(false, robotStatus.message || '正在发现小车并建立隧道…');
+    return;
+  }
 if(typeof ROSLIB === 'undefined'){
     setConn(false, '连接失败');
     log('ROSLIB 库未加载 —— 请使用内嵌版 robot_console.html，或确保 roslib.min.js 与本文件同目录', 'er');
     return;
   }
-  if(ros){ ros.close(); ros = null; }
+  if(ros) return;
   setConn(false, '连接中…');
-  log('连接 ws://'+ip+':9090 …');
-  ros = new ROSLIB.Ros({ url: 'ws://'+ip+':9090' });
+  /* SSH tunnel is used when the console is served locally: some robot
+     networks allow SSH but filter direct access to rosbridge:9090. */
+  var localTunnel = isLocalConsole();
+  var rosUrl = localTunnel
+    ? 'ws://127.0.0.1:9090'
+    : 'ws://'+ip+':9090';
+  log('连接 '+rosUrl+' …');
+  var client = new ROSLIB.Ros({ url: rosUrl });
+  ros = client;
 
-  ros.on('connection', function(){
-    setConn(true, '已连接 '+ip);
+  client.on('connection', function(){
+    if(ros !== client) return;
+    reconnectDelay = 1500;
+    connectedRobotIp = localTunnel ? (robotStatus.ip || ip) : ip;
+    setConn(true, '已连接 '+connectedRobotIp);
     $('btnConn').textContent = '断开';
     enableAll(true);
     log('rosbridge 连接成功', 'ok');
-    startVideo(); subscribeStatus(); startLidar(); startMap(); subscribeSlam();
+    startVideo(); subscribeStatus(); startLidar(); startMap(); subscribeSlam(); subscribeAutoMapping();
   });
-  ros.on('error', function(e){
+  client.on('error', function(e){
+    if(ros !== client) return;
     setConn(false, '连接失败'); log('连接错误: '+e, 'er');
+    try{ client.close(); }catch(ignore){}
+    disconnectRos(client, 'ROS 连接正在重建');
   });
-  ros.on('close', function(){
-    setConn(false, '连接断开');
-    $('btnConn').textContent = '连接';
-    enableAll(false);
-    stopLidar(); stopMap(); unsubscribeSlam();
-    log('连接已关闭');
-  });
+  client.on('close', function(){ disconnectRos(client, '连接已关闭'); });
+}
+$('btnConn').onclick = function(){
+  if(reconnectWanted){
+    reconnectWanted = false;
+    if(reconnectTimer){ clearTimeout(reconnectTimer); reconnectTimer = null; }
+    if(ros){ var old = ros; try{ old.close(); }catch(e){} disconnectRos(old, '已手动断开'); }
+    else { $('btnConn').textContent = '连接'; setConn(false, '已取消自动连接'); }
+    return;
+  }
+  reconnectWanted = true;
+  reconnectDelay = 1500;
+  $('btnConn').textContent = '取消连接';
+  if(isLocalConsole()) pollRobotStatus();
+  else connectRos();
 };
+if(isLocalConsole()){
+  $('btnRepair').hidden = false;
+  $('btnRepair').onclick = function(){
+    var button = $('btnRepair');
+    repairRequestPending = true;
+    repairRequestId = null;
+    button.disabled = true;
+    button.textContent = '请求中…';
+    $('repairMsg').textContent = '正在请求本机重建 SSH 隧道…';
+    fetch('/api/repair-tunnel', {method:'POST', cache:'no-store'})
+      .then(function(response){
+        return response.json().then(function(payload){
+          if(!response.ok) throw new Error(payload.message || ('HTTP '+response.status));
+          return payload;
+        });
+      })
+      .then(function(payload){
+        repairRequestId = payload.request_id || null;
+        $('repairMsg').textContent = payload.message || '修复请求已提交';
+      })
+      .catch(function(error){
+        repairRequestPending = false;
+        repairRequestId = null;
+        button.disabled = false;
+        button.textContent = '修复连接';
+        $('repairMsg').textContent = '未能启动修复：' + error.message;
+        log('连接修复请求失败：'+error.message, 'er');
+      });
+  };
+} else {
+  $('btnRepair').hidden = true;
+}
+if(isLocalConsole()){
+  reconnectWanted = true;
+  $('btnConn').textContent = '取消连接';
+  setConn(false, '正在发现小车…');
+  pollRobotStatus();
+  setInterval(pollRobotStatus, 3000);
+}
 
 /* ---------- 视频 ---------- */
 /* http:// 打开时走本地代理(127.0.0.1:8000，绕过 Edge 系统代理对内网的拦截)；file:// 打开时直连 */
@@ -613,30 +820,136 @@ function drawLidar(){
 }
 requestAnimationFrame(drawLidar);   /* 页面打开就画空雷达底图 */
 
-/* ---------- SLAM 地图 (/map + /poseupdate → canvas) ---------- */
-var mapSub = null, poseSub = null, mapMsg = null, poseMsg = null;
+/* ---------- SLAM 地图 (/map + map→base_link 位姿 → canvas) ---------- */
+var mapSub = null, poseSub = null, legacyPoseSub = null, odomSub = null, mapMsg = null, poseMsg = null;
+var poseSource = 'none', poseAt = 0, poseTrail = [], poseStart = null, poseTrailAt = 0;
 var mapStat = { n: 0, t0: Date.now(), hz: 0 };
 var mapOff = document.createElement('canvas');   /* 离屏画布: 1 cell = 1 px */
+
+/* 闭环旋转使用车端 /odom 的 yaw；连续角度避免跨越 ±π 时跳变。 */
+var odomYaw = null, odomYawContinuous = null, odomYawRaw = null, odomAt = 0;
+var closedTurn = {active:false, dir:0, start:0, target:0, command:0, braked:false, startedAt:0, timer:null};
 
 function mapBadge(txt, bg){
   var b = $('mapBadge');
   b.textContent = txt; b.style.background = bg || 'rgba(0,0,0,.55)';
+}
+function acceptMapPose(m, source){
+  var now = Date.now();
+  /* map→base_link 是主数据源；只有它超时才接受旧版 /poseupdate。 */
+  if(source === 'map→base_link' || !poseMsg || now - poseAt > 1500){
+    poseMsg = m; poseAt = now; poseSource = source;
+    var p = m && m.pose && m.pose.pose && m.pose.pose.position;
+    if(p && isFinite(p.x) && isFinite(p.y)){
+      if(!poseStart) poseStart = {x:p.x, y:p.y};
+      var last = poseTrail.length ? poseTrail[poseTrail.length-1] : null;
+      if(!last || Math.hypot(p.x-last.x, p.y-last.y) >= 0.03 || now-poseTrailAt >= 1000){
+        poseTrail.push({x:p.x, y:p.y});
+        if(poseTrail.length > 4000) poseTrail.shift();
+        poseTrailAt = now;
+      }
+    }
+  }
+}
+function checkClosedTurn(){
+  if(!closedTurn.active || odomYawContinuous === null) return;
+  var progress = (odomYawContinuous - closedTurn.start) * closedTurn.dir;
+  var elapsed = (Date.now() - closedTurn.startedAt) / 1000;
+  /* 接近目标先降到最低转速，等 /odom 真正达到目标再停车。 */
+  var brakeWindow = Math.max(0.05, Math.min(0.12, closedTurn.target * 0.25));
+  if(!closedTurn.braked && progress >= closedTurn.target - brakeWindow){
+    closedTurn.braked = true;
+    pub('/chassis_control/set_velocity', 'chassis_control/SetVelocity',
+        {velocity:0, direction:0, angular:closedTurn.dir * 0.1});
+    log('闭环旋转接近目标，降低转速等待精确停车');
+  }
+  if(progress >= closedTurn.target){
+    finishClosedTurn('达到目标角度 '+(progress*180/Math.PI).toFixed(1)+'°');
+  }else if(Date.now() - odomAt > 700){
+    finishClosedTurn('/odom 超时，已停车', true);
+  }else if(elapsed > closedTurn.timeout){
+    finishClosedTurn('闭环旋转超时，已停车', true);
+  }
+}
+function finishClosedTurn(reason, isError){
+  if(!closedTurn.active && !isError) return;
+  if(closedTurn.timer){ clearInterval(closedTurn.timer); closedTurn.timer = null; }
+  closedTurn.active = false;
+  /* 直接发布底盘停止，不能依赖下一次按钮事件。 */
+  if(ros){
+    pub('/chassis_control/set_translation', 'chassis_control/SetTranslation', {velocity_x:0, velocity_y:0});
+    pub('/chassis_control/set_velocity', 'chassis_control/SetVelocity', {velocity:0, direction:0, angular:0});
+  }
+  log('闭环旋转停止：'+reason, isError ? 'er' : 'ok');
+}
+function stopClosedTurn(reason, quiet){
+  if(!closedTurn.active) return;
+  finishClosedTurn(reason || '手动停止', !quiet);
+}
+function startClosedTurn(dir){
+  if(!ros) return;
+  if(['STARTING_SLAM','RUNNING'].indexOf(autoMapState) >= 0){
+    log('闭环旋转拒绝启动：自动建图正在接管底盘', 'er');
+    return;
+  }
+  if(closedTurn.active){ finishClosedTurn('被新的闭环指令打断', true); return; }
+  if(odomYawContinuous === null || Date.now() - odomAt > 700){
+    log('闭环旋转拒绝启动：没有新鲜的 /odom', 'er');
+    drive('s');
+    return;
+  }
+  var deg = parseFloat($('turnTarget').value);
+  var signed = (dir > 0 ? 1 : -1) * deg * Math.PI / 180;
+  var command = Math.max(0.1, Math.min(1.5, Math.abs(ANG)));
+  closedTurn = {
+    active:true, dir:dir, start:odomYawContinuous, target:Math.abs(signed),
+    command:command, braked:false,
+    startedAt:Date.now(), timeout:Math.min(35, Math.max(5, Math.abs(signed)/(command*0.55)+3)), timer:null
+  };
+  pub('/chassis_control/set_velocity', 'chassis_control/SetVelocity',
+      {velocity:0, direction:0, angular:dir > 0 ? command : -command});
+  log('闭环旋转开始：目标 '+deg.toFixed(0)+'°，等待 /odom 达标自动停止', 'ok');
+  closedTurn.timer = setInterval(checkClosedTurn, 50);
 }
 function startMap(){
   stopMap();
   if(!ros) return;
   mapSub = new ROSLIB.Topic({ros: ros, name: '/map', messageType: 'nav_msgs/OccupancyGrid', throttle_rate: 1500});
   mapSub.subscribe(function(m){ mapMsg = m; mapStat.n++; });
-  poseSub = new ROSLIB.Topic({ros: ros, name: '/poseupdate', messageType: 'geometry_msgs/PoseWithCovarianceStamped', throttle_rate: 200});
-  poseSub.subscribe(function(m){ poseMsg = m; });
+  poseSub = new ROSLIB.Topic({ros: ros, name: '/console/robot_pose', messageType: 'geometry_msgs/PoseWithCovarianceStamped', throttle_rate: 100});
+  poseSub.subscribe(function(m){ acceptMapPose(m, 'map→base_link'); });
+  /* 兼容旧版 hector；新节点正常时不会覆盖 map→base_link。 */
+  legacyPoseSub = new ROSLIB.Topic({ros: ros, name: '/poseupdate', messageType: 'geometry_msgs/PoseWithCovarianceStamped', throttle_rate: 200});
+  legacyPoseSub.subscribe(function(m){ acceptMapPose(m, '/poseupdate'); });
+  odomSub = new ROSLIB.Topic({ros: ros, name: '/odom', messageType: 'nav_msgs/Odometry', throttle_rate: 40});
+  odomSub.subscribe(function(m){
+    var q = m && m.pose && m.pose.pose && m.pose.pose.orientation;
+    if(!q) return;
+    var raw = Math.atan2(2*(q.w*q.z + q.x*q.y), 1 - 2*(q.y*q.y + q.z*q.z));
+    if(odomYawContinuous === null || odomYawRaw === null){
+      odomYawContinuous = raw;
+    }else{
+      var d = raw - odomYawRaw;
+      while(d > Math.PI) d -= 2*Math.PI;
+      while(d < -Math.PI) d += 2*Math.PI;
+      odomYawContinuous += d;
+    }
+    odomYawRaw = raw; odomYaw = raw; odomAt = Date.now();
+    checkClosedTurn();
+  });
   mapBadge('等待地图数据…');
-  log('已订阅 /map + /poseupdate');
+  log('已订阅 /map + map→base_link 位姿 + /odom');
 }
 function stopMap(){
   if(mapSub){ try{ mapSub.unsubscribe(); }catch(e){} mapSub = null; }
   if(poseSub){ try{ poseSub.unsubscribe(); }catch(e){} poseSub = null; }
-  mapMsg = null; poseMsg = null;
+  if(legacyPoseSub){ try{ legacyPoseSub.unsubscribe(); }catch(e){} legacyPoseSub = null; }
+  if(odomSub){ try{ odomSub.unsubscribe(); }catch(e){} odomSub = null; }
+  stopClosedTurn('连接/订阅已关闭', true);
+  mapMsg = null; poseMsg = null; poseSource = 'none'; poseAt = 0;
+  poseTrail = []; poseStart = null; poseTrailAt = 0;
   mapStat = { n: 0, t0: Date.now(), hz: 0 };
+  odomYaw = null; odomYawContinuous = null; odomYawRaw = null; odomAt = 0;
 }
 
 function drawMap(){
@@ -675,8 +988,17 @@ function drawMap(){
     }
     octx.putImageData(img, 0, 0);
 
-    /* 自适应缩放: 有已知区域时聚焦已知区域(周围全是未知背景, 没必要占满画面);
-       上限 12px/格, 防止小地图糊脸放大 */
+    /* 自适应缩放: 已知地图区域必须包含当前机器人，否则机器人在地图边缘
+       时会被裁掉，只剩坐标文字。 */
+    var poseFresh = poseMsg && Date.now() - poseAt < 2000;
+    if(poseFresh && poseMsg.pose && poseMsg.pose.pose){
+      var vp = poseMsg.pose.pose.position;
+      var vc = (vp.x - org.x) / res;
+      var vr = ih - (vp.y - org.y) / res;
+      var vm = 14;  /* 给箭头和文字留边距 */
+      if(b.c1 < b.c0){ b.c0=vc-vm; b.c1=vc+vm; b.r0=vr-vm; b.r1=vr+vm; }
+      else { b.c0=Math.min(b.c0,vc-vm); b.c1=Math.max(b.c1,vc+vm); b.r0=Math.min(b.r0,vr-vm); b.r1=Math.max(b.r1,vr+vm); }
+    }
     var sc, ox, oy;
     if(b.c1 >= b.c0 && b.r1 >= b.r0){
       var fw = b.c1 - b.c0 + 1, fh = b.r1 - b.r0 + 1;
@@ -690,20 +1012,44 @@ function drawMap(){
     ctx.imageSmoothingEnabled = false;
     ctx.drawImage(mapOff, ox, oy, iw*sc, ih*sc);
 
-    /* 机器人: /poseupdate (map 系) → 屏 */
-    if(poseMsg && poseMsg.pose && poseMsg.pose.pose){
+    function mapToScreen(x, y){
+      return {x: ox + ((x - org.x)/res) * sc,
+              y: oy + (ih - (y - org.y)/res) * sc};
+    }
+
+    /* 轨迹和起点: 都使用 map 坐标，便于观察回环和漂移。 */
+    if(poseTrail.length > 1){
+      ctx.save(); ctx.strokeStyle = 'rgba(35,170,255,.85)'; ctx.lineWidth = 2;
+      ctx.beginPath();
+      poseTrail.forEach(function(t, i){ var s = mapToScreen(t.x, t.y); if(i) ctx.lineTo(s.x,s.y); else ctx.moveTo(s.x,s.y); });
+      ctx.stroke(); ctx.restore();
+    }
+    if(poseStart){
+      var ss = mapToScreen(poseStart.x, poseStart.y);
+      ctx.save(); ctx.strokeStyle = '#40d9ff'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(ss.x, ss.y, 7, 0, Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(ss.x-10, ss.y); ctx.lineTo(ss.x+10, ss.y); ctx.moveTo(ss.x, ss.y-10); ctx.lineTo(ss.x, ss.y+10); ctx.stroke();
+      ctx.restore();
+    }
+
+    /* 机器人: 优先使用车端 TF 桥接发布的 map→base_link 位姿。 */
+    if(poseFresh && poseMsg.pose && poseMsg.pose.pose){
       var p = poseMsg.pose.pose.position;
       var q = poseMsg.pose.pose.orientation;
       var yaw = Math.atan2(2*(q.w*q.z + q.x*q.y), 1 - 2*(q.y*q.y + q.z*q.z));
-      var rx = ox + ((p.x - org.x)/res) * sc;
-      var ry = oy + (ih - (p.y - org.y)/res) * sc;
+      var rs = mapToScreen(p.x, p.y), rx = rs.x, ry = rs.y;
       if(rx >= 0 && rx < W && ry >= 0 && ry < H){
         ctx.save();
         ctx.translate(rx, ry); ctx.rotate(-yaw);   /* 屏幕 y 向下, 转向取反 */
+        /* 黑色描边保证在白色地图和深色未知区都看得见。 */
+        ctx.strokeStyle = 'rgba(0,0,0,.9)'; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.moveTo(0,-13); ctx.lineTo(-9,10); ctx.lineTo(9,10); ctx.closePath(); ctx.stroke();
         ctx.fillStyle = '#ffd54a';
         ctx.beginPath();
-        ctx.moveTo(0, -9); ctx.lineTo(-6, 7); ctx.lineTo(6, 7);
+        ctx.moveTo(0, -13); ctx.lineTo(-9, 10); ctx.lineTo(9, 10);
         ctx.closePath(); ctx.fill();
+        ctx.fillStyle = '#111'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('小车', 0, 26);
         ctx.restore();
       }
     }
@@ -713,9 +1059,10 @@ function drawMap(){
       mapStat.hz = mapStat.n * 1000 / (now - mapStat.t0);
       mapStat.n = 0; mapStat.t0 = now;
     }
-    var pt = poseMsg && poseMsg.pose && poseMsg.pose.pose ? poseMsg.pose.pose.position : null;
+    var pt = poseFresh && poseMsg && poseMsg.pose && poseMsg.pose.pose ? poseMsg.pose.pose.position : null;
+    var poseText = pt ? ' · 机器人 (' + pt.x.toFixed(2) + ', ' + pt.y.toFixed(2) + ')m 航向 ' + (Math.atan2(2*(poseMsg.pose.pose.orientation.w*poseMsg.pose.pose.orientation.z + poseMsg.pose.pose.orientation.x*poseMsg.pose.pose.orientation.y), 1 - 2*(poseMsg.pose.pose.orientation.y*poseMsg.pose.pose.orientation.y + poseMsg.pose.pose.orientation.z*poseMsg.pose.pose.orientation.z))*180/Math.PI).toFixed(0) + '°' : ' · 等待 map→base_link';
     mapBadge('● 地图 ' + iw + '×' + ih + ' · ' + res.toFixed(2) + 'm/格 · 更新 ' + mapStat.hz.toFixed(1) + 'Hz' +
-             (pt ? ' · 机器人 (' + pt.x.toFixed(2) + ', ' + pt.y.toFixed(2) + ')m' : ''),
+             poseText + (pt ? ' · ' + poseSource : ''),
              'rgba(20,140,60,.75)');
   } else {
     ctx.fillStyle = 'rgba(255,255,255,.25)'; ctx.font = '13px sans-serif';
@@ -816,6 +1163,80 @@ function unsubscribeSlam(){
   slamAlive = false; slamRunning = false; slamBusy = false;
   updateSlamButtons();
 }
+
+/* ---------- 自动建图控制 (/auto_mapping/*) ---------- */
+var autoMapStatusSub = null;
+var autoMapAlive = false;
+var autoMapState = 'IDLE';
+var autoMapLastTs = 0;
+function setAutoMapHint(txt, color){
+  $('autoMapHint').textContent = txt;
+  $('autoMapHint').style.color = color || 'var(--muted)';
+}
+function updateAutoMapButtons(){
+  var conn = !!ros;
+  var canStart = ['IDLE','STOPPED','DONE','ERROR'].indexOf(autoMapState) >= 0;
+  var running = ['STARTING_SLAM','RUNNING','PAUSED','DONE'].indexOf(autoMapState) >= 0;
+  $('btnAutoMapStart').disabled = !(conn && autoMapAlive && canStart);
+  // 控制节点掉线时仍保留停止按钮，允许直接向底盘发送急停。
+  $('btnAutoMapStop').disabled = !(conn && (running || !autoMapAlive));
+  var dot = $('autoMapDot');
+  dot.className = 'dot' + (autoMapAlive ? (['ERROR','PAUSED'].indexOf(autoMapState) >= 0 ? ' err' : ' on') : '');
+}
+function subscribeAutoMapping(){
+  if(autoMapStatusSub){ try{ autoMapStatusSub.unsubscribe(); }catch(e){} autoMapStatusSub = null; }
+  if(!ros) return;
+  autoMapAlive = false; autoMapState = 'IDLE'; autoMapLastTs = 0;
+  $('autoMapState').lastElementChild.textContent = '等待自动建图节点…';
+  setAutoMapHint('等待 /auto_mapping/status（车上自动建图节点是否已启动？）');
+  updateAutoMapButtons();
+  autoMapStatusSub = new ROSLIB.Topic({ros:ros, name:'/auto_mapping/status', messageType:'std_msgs/String', throttle_rate:500});
+  autoMapStatusSub.subscribe(function(m){
+    autoMapLastTs = Date.now();
+    try{
+      var s = JSON.parse(m.data);
+      autoMapAlive = true;
+      autoMapState = s.state || 'UNKNOWN';
+      var label = autoMapState + (s.travel_mode === 'reverse' ? ' · 倒车' : ' · 前进') + (s.wall_state ? ' · 巡航 '+s.wall_state : '');
+      $('autoMapState').lastElementChild.textContent = label;
+      var txt = s.msg || '';
+      if(s.wall_msg) txt += (txt ? '；' : '') + s.wall_msg;
+      if(s.frontier && Number.isFinite(Number(s.frontier.x)) && Number.isFinite(Number(s.frontier.y)))
+        txt += ' · 前沿目标('+Number(s.frontier.x).toFixed(2)+', '+Number(s.frontier.y).toFixed(2)+')m';
+      if(Number(s.wait_secs) > 0) txt += ' · 已等待 '+Number(s.wait_secs).toFixed(1)+'s';
+      if(s.path_len !== null && s.path_len !== undefined) txt += ' · 路程 '+s.path_len+'m';
+      setAutoMapHint(txt || '自动建图节点在线');
+    }catch(e){
+      autoMapAlive = true;
+      $('autoMapState').lastElementChild.textContent = '在线（状态解析失败）';
+    }
+    updateAutoMapButtons();
+  });
+}
+function unsubscribeAutoMapping(){
+  if(autoMapStatusSub){ try{ autoMapStatusSub.unsubscribe(); }catch(e){} autoMapStatusSub = null; }
+  autoMapAlive = false; autoMapState = 'IDLE'; autoMapLastTs = 0;
+  $('autoMapState').lastElementChild.textContent = '控制节点离线';
+  updateAutoMapButtons();
+}
+$('btnAutoMapStart').onclick = function(){
+  if(!ros || !autoMapAlive) return;
+  if(slamEngine !== 'slam_toolbox'){
+    log('自动建图建议先选择 slam_toolbox（有回环），当前为 '+slamEngine, 'er');
+    return;
+  }
+  pub('/auto_mapping/cmd', 'std_msgs/String', {data:'start'});
+  log('已请求自动建图：先启动 SLAM，再启动雷达安全巡航', 'ok');
+};
+$('btnAutoMapStop').onclick = function(){
+  if(!ros) return;
+  // 先直达底盘，绕过自动建图编排器的中间延迟；编排器随后负责
+  // 停止墙跟随和 SLAM。即使编排器离线，电机也能被立即切断。
+  pub('/chassis_control/stop', 'std_msgs/Empty', {});
+  if(autoMapAlive) pub('/auto_mapping/cmd', 'std_msgs/String', {data:'stop'});
+  log('已请求停止自动建图：先停车，再停止 SLAM', 'ok');
+};
+
 /* 心跳看门狗：5s 没收到 status 视为节点离线 */
 setInterval(function(){
   if(!ros) return;
@@ -824,6 +1245,13 @@ setInterval(function(){
     setSlamHint('控制节点离线 — 需在车上启动 slam_control 节点', 'var(--warn)');
     log('slam_control 节点心跳超时，判定离线', 'er');
     updateSlamButtons();
+  }
+  if(autoMapAlive && autoMapLastTs && Date.now() - autoMapLastTs > 3000){
+    autoMapAlive = false;
+    autoMapState = 'IDLE';
+    $('autoMapState').lastElementChild.textContent = '控制节点离线';
+    setAutoMapHint('自动建图节点心跳超时，已停止发起新动作', 'var(--warn)');
+    updateAutoMapButtons();
   }
 }, 2000);
 function slamCmd(c){
@@ -852,8 +1280,12 @@ $('slamEngine').onchange = function(){
 var SPD = 60, ANG = 0.5;   /* SPD 单位 mm/s（官方 demo 用 60） */
 $('spd').oninput = function(){ SPD = parseFloat(this.value); $('spdv').textContent = SPD.toFixed(0)+'mm/s'; };
 $('ang').oninput = function(){ ANG = parseFloat(this.value); $('angv').textContent = ANG.toFixed(2); };
+$('turnTarget').oninput = function(){ $('turnTargetV').textContent = parseFloat(this.value).toFixed(0)+'°'; };
+$('btnTurnClosedL').onclick = function(){ startClosedTurn(1); };
+$('btnTurnClosedR').onclick = function(){ startClosedTurn(-1); };
 
 function drive(m){
+  if(closedTurn.active) stopClosedTurn('收到手动底盘指令');
   recHook('chassis', {m: m});   /* 录制模式：记录底盘操作 */
   var T = 'chassis_control/SetTranslation', V = 'chassis_control/SetVelocity';
   var map = {
@@ -881,22 +1313,27 @@ $('btnStopAll').onclick = function(){ drive('s'); };
 
 /* ---------- 机械臂关节 ---------- */
 var JOINTS = [
-  ['joint1','关节1 底座'], ['joint2','关节2 大臂'], ['joint3','关节3 小臂'],
-  ['joint4','关节4 腕部'], ['joint5','关节5 旋转'], ['r_joint','关节6 末端']
+  /* [joint, label, captured display default, conservative min, max] */
+  ['joint1','关节1 底座', 0.02, -1.20, 1.20],
+  ['joint2','关节2 大臂', 0.52, -1.20, 1.20],
+  ['joint3','关节3 小臂', -1.40, -1.40, 1.20],
+  ['joint4','关节4 腕部', -1.78, -1.78, 1.20],
+  ['joint5','关节5 旋转', 0.01, -1.20, 1.20]
 ];
 var jbox = $('joints');
 JOINTS.forEach(function(j){
   var d = document.createElement('div');
   d.className = 'joint';
   d.innerHTML = '<label>'+j[1]+'</label>' +
-    '<input type="range" min="-1.2" max="1.2" step="0.05" value="0" data-j="'+j[0]+'">' +
-    '<span class="val" id="v_'+j[0]+'">0.00</span>';
+    '<input type="range" min="'+j[3].toFixed(2)+'" max="'+j[4].toFixed(2)+'" step="0.01" value="'+j[2].toFixed(2)+'" data-j="'+j[0]+'">' +
+    '<span class="val" id="v_'+j[0]+'">'+j[2].toFixed(2)+'</span>';
   jbox.appendChild(d);
 });
 var DUR = 1.0;
 $('dur').oninput = function(){ DUR = parseFloat(this.value); $('durv').textContent = DUR.toFixed(1)+'s'; };
 
 function setJoint(name, val){
+  if(name === 'r_joint') val = clampGrip(val);
   recHook('joint', {name: name, val: val, dur: DUR});   /* 录制钩子 */
   pub('/'+name+'_controller/command_duration', 'hiwonder_servo_msgs/CommandDuration',
       {data: val, duration: DUR});
@@ -910,32 +1347,48 @@ jbox.addEventListener('change', function(e){
 });
 $('btnHome').onclick = function(){
   JOINTS.forEach(function(j){
-    document.querySelector('input[data-j="'+j[0]+'"]').value = 0;
-    $('v_'+j[0]).textContent = '0.00';
-    setJoint(j[0], 0);
+    document.querySelector('input[data-j="'+j[0]+'"]').value = j[2];
+    $('v_'+j[0]).textContent = j[2].toFixed(2);
+    setJoint(j[0], j[2]);
   });
-  log('全部关节回中', 'ok');
+  log('已发送默认姿态指令（五个关节；夹爪未动）', 'ok');
 };
 
-/* 夹爪：真实关节名是 r_joint。换算：pulse = 700 + 位置×318.3（range 180°），位置有效域 −2.199 ~ +0.942 对应脉冲 0~1000 */
-var GOPEN = -0.14, GCLOSE = -0.55;   /* 2026-09-06 硬件标定：可动窗口 525~655 脉冲 */
-function gripper(pos){
-  recHook('gripper', {pos: pos, dur: DUR});   /* 录制钩子 */
+/* 夹爪 r_joint：按实测方向，较低角度/脉冲张开，较高角度/脉冲闭合。
+   当前张开端按手动最大开口实读 75 设定；闭合端仍保留旧软件上限约 636。
+   旧堵转标定与本次实读不一致，首次上电动作必须空载并留出安全距离。 */
+var GRIP_MIN = -1.9635, GRIP_MAX = -0.20;
+var gripTestPos = -1.9635;
+function clampGrip(pos){
+  pos = Number(pos);
+  return Number.isFinite(pos) ? Math.max(GRIP_MIN, Math.min(GRIP_MAX, pos)) : null;
+}
+function gripDuration(dur){
+  var ms = Math.round(Math.max(0.3, Number(dur) || 1) * 1000);
+  return {secs:Math.floor(ms / 1000), nsecs:(ms % 1000) * 1000000};
+}
+function publishGripper(pos, dur){
+  var safePos = clampGrip(pos);
+  if(safePos === null || !ros){ log('夹爪指令无效或未连接', 'er'); return null; }
   var t = new ROSLIB.Topic({ros:ros, name:'/gripper_controller/command',
                             messageType:'trajectory_msgs/JointTrajectory'});
   t.publish(new ROSLIB.Message({
     header:{stamp:{secs:0, nsecs:0}, frame_id:''},
     joint_names:['r_joint'],
-    points:[{positions:[pos], velocities:[], accelerations:[], effort:[],
-             time_from_start:{secs:Math.round(DUR), nsecs:0}}]
+    points:[{positions:[safePos], velocities:[], accelerations:[], effort:[],
+             time_from_start:gripDuration(dur)}]
   }));
-  log('夹爪 → '+pos.toFixed(2));
+  return safePos;
 }
-$('btnGripOpen').onclick  = function(){ gripper(GOPEN); };
-$('btnGripClose').onclick = function(){ gripper(GCLOSE); };
-/* 行程标定：滑杆选位置 → 「走到该位置」单步测试，找到开/合两点后可写进 GOPEN/GCLOSE */
-$('gpos').oninput = function(){ GOPEN = parseFloat(this.value); $('gposv').textContent = GOPEN.toFixed(2); };
-$('btnGripTry').onclick = function(){ gripper(GOPEN); log('夹爪位置测试：'+GOPEN.toFixed(2)+'（小步逼近，避免撞击行程端点）'); };
+function gripper(pos){
+  var safePos = publishGripper(pos, DUR);
+  if(safePos === null) return;
+  recHook('gripper', {pos: safePos, dur: DUR});   /* 录制钩子 */
+  log('夹爪 → '+safePos.toFixed(2));
+}
+/* 滑杆位置仅在用户点击测试按钮后发送。 */
+$('gpos').oninput = function(){ gripTestPos = parseFloat(this.value); $('gposv').textContent = gripTestPos.toFixed(2); };
+$('btnGripTry').onclick = function(){ gripper(gripTestPos); log('夹爪位置测试：'+gripTestPos.toFixed(2)); };
 
 /* ---------- 动作组 ---------- */
 var REP = 1;
@@ -1040,18 +1493,13 @@ function rawChassis(m, spd, ang){   /* 回放专用：发底盘指令，不进�
   pub(a[0], a[1], a[2]);
 }
 function setJointRaw(name, val, dur){
+  if(name === 'r_joint') val = clampGrip(val);
+  if(val === null) return;
   pub('/'+name+'_controller/command_duration', 'hiwonder_servo_msgs/CommandDuration',
       {data: val, duration: dur});
 }
 function gripperRaw(pos, dur){
-  var t = new ROSLIB.Topic({ros:ros, name:'/gripper_controller/command',
-                            messageType:'trajectory_msgs/JointTrajectory'});
-  t.publish(new ROSLIB.Message({
-    header:{stamp:{secs:0, nsecs:0}, frame_id:''},
-    joint_names:['r_joint'],
-    points:[{positions:[pos], velocities:[], accelerations:[], effort:[],
-             time_from_start:{secs:Math.round(dur), nsecs:0}}]
-  }));
+  publishGripper(pos, dur);
 }
 function runActionRaw(name, rep){
   pub('/ActionGroupRunner/goal', 'hiwonder_servo_msgs/ActionGroupRunnerActionGoal', {

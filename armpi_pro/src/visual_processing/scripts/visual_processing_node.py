@@ -389,7 +389,8 @@ def enter_func(msg):
     with lock:
         if not image_sub_st:
             image_sub_st = True
-            image_sub = rospy.Subscriber('/usb_cam/image_raw', Image, image_callback)
+            image_topic = rospy.get_param('~image_topic', '/usb_cam/image_raw')
+            image_sub = rospy.Subscriber(image_topic, Image, image_callback)
             
     return [True, 'enter']
 

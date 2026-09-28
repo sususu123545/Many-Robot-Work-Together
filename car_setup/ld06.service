@@ -3,13 +3,21 @@ Description=LD06 lidar node (docker exec into armpi_pro)
 # 跟在 docker 和车主服务后面启动; 容器由 docker 拉起
 Requires=docker.service
 After=docker.service start_node.service
+StartLimitIntervalSec=0
 
 [Service]
-Type=oneshot
-RemainAfterExit=yes
-# 等 rosmaster 就绪(最多 120s); 等不到也照样执行(脚本幂等, 日志留痕)
-ExecStartPre=/bin/sh -c 'i=0; while [ $i -lt 60 ]; do docker exec armpi_pro pgrep -f "[r]osmaster" >/dev/null 2>&1 && exit 0; i=$((i+1)); sleep 2; done; exit 0'
-ExecStart=/usr/bin/docker exec -d -w /home/ubuntu armpi_pro bash -lc "bash /home/ubuntu/run_ld06.sh > /tmp/ld06_run.log 2>&1"
+Type=simple
+Restart=always
+RestartSec=5
+TimeoutStartSec=120
+# 同时等待雷达设备和 rosmaster；run_ld06.sh 还会确认 /run_id 连续稳定，
+# 避免开机时 roslaunch 抢在 roscore 重启/换 run_id 的窗口注册。
+ExecStartPre=/bin/sh -c 'i=0; while [ $i -lt 90 ]; do test -e /dev/ld06 && docker exec armpi_pro pgrep -f "[r]osmaster" >/dev/null 2>&1 && exit 0; i=$((i+1)); sleep 2; done; echo "LD06 device or rosmaster not ready" >&2; exit 1'
+ExecStart=/usr/bin/docker exec -w /home/ubuntu armpi_pro bash -lc "bash /home/ubuntu/run_ld06.sh >> /tmp/ld06_run.log 2>&1"
+KillMode=control-group
+# service active 必须意味着 /scan 真有数据；否则让 systemd 结束本次
+# roslaunch 并按 Restart=always 重试，而不是留下假 active 状态。
+ExecStartPost=/bin/sh -c 'i=0; while [ $i -lt 30 ]; do docker exec armpi_pro bash -lc "source /opt/ros/noetic/setup.bash; export ROS_MASTER_URI=http://raspberrypi:11311; timeout 5 python3 /home/ubuntu/ld06_healthcheck.py" && exit 0; i=$((i+1)); sleep 2; done; echo "LD06 started but /scan has no message" >&2; exit 1'
 
 [Install]
 WantedBy=multi-user.target

@@ -3,7 +3,7 @@
 # 轮式里程计 odom 节点启动脚本（幂等版 2026-09-18）
 #
 # 调用方: systemd odom.service（宿主侧，root 身份执行 docker exec）
-#   docker exec -d -u ubuntu -w /home/ubuntu armpi_pro bash -lc \
+#   docker exec -u ubuntu -w /home/ubuntu armpi_pro bash -lc \
 #       'bash /home/ubuntu/run_odom.sh > /home/ubuntu/odom_run.log 2>&1'
 #
 # 前置: chassis_control_node.py 已在跑 —— 它**独家持有 I2C** 并发布

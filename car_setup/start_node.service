@@ -1,0 +1,19 @@
+[Unit]
+Description=ArmPi core ROS launch (底盘、rosbridge、传感器和可选视觉)
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+Environment=DISPLAY=:0
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=0
+TimeoutStopSec=30
+KillMode=control-group
+ExecStart=/bin/bash /home/pi/armpi_pro/start_node.sh
+
+[Install]
+WantedBy=multi-user.target

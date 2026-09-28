@@ -27,11 +27,13 @@ Params (mm):
   a=110, b=97.5, wheel_d=96.5, pulses_per_rev=44*178=7832
 """
 import math
+import threading
 
 import rospy
 import tf2_ros
 from geometry_msgs.msg import TransformStamped, Quaternion
 from nav_msgs.msg import Odometry
+from sensor_msgs.msg import Imu
 from std_msgs.msg import Int32MultiArray
 
 # ---------- chassis geometry (mm) ----------
@@ -47,6 +49,13 @@ MM_PER_PULSE = (PI * WHEEL_DIAMETER) / PULSES_PER_REV
 SIGN_FORWARD = 1.0
 SIGN_STRAFE = 1.0
 SIGN_ROTATION = 1.0
+
+# IMU yaw assist.  The encoder remains responsible for X/Y displacement;
+# the calibrated BMI270 gyro supplies a conservative correction for yaw.
+IMU_TOPIC = '/bmi270/imu_raw'
+IMU_YAW_WEIGHT = 0.70
+IMU_YAW_SIGN = 1.0
+IMU_TIMEOUT = 0.25
 
 
 def euler_to_quaternion(roll, pitch, yaw):
@@ -76,11 +85,18 @@ class MecanumOdom:
         self.sign_strafe = rospy.get_param('~sign_strafe', SIGN_STRAFE)
         self.sign_rotation = rospy.get_param('~sign_rotation', SIGN_ROTATION)
         self.base_width = self.a + self.b
+        self.imu_topic = rospy.get_param('~imu_topic', IMU_TOPIC)
+        self.imu_yaw_weight = min(
+            1.0, max(0.0, float(rospy.get_param('~imu_yaw_weight', IMU_YAW_WEIGHT)))
+        )
+        self.imu_yaw_sign = float(rospy.get_param('~imu_yaw_sign', IMU_YAW_SIGN))
+        self.imu_timeout = float(rospy.get_param('~imu_timeout', IMU_TIMEOUT))
 
         self.odom_pub = rospy.Publisher('/odom', Odometry, queue_size=10)
         self.tf_broadcaster = tf2_ros.TransformBroadcaster()
         rospy.Subscriber('/chassis_control/encoder_counts',
                          Int32MultiArray, self.on_encoders)
+        rospy.Subscriber(self.imu_topic, Imu, self.on_imu, queue_size=50)
 
         self.last_counts = None
         self.last_time = None
@@ -88,8 +104,48 @@ class MecanumOdom:
         self.y = 0.0
         self.theta = 0.0
         self.ok = False
+        self.imu_omega_z = None
+        self.imu_time = None
+        self.imu_lock = threading.Lock()
+        self.imu_warned = False
 
-        rospy.loginfo('mecanum_odom waiting for /chassis_control/encoder_counts ...')
+        rospy.loginfo(
+            'mecanum_odom waiting for /chassis_control/encoder_counts; '
+            'IMU yaw assist topic=%s weight=%.2f sign=%.1f timeout=%.2fs',
+            self.imu_topic, self.imu_yaw_weight, self.imu_yaw_sign,
+            self.imu_timeout,
+        )
+
+    def on_imu(self, msg):
+        """Cache calibrated BMI270 Z gyro for the next encoder update."""
+        stamp = msg.header.stamp if msg.header.stamp != rospy.Time() else rospy.Time.now()
+        with self.imu_lock:
+            self.imu_omega_z = self.imu_yaw_sign * msg.angular_velocity.z
+            self.imu_time = stamp
+        self.imu_warned = False
+
+    def fuse_yaw_rate(self, wheel_omega, now):
+        """Blend wheel yaw with recent IMU yaw, falling back safely if stale."""
+        with self.imu_lock:
+            imu_omega = self.imu_omega_z
+            imu_time = self.imu_time
+        if imu_omega is None or imu_time is None:
+            if not self.imu_warned:
+                rospy.logwarn('mecanum_odom: no IMU samples yet; using wheel yaw')
+                self.imu_warned = True
+            return wheel_omega
+        age = (now - imu_time).to_sec()
+        if age < 0.0 or age > self.imu_timeout:
+            if not self.imu_warned:
+                rospy.logwarn(
+                    'mecanum_odom: IMU stale (age %.3fs); using wheel yaw', age
+                )
+                self.imu_warned = True
+            return wheel_omega
+        return (
+            (1.0 - self.imu_yaw_weight) * wheel_omega
+            + self.imu_yaw_weight * imu_omega
+        )
 
     def normalize_delta(self, new_val, old_val):
         delta = new_val - old_val
@@ -129,7 +185,8 @@ class MecanumOdom:
         vx_robot = (m[0] + m[1] + m[2] + m[3]) / 4.0 / dt
         vy_robot = self.sign_strafe * (-m[0] + m[1] + m[2] - m[3]) / 4.0 / dt
         vp = self.sign_rotation * (-m[0] + m[1] - m[2] + m[3]) / 4.0
-        omega = vp / self.base_width / dt
+        wheel_omega = vp / self.base_width / dt
+        omega = self.fuse_yaw_rate(wheel_omega, now)
 
         # integrate in odom frame
         # Exact arc integration over the step (theta goes from th1 to th2):

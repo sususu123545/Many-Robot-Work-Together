@@ -6,3 +6,7 @@ node_modules/
 
 # WorkBuddy 内部记忆文件，不上传 GitHub
 .workbuddy/
+
+# Local ArmPi console credential/config and supervisor runtime logs
+tools/console_supervisor.local.json
+tools/runtime/

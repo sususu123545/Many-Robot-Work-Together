@@ -1,0 +1,9 @@
+# Incremental build on the exact, already verified local ARM64 runtime.
+ARG VERIFIED_RUNTIME=armpi-ros2-migration:stage-encoders1
+FROM ${VERIFIED_RUNTIME}
+WORKDIR /opt/armpi_ros2
+COPY src/armpi_ros2 src/armpi_ros2
+RUN source /opt/ros/jazzy/setup.bash && colcon build --executor sequential --packages-select armpi_ros2 \
+    && colcon test --executor sequential --packages-select armpi_ros2 --python-testing pytest --event-handlers console_direct+ \
+    && colcon test-result --verbose
+CMD ["bash", "-c", "source /opt/armpi_ros2/install/setup.bash && exec ros2 launch armpi_ros2 base.launch.py"]

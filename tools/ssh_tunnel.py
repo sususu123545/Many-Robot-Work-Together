@@ -12,8 +12,11 @@ import select
 import socket
 import sys
 import threading
+from pathlib import Path
 
 import paramiko
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from ros2_preflight import connect
 
 
 def relay(local_sock, channel):
@@ -56,18 +59,8 @@ def main():
     if not args.password:
         parser.error("--password or ARMPI_SSH_PASSWORD is required")
 
-    ssh = paramiko.SSHClient()
-    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    ssh.connect(
-        hostname=args.host,
-        username=args.user,
-        password=args.password,
-        timeout=15,
-        banner_timeout=15,
-        auth_timeout=15,
-        allow_agent=False,
-        look_for_keys=False,
-    )
+    # Reject unknown host keys; hotspot IP changes use the already trusted pin.
+    ssh = connect(args.host, user=args.user, password=args.password)
     transport = ssh.get_transport()
     if transport is None or not transport.is_active():
         raise RuntimeError("SSH transport is not active")

@@ -1,0 +1,16 @@
+[Unit]
+Description=ArmPi ROS2 isolated lidar recovery (no motion hardware)
+Requires=docker.service
+After=docker.service
+Conflicts=armpi-ros2.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/armpi-ros2/run_lidar_only.py
+Restart=always
+RestartSec=5
+KillMode=process
+TimeoutStopSec=25
+
+# Deliberately not enabled on boot: whole-car repair remains a separate task.

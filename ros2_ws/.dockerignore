@@ -1,0 +1,8 @@
+build/
+install/
+log/
+**/__pycache__/
+**/*.pyc
+*.local.*
+*.tar.gz
+verification.json

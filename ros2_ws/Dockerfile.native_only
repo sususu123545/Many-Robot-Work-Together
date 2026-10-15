@@ -1,0 +1,14 @@
+# Derive only startup/video changes from the exact deployed driver runtime.
+ARG VERIFIED_RUNTIME=armpi-ros2-migration:stage-4xhjqf
+FROM ${VERIFIED_RUNTIME}
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+ARG PACKAGES_PREINSTALLED=false
+RUN if [ "$PACKAGES_PREINSTALLED" != "true" ]; then apt-get update && apt-get install -y --no-install-recommends \
+    ros-jazzy-v4l2-camera ros-jazzy-web-video-server ros-jazzy-image-transport-plugins \
+    && rm -rf /var/lib/apt/lists/*; fi
+# Only enlarge the initial communication window; no scan protocol/limits change.
+RUN python3 -c "from pathlib import Path; p=Path('/opt/armpi_ros2/src/ldlidar_stl_ros2/src/demo.cpp'); s=p.read_text(); assert s.count('WaitLidarCommConnect(3000)')==1; p.write_text(s.replace('WaitLidarCommConnect(3000)','WaitLidarCommConnect(10000)'))" \
+    && cd /opt/armpi_ros2 && source install/setup.bash \
+    && colcon build --executor sequential --packages-select ldlidar_stl_ros2
+COPY src/armpi_ros2/launch/base.launch.py /opt/armpi_ros2/install/armpi_ros2/share/armpi_ros2/launch/base.launch.py
+CMD ["bash", "-c", "source /opt/armpi_ros2/install/setup.bash && exec ros2 launch armpi_ros2 base.launch.py"]

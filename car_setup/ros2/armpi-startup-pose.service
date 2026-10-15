@@ -1,0 +1,23 @@
+[Unit]
+Description=ArmPi Pro arm startup pose (OPT-IN: resets the e-stop latch and moves the arm with no human present)
+Documentation=file:///opt/armpi-ros2/arm_startup_pose.py
+# The native core explicitly starts with "no automatic arm pose". This unit is
+# the deliberate, removable exception to that rule and is kept out of
+# armpi-ros2.service so the audited boot path stays unchanged.
+Requires=armpi-ros2.service
+After=armpi-ros2.service docker.service
+ConditionPathExists=/etc/armpi-ros2/active
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/armpi-ros2/arm_startup_pose.py
+RemainAfterExit=no
+# The core needs time to come up and the arm node only becomes resettable once
+# it has seen 10 s of complete healthy feedback, so allow a long start window.
+TimeoutStartSec=900
+Restart=no
+# A failed pose must NOT retry in a loop: either the arm is out of range (needs a
+# human) or a fault is real. Both need a look at the journal, not another attempt.
+
+[Install]
+WantedBy=multi-user.target

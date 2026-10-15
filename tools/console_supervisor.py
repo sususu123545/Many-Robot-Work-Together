@@ -24,6 +24,10 @@ import subprocess
 import sys
 import time
 
+# Embedded Windows Python does not automatically add the script directory.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from core_profile import load_core_profile
+
 
 ROOT = Path(__file__).resolve().parents[1]
 TOOLS = ROOT / "tools"
@@ -495,6 +499,7 @@ def main():
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     args = parser.parse_args()
     config = load_config(args.config.expanduser().resolve())
+    core_profile = load_core_profile()
 
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     logging.basicConfig(
@@ -558,7 +563,7 @@ def main():
             "--user", str(config.get("user", "pi")),
             "--local-port", "9090",
             "--remote-host", "127.0.0.1",
-            "--remote-port", "9090",
+            "--remote-port", str(core_profile['remote_ros_port']),
         ]
 
     def shutdown(_signum=None, _frame=None):

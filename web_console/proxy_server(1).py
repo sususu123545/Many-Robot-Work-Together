@@ -11,6 +11,10 @@ import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 import socketserver
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
+from core_profile import load_core_profile
 
 PAGE = 'robot_console.html'
 CAR_TIMEOUT = 8
@@ -115,7 +119,8 @@ class Handler(BaseHTTPRequestHandler):
         q = parse_qs(urlparse(self.path).query)
         ip = q.get('ip', [''])[0]
         topic = q.get('topic', ['/rear_camera/image_raw'])[0]
-        return 'http://%s:8080%s?topic=%s&type=mjpeg' % (ip, path, urllib.parse.quote(topic))
+        qos = '&qos_profile=sensor_data' if load_core_profile()['ros_version'] == 2 else ''
+        return 'http://%s:8080%s?topic=%s&type=mjpeg%s' % (ip, path, urllib.parse.quote(topic), qos)
 
     def do_GET(self):
         from urllib.parse import urlparse
@@ -138,11 +143,14 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(body)
             return
 
-        if path in ('/', '/robot_console.html'):
+        if path in ('/', '/robot_console.html', '/ros2_console.html'):
             try:
-                body = open(PAGE, 'rb').read()
+                profile = load_core_profile()
+                page = 'ros2_console.html' if path == '/ros2_console.html' or profile['ros_version'] == 2 else PAGE
+                body = open(page, 'rb').read()
                 self.send_response(200)
                 self.send_header('Content-Type', 'text/html; charset=utf-8')
+                self.send_header('Cache-Control', 'no-store')
                 self.send_header('Content-Length', str(len(body)))
                 self.end_headers()
                 self.wfile.write(body)

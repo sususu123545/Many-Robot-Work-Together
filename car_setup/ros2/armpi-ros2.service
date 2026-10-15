@@ -1,0 +1,18 @@
+[Unit]
+Description=ArmPi native ROS 2 core (motion gates off; opt-in boot pose)
+Requires=docker.service
+After=docker.service
+Conflicts=start_node.service ld06.service odom.service ch341-bmi270.service auto-mapping.service slam-control.service
+StartLimitIntervalSec=0
+ConditionPathExists=/etc/armpi-ros2/active
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/armpi-ros2/run_native_core.py
+Restart=on-failure
+RestartSec=5
+KillMode=process
+TimeoutStopSec=35
+
+[Install]
+WantedBy=multi-user.target

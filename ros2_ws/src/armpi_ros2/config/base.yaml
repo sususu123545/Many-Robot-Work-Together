@@ -1,0 +1,48 @@
+chassis_control:
+  ros__parameters:
+    dry_run: true
+    enable_motion: false
+    i2c_bus: 1
+    i2c_address: 52
+    motor_type: 3
+    a: 0.110
+    b: 0.0975
+    wheel_diameter: 0.0965
+    pulses_per_rev: 7832.0
+    encoder_rate: 20.0
+    command_timeout: 0.35
+    max_linear: 0.08
+    max_angular: 0.20
+    max_pulse: 100
+mecanum_odom:
+  ros__parameters:
+    a: 0.110
+    b: 0.0975
+    wheel_diameter: 0.0965
+    pulses_per_rev: 7832.0
+    encoder_signs: [1.0, 1.0, 1.0]
+    # Three real basis captures on 2026-10-10; not inferred from motor commands.
+    encoder_channel_signs: [1.0, 1.0, 1.0, 1.0]
+    imu_topic: /bmi270/imu_raw
+    imu_frame: imu_link
+    imu_roll: 0.0
+    imu_pitch: 0.0
+    imu_yaw: 1.57079632679
+    imu_yaw_weight: 0.70
+    imu_timeout: 0.25
+arm_controller:
+  ros__parameters:
+    dry_run: true
+    enable_arm_motion: false
+    enable_gripper_motion: false
+    recovery_seconds: 10.0
+    serial_port: /dev/rrc
+    baudrate: 1000000
+    max_step_ticks: 100
+    max_temperature: 65
+bmi270_imu:
+  ros__parameters:
+    library_path: /opt/bmi270_py
+    rate: 50.0
+    frame_id: imu_link
+    gyro_bias: [0.002870237, 0.002160416, -0.000748247]

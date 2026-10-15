@@ -1,0 +1,8 @@
+<launch>
+  <arg name="camera" default="false"/>
+  <node name="web_video_server" pkg="web_video_server" type="web_video_server" required="false" output="screen"/>
+  <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch"/>
+  <include if="$(arg camera)" file="$(find armpi_pro_bringup)/launch/start_camera.launch">
+    <arg name="camera_name" value="rear_camera"/>
+  </include>
+</launch>

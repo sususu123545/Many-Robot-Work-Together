@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ArmPi ROS 2 硬件控制</title>
+<style>body{font:16px system-ui;margin:24px;background:#f5f6f8;color:#202735}section{background:white;padding:20px;margin:16px 0;border-radius:12px}button,input{font:inherit;padding:9px;margin:5px}button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.45}.danger{background:#a82020;color:white}.row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.row input[type=range]{width:260px}pre{white-space:pre-wrap}canvas{background:#171b23;max-width:100%}small{color:#555}</style>
+</head><body>
+<h2>ArmPi ROS 2 硬件控制</h2>
+<p>仅手动低速控制，不提供自动探索。没有自动回中、自动抓取或断线续跑。运动前保留现场物理急停。</p>
+<section><input id="endpoint" value="ws://127.0.0.1:9090" aria-label="ROS2 WebSocket地址"><button id="connect">连接 ROS 2</button><button id="disconnect">断开</button><strong id="connection">未连接</strong>
+<p>本机隧道监督器会将 9090 转发至小车 ROS 2 的 127.0.0.1:9091。首次切换保持运动锁定，真实反馈在线不等于已允许动作。</p>
+<button id="estop" class="danger">ROS 2 软件急停（底盘＋机械臂）</button><button id="stop">停止全部运动</button><button id="reset">复位机械臂保护（不授权动作）</button><button id="resetBase">复位底盘保护</button>
+<p><button id="authorizeGripper" disabled>仅授权夹爪</button><button id="revokeArm">撤销臂／夹爪授权</button>开机、重连及保护复位均不会自动授权。连续完整健康回读至少10秒后才能人工复位。</p>
+<p><label><input id="permit" type="checkbox">我在现场，运动空间已确认安全，允许本页发送手动运动</label></p></section>
+<section><h3>底盘（按住才运动）</h3><p>平移 0.025 m/s，转向 0.04 rad/s；松开即停止。没有雷达避障控制器，不能无人值守。</p>
+<div id="baseButtons" class="row"><button data-velocity="0.025,0,0">前进</button><button data-velocity="-0.025,0,0">后退</button><button data-velocity="0,0.025,0">向左</button><button data-velocity="0,-0.025,0">向右</button><button data-velocity="0,0,0.04">左转</button><button data-velocity="0,0,-0.04">右转</button></div><pre id="baseStatus">等待 ROS 2 底盘状态</pre></section>
+<section><h3>机械臂、夹爪：真实舵机位置</h3><p>滑块不会自动下发。每次“走到目标”最多改变 100 个脉冲；超过范围会被驱动拒绝。位置值不是“张开/闭合”的虚假状态。</p><div id="joints"></div><pre id="armStatus">等待真实反馈</pre><details><summary>回读通信诊断（原始报文、计数和最近失败）</summary><pre id="transport">等待诊断</pre></details></section>
+<section><h3>雷达与 IMU</h3><canvas id="scan" width="400" height="400"></canvas><pre id="sensors">等待数据</pre></section><pre id="log"></pre>
+<script>
+'use strict';
+let ws=null, arm=null, base=null, armAt=0, baseAt=0, hold=null, sensorAt={scan:0,imu:0}, advertised=new Set(), requestId=0;
+const $=id=>document.getElementById(id);
+const config={joint1:[6,500,1,0,1000],joint2:[5,500,1,125,875],joint3:[4,500,-1,0,1000],joint4:[3,500,1,0,1000],joint5:[2,500,1,0,1000],r_joint:[1,700,1,0,700]};
+const tickRad=240*Math.PI/180/1000;
+function log(s){$('log').textContent=new Date().toLocaleTimeString()+' '+s+'\n'+$('log').textContent.slice(0,1800);}
+function rawSend(obj){if(!ws||ws.readyState!==WebSocket.OPEN)return false;ws.send(JSON.stringify(obj));return true;}
+function pub(topic,type,msg){if(!advertised.has(topic)){if(!rawSend({op:'advertise',topic,type}))return;advertised.add(topic);}rawSend({op:'publish',topic,msg});}
+function stop(){clearInterval(hold);hold=null;pub('/chassis_control/stop','std_msgs/msg/Empty',{});pub('/arm_controller/stop','std_msgs/msg/Empty',{});}
+function armFresh(){const elapsed=(performance.now()-armAt)/1000;return arm&&elapsed<1.2&&arm.feedback_real===true&&arm.feedback_complete===true&&!arm.current_read_error&&arm.feedback_age_seconds&&Object.keys(arm.feedback_age_seconds).length===6&&Object.values(arm.feedback_age_seconds).every(age=>Number.isFinite(age)&&age>=0&&age+elapsed<1.5);}
+function ready(kind){const s=kind==='base'?base:arm, at=kind==='base'?baseAt:armAt;
+return $('permit').checked&&ws&&ws.readyState===1&&s&&performance.now()-at<1200&&!s.estop&&!s.fault&&!s.hardware_fault&&!s.dry_run&&(kind==='base'?s.enable_motion:armFresh()&&(kind==='gripper'?s.enable_gripper_motion:s.enable_arm_motion));}
+const healthLabels={READ_ERROR:'当前回读失败',NO_FRESH_FEEDBACK:'完整反馈缺失／过期',RECOVERING:'恢复观察中',RECOVERED_AWAIT_RESET:'通信已恢复，等待人工复位',READY:'机械臂保护已复位'};
+function sync(){document.querySelectorAll('[data-velocity]').forEach(b=>b.disabled=!ready('base'));document.querySelectorAll('[data-joint]').forEach(b=>b.disabled=!ready(b.dataset.joint==='r_joint'?'gripper':'arm'));if(hold&&!ready('base'))stop();
+$('reset').disabled=!(ws&&ws.readyState===1&&armFresh()&&arm.reset_eligible===true);$('authorizeGripper').disabled=!(ws&&ws.readyState===1&&$('permit').checked&&armFresh()&&!arm.estop&&!arm.fault&&!arm.dry_run);
+if(ws&&ws.readyState===1){const fresh=arm&&base&&performance.now()-armAt<1500&&performance.now()-baseAt<1500;$('connection').textContent=fresh?'ROS 2 已连接 · '+(healthLabels[arm.health_state]||'等待新版完整回读诊断')+(!arm.enable_arm_motion&&!arm.enable_gripper_motion&&!base.enable_motion?' · 运动锁定':''):'ROS 2 已连接（等待新鲜反馈）';}}
+for(const [name,cfg] of Object.entries(config)){const row=document.createElement('div');row.className='row';
+row.innerHTML=`<label>${name==='r_joint'?'夹爪':name} · 舵机 ${cfg[0]}</label><span id="actual_${name}">未回读</span><input aria-label="${name}目标脉冲" id="target_${name}" type="range" min="${cfg[3]}" max="${cfg[4]}" step="1" disabled><output id="value_${name}">—</output><button data-joint="${name}" disabled>走到目标</button><button data-copy="${name}">目标同步实际位置</button>`;
+$('joints').appendChild(row);$('target_'+name).addEventListener('input',e=>{$('value_'+name).value=e.target.value;});}
+$('joints').addEventListener('click',e=>{const name=e.target.dataset.joint||e.target.dataset.copy;if(!name)return;
+const record=arm&&arm.joints[name];if(!record)return log('没有实际位置反馈');
+if(e.target.dataset.copy){if(!armFresh())return log('完整反馈未就绪，不能同步目标');$('target_'+name).value=record.raw;$('value_'+name).value=record.raw;return;}
+if(!ready(name==='r_joint'?'gripper':'arm'))return log('对应关节未就绪或未授权运动');
+const raw=Number($('target_'+name).value);if(Math.abs(raw-record.raw)>arm.max_step_ticks)return log('目标跨度太大，请每次最多改变 '+arm.max_step_ticks+' 个脉冲');
+const cfg=config[name], scale=name==='r_joint'?180*Math.PI/180/1000:tickRad, stampNs=arm.stamp.sec*1e9+arm.stamp.nanosec+(performance.now()-armAt)*1e6;
+pub(name==='r_joint'?'/gripper_controller/command':'/arm_controller/command','trajectory_msgs/msg/JointTrajectory',{
+header:{stamp:{sec:Math.floor(stampNs/1e9),nanosec:Math.floor(stampNs%1e9)},frame_id:''},joint_names:[name],
+points:[{positions:[cfg[2]*(raw-cfg[1])*scale],velocities:[],accelerations:[],effort:[],time_from_start:{sec:0,nanosec:600000000}}]});});
+document.querySelectorAll('[data-velocity]').forEach(b=>{b.addEventListener('pointerdown',e=>{if(!ready('base'))return;stop();b.setPointerCapture(e.pointerId);const [x,y,z]=b.dataset.velocity.split(',').map(Number);
+const send=()=>{if(!ready('base'))return stop();pub('/cmd_vel','geometry_msgs/msg/Twist',{linear:{x,y,z:0},angular:{x:0,y:0,z}});};send();hold=setInterval(send,100);});for(const event of ['pointerup','pointercancel','lostpointercapture'])b.addEventListener(event,stop);});
+function drawScan(m){const c=$('scan'),ctx=c.getContext('2d');ctx.clearRect(0,0,400,400);ctx.strokeStyle='#394251';for(let r=50;r<=200;r+=50){ctx.beginPath();ctx.arc(200,200,r,0,2*Math.PI);ctx.stroke();}ctx.fillStyle='#63dc96';m.ranges.forEach((r,i)=>{if(Number.isFinite(r)&&r>=m.range_min&&r<=Math.min(m.range_max,4)){const a=m.angle_min+i*m.angle_increment;ctx.fillRect(200-Math.sin(a)*r*50,200-Math.cos(a)*r*50,2,2);}});}
+function receive(event){let m;try{m=JSON.parse(event.data);}catch{return;}
+if(m.op==='service_response')return log(m.service+': '+JSON.stringify(m.values));
+if(m.op==='status')return log(m.msg||JSON.stringify(m));if(m.op!=='publish')return;
+try{if(m.topic==='/arm_controller/status'){arm=JSON.parse(m.msg.data);armAt=performance.now();$('armStatus').textContent=JSON.stringify({完整真实反馈:arm.feedback_complete,健康状态:healthLabels[arm.health_state]||arm.health_state,连续健康秒数:arm.healthy_seconds,允许复位:arm.reset_eligible,其他关节授权:arm.enable_arm_motion,夹爪授权:arm.enable_gripper_motion,急停锁定:arm.estop,锁定原因:arm.stop_reasons,当前读取错误:arm.current_read_error,锁存故障:arm.fault,历史故障:arm.last_fault},null,2);$('transport').textContent=JSON.stringify(arm.transport,null,2);
+for(const [name,record] of Object.entries(arm.joints)){if(!config[name])continue;const valid=armFresh();$('actual_'+name).textContent=`${valid?'实际':'上次读到'} ${record.raw} · ${record.temperature}℃${valid?'':'（反馈未确认）'}`;const input=$('target_'+name);if(input.disabled&&valid){input.value=record.raw;$('value_'+name).value=record.raw;input.disabled=false;}}}
+if(m.topic==='/chassis_control/status'){base=JSON.parse(m.msg.data);baseAt=performance.now();$('baseStatus').textContent=JSON.stringify(base,null,2);}
+if(m.topic==='/scan'){sensorAt.scan=performance.now();drawScan(m.msg);}
+if(m.topic==='/bmi270/imu_raw'){sensorAt.imu=performance.now();$('sensors').textContent='IMU角速度 rad/s: '+JSON.stringify(m.msg.angular_velocity)+'\n雷达最近接收: '+Math.round((performance.now()-sensorAt.scan)/1000)+'秒前';}sync();}catch(e){log('消息解析失败: '+e.message);}}
+$('connect').onclick=()=>{stop();if(ws)ws.close();arm=base=null;armAt=baseAt=0;advertised.clear();$('permit').checked=false;
+const endpoint=$('endpoint').value.trim();if(!/^ws:\/\/(127\.0\.0\.1|localhost):\d+\/?$/.test(endpoint))return log('本页面只允许本机SSH转发地址');
+ws=new WebSocket(endpoint);ws.onopen=()=>{$('connection').textContent='ROS 2 已连接（等待节点反馈）';
+for(const [topic,type] of [['/arm_controller/status','std_msgs/msg/String'],['/chassis_control/status','std_msgs/msg/String'],['/scan','sensor_msgs/msg/LaserScan'],['/bmi270/imu_raw','sensor_msgs/msg/Imu']])rawSend({op:'subscribe',topic,type,queue_length:1,throttle_rate:topic==='/scan'||topic==='/bmi270/imu_raw'?100:0});};
+ws.onmessage=receive;ws.onerror=()=>log('WebSocket连接失败，检查本机9090→小车9091隧道');ws.onclose=()=>{clearInterval(hold);hold=null;arm=base=null;$('permit').checked=false;$('connection').textContent='已断开，运动不自动恢复';sync();};};
+$('disconnect').onclick=()=>{stop();if(ws)ws.close();};$('stop').onclick=stop;
+$('estop').onclick=()=>{stop();pub('/safety/estop','std_msgs/msg/Bool',{data:true});$('permit').checked=false;sync();};
+function callTrigger(service){rawSend({op:'call_service',id:'reset-'+(++requestId),service,type:'std_srvs/srv/Trigger',args:{}});}
+function setArmPermissions(armValue,gripperValue){rawSend({op:'call_service',id:'permission-'+(++requestId),service:'/arm_controller/set_parameters_atomically',type:'rcl_interfaces/srv/SetParametersAtomically',args:{parameters:[{name:'enable_arm_motion',value:{type:1,bool_value:armValue}},{name:'enable_gripper_motion',value:{type:1,bool_value:gripperValue}}]}});}
+$('reset').onclick=()=>{stop();$('permit').checked=false;callTrigger('/arm_controller/reset_estop');sync();};
+$('resetBase').onclick=()=>{stop();callTrigger('/chassis_control/reset_estop');};
+$('authorizeGripper').onclick=()=>{if(!armFresh()||arm.estop||arm.fault||!$('permit').checked)return log('请先等待健康回读、人工复位，并确认现场运动条件');setArmPermissions(false,true);};
+$('revokeArm').onclick=()=>{stop();setArmPermissions(false,false);$('permit').checked=false;sync();};
+$('permit').onchange=()=>{if(!$('permit').checked)stop();sync();};
+window.addEventListener('blur',stop);window.addEventListener('beforeunload',stop);document.addEventListener('visibilitychange',()=>{if(document.hidden)stop();});setInterval(sync,100);
+</script></body></html>

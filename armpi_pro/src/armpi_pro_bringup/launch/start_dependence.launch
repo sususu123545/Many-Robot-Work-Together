@@ -13,9 +13,10 @@
     <node name="chassis_control" pkg="chassis_control" type="chassis_control_node.py" required="false" output="screen" />
 
     <!-- BMI270 安装时相对车体绕 Z 轴旋转 +90°：imu_link 的 X 轴指向车体左方，
-         Y 轴指向车体后方。保留 IMU 节点发布的原始传感器坐标，统一由 TF 转换到 base_link。 -->
+         Y 轴指向车体后方。保留 IMU 节点发布的原始传感器坐标，统一由 TF 转换到 base_link。
+         显式使用 qx qy qz qw，避免 ROS1 的 yaw pitch roll 参数顺序导致误设 roll +90°。 -->
     <node name="base_to_imu" pkg="tf" type="static_transform_publisher"
-          args="0 0 0 0 0 1.57079632679 base_link imu_link 50"
+          args="0 0 0 0 0 0.7071067811865475 0.7071067811865476 base_link imu_link 50"
           required="false" output="screen" />
 
     <!--app控制-->

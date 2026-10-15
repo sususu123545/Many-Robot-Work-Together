@@ -169,6 +169,13 @@ def main():
     for line in out.splitlines():
         if line.startswith('RESULT_JSON='):
             summary['result'] = json.loads(line.split('=', 1)[1])
+        elif line.startswith('CLEANUP_JSON='):
+            summary['cleanup'] = json.loads(line.split('=', 1)[1])
+    # A reached pose is not enough: retained authorization is a failed startup.
+    if not summary.get('cleanup', {}).get('confirmed'):
+        summary['ok'] = False
+        if code == 0:
+            code = summary['exit_code'] = 6
     write_result(summary)
     log('done exit=%d' % code)
     return code

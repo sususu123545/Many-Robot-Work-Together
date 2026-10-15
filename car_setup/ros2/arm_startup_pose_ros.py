@@ -20,6 +20,7 @@ reader. It only calls documented services and publishes to the documented topic.
 """
 import json
 import os
+import signal
 import time
 
 import rclpy
@@ -41,8 +42,11 @@ CENTRE = {'joint1': 500, 'joint2': 500, 'joint3': 500, 'joint4': 500,
 SIGN = {'joint1': 1, 'joint2': 1, 'joint3': -1, 'joint4': 1, 'joint5': 1, 'r_joint': 1}
 ALL = ['joint1', 'joint2', 'joint3', 'joint4', 'joint5', 'r_joint']
 
-NAMES = [n for n in os.environ['JOINTS'].split(',') if n]
-if not NAMES or any(n not in CENTRE for n in NAMES):
+# Maintenance mode executes ONLY the same finally/revocation path. It must never
+# reset an emergency latch, create a command publisher, or authorize movement.
+REVOKE_ONLY = os.environ.get('ARMPI_POSE_REVOKE_ONLY') == '1'
+NAMES = [] if REVOKE_ONLY else [n for n in os.environ['JOINTS'].split(',') if n]
+if not REVOKE_ONLY and (not NAMES or any(n not in CENTRE for n in NAMES)):
     raise SystemExit('JOINTS must name known joints')
 TARGETS = {n: int(os.environ['POSE_' + n]) for n in NAMES}
 STEP = int(os.environ.get('STEP', '100'))
@@ -150,6 +154,61 @@ param_client = node.create_client(SetParametersAtomically,
                                   '/arm_controller/set_parameters_atomically')
 
 
+def revoke_motion_permissions(timeout=8.0):
+    """Bounded, false-only cleanup independent of health/reset eligibility.
+
+    Wait for both the atomic service ACK and a subsequent status confirming both
+    gates OFF. A missing controller/ACK/status is a failure, never a success.
+    This does not reset estop, move joints, unload torque, or open the serial bus.
+    """
+    end = time.monotonic() + timeout
+    reason = 'revocation not attempted'
+    for attempt in (1, 2):
+        left = end - time.monotonic()
+        if left <= 0:
+            break
+        if not param_client.wait_for_service(timeout_sec=min(2.0, left)):
+            reason = 'parameter service unavailable'
+            continue
+        request = SetParametersAtomically.Request()
+        request.parameters = [
+            Parameter(name=name, value=ParameterValue(
+                type=ParameterType.PARAMETER_BOOL, bool_value=False))
+            for name in ('enable_arm_motion', 'enable_gripper_motion')]
+        future = param_client.call_async(request)
+        rclpy.spin_until_future_complete(
+            node, future, timeout_sec=max(0.0, min(3.0, end - time.monotonic())))
+        if not future.done():
+            reason = 'revocation ACK timed out'
+            continue
+        reply = future.result()
+        if reply is None or not reply.result.successful:
+            reason = 'revocation refused: ' + (reply.result.reason if reply else 'no response')
+            continue
+        acknowledged_at = time.monotonic()
+        while time.monotonic() < end:
+            rclpy.spin_once(node, timeout_sec=0.05)
+            view = snapshot()
+            if (state.get('received_at', 0) >= acknowledged_at
+                    and view.get('enable_arm_motion') is False
+                    and view.get('enable_gripper_motion') is False):
+                return {'confirmed': True, 'attempts': attempt,
+                        'enable_arm_motion': False, 'enable_gripper_motion': False,
+                        'estop': view.get('estop')}
+        reason = 'ACK received but no subsequent both-gates-OFF status'
+    return {'confirmed': False, 'reason': reason}
+
+
+cleanup_started = False
+
+
+def on_termination(signum, _frame):
+    # Let normal termination run finally. Repeated signals must not interrupt
+    # the bounded OFF-only cleanup. SIGKILL/power loss cannot be handled here.
+    if not cleanup_started:
+        raise SystemExit(128 + signum)
+
+
 def reset_and_authorize():
     view = snapshot()
     print('  health=%s healthy_seconds=%s reset_eligible=%s estop=%s fault=%s'
@@ -181,7 +240,12 @@ def reset_and_authorize():
                       5, 'motion gate')
 
 
+signal.signal(signal.SIGTERM, on_termination)
+signal.signal(signal.SIGINT, on_termination)
+
 try:
+    if REVOKE_ONLY:
+        raise SystemExit(0)
     # 1. A complete, fresh whole-arm read before anything moves.
     if not wait_until(fresh_feedback, 30, 'feedback'):
         raise SystemExit('REFUSED no complete arm feedback')
@@ -290,13 +354,19 @@ try:
         'reached': reached, 'messages': published, 'seconds': round(seconds, 1),
         'estop': snapshot().get('estop'), 'fault_count': snapshot().get('fault_count'),
         'health_state': snapshot().get('health_state')}), flush=True)
-    node.destroy_node()
-    rclpy.shutdown()
     raise SystemExit(0 if reached else 3)
-except SystemExit as stop:
-    raise
 finally:
+    cleanup_started = True
+    cleanup = {'confirmed': False, 'reason': 'cleanup did not complete'}
     try:
-        node.destroy_node()
-    except Exception:
-        pass
+        cleanup = revoke_motion_permissions()
+    except Exception as error:
+        cleanup = {'confirmed': False, 'reason': str(error)}
+    finally:
+        print('CLEANUP_JSON=' + json.dumps(cleanup), flush=True)
+        try:
+            node.destroy_node()
+        finally:
+            rclpy.shutdown()
+    if not cleanup['confirmed']:
+        raise SystemExit('FAILED motion permission revocation unconfirmed: ' + cleanup['reason'])

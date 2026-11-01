@@ -42,6 +42,12 @@ def main():
                         help='emit an r_joint-ONLY job instead of an arm move. '
                              'Keeps enable_arm_motion OFF, so the arm is locked '
                              'while the gripper travels.')
+    parser.add_argument('--joints',
+                        help='explicit joint-space target, '
+                             'joint1=..,joint2=..,joint3=..,joint4=..,joint5=.. . '
+                             'Use this to RETURN to a pose that was MEASURED '
+                             'earlier: running IK on its Cartesian equivalent '
+                             'can select a different branch and land elsewhere.')
     parser.add_argument('--current-raw', required=True,
                         help='joint1=..,joint2=..,joint3=..,joint4=..,joint5=..[,r_joint=..]')
     parser.add_argument('--name', required=True)
@@ -65,13 +71,34 @@ def main():
     if args.gripper_target is not None:
         if (args.x, args.y, args.z, args.pitch) != (None, None, None, None):
             parser.error('--gripper-target cannot be combined with a target pose')
+        if args.joints:
+            parser.error('--gripper-target and --joints are mutually exclusive')
         if 'r_joint' not in current:
             parser.error('--current-raw must include r_joint for a gripper job')
+        mode = 'gripper'
         branch = None
         ordered = {'r_joint': int(args.gripper_target)}
+    elif args.joints:
+        if (args.x, args.y, args.z, args.pitch) != (None, None, None, None):
+            parser.error('--joints cannot be combined with a target pose')
+        explicit = {}
+        for item in args.joints.split(','):
+            name, _, value = item.partition('=')
+            explicit[name.strip()] = int(value)
+        missing = [name for name in
+                   ('joint1', 'joint2', 'joint3', 'joint4', 'joint5')
+                   if name not in explicit]
+        if missing:
+            parser.error('--joints is missing ' + ', '.join(missing))
+        mode = 'joints'
+        branch = None
+        ordered = {name: explicit[name] for name in
+                   ('joint1', 'joint2', 'joint3', 'joint4', 'joint5')}
     else:
         if None in (args.x, args.y, args.z, args.pitch):
-            parser.error('either --gripper-target or all of --x/--y/--z/--pitch')
+            parser.error('either --gripper-target, --joints, '
+                         'or all of --x/--y/--z/--pitch')
+        mode = 'ik'
         branches = inverse_kinematics_all(args.x, args.y, args.z, args.pitch)
         branch = branches[0]
         servo = branch['servo_targets']
@@ -128,7 +155,7 @@ def main():
     startup['target_raw'] = ordered
     startup['target_equals_measured'] = False
     startup['decided_by_user'] = False
-    if branch is None:
+    if mode == 'gripper':
         startup['gripper_job'] = {
             'target_raw': ordered['r_joint'],
             'measured_raw': current['r_joint'],
@@ -137,6 +164,17 @@ def main():
         warning = (
             'r_joint is a measured/commanded tick value, NOT a measured pose. '
             'Do not copy it into arm_startup_pose.json.')
+    elif mode == 'joints':
+        startup['joint_job'] = {
+            'target_raw': ordered,
+            'measured_raw': {name: current[name] for name in ordered},
+            'travelled': {name: ordered[name] - current[name] for name in ordered},
+            'generated_by': 'tools/perception/make_move_job.py',
+        }
+        warning = (
+            'raw is an explicit joint-space target copied from a pose that was '
+            'MEASURED earlier, not an IK result. Do not copy it into '
+            'arm_startup_pose.json.')
     else:
         startup['ik_job'] = {
             'target_m': [args.x, args.y, args.z],

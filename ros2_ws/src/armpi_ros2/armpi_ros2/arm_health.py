@@ -62,6 +62,21 @@ class ArmHealth:
     def begin_cycle(self):
         self.pending = True
 
+    def transient_fail(self, message, now):
+        """One isolated read miss: abort the cycle, do NOT latch the e-stop.
+
+        The cheap serial servos miss roughly 1 in 1000 position queries. Latching
+        on each of those made the arm require a human reset every ~26 s, which is
+        unusable, while adding no safety: `estop` and `pending` already forbid
+        motion, so the arm cannot move on the unverified cycle either way. Only
+        arm_node decides when a run of failures becomes a real fault.
+        """
+        self.pending = False
+        self.complete_cycle = False
+        self.healthy_since = None
+        self.current_error = str(message)
+        return False
+
     def fail(self, message, now, kind='communication'):
         self.pending = False
         self.complete_cycle = False

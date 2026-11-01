@@ -6,3 +6,7 @@ grasp_target_transform:
     target_frame: arm_base
     max_point_age_sec: 1.0
     max_future_sec: 0.25
+    # Arm feedback is published at 2 Hz, the camera at ~8 Hz, so the newest
+    # camera TF is normally OLDER than the image stamp. 0.75 s = one feedback
+    # period plus margin; anything more means the arm pose is genuinely stale.
+    max_tf_lag_sec: 0.75

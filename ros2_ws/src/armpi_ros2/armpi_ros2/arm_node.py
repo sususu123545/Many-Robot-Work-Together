@@ -43,6 +43,12 @@ class ArmNode(Node):
         self.health = ArmHealth(p('recovery_seconds'), self.temp_max)
         self.busy_until = 0.0
         self.stop_generation = 0
+        # A single missed servo reply must not lock the arm behind a human reset:
+        # see ArmHealth.transient_fail. Only a run of this many consecutive
+        # complete-cycle failures is treated as a real communication fault, and
+        # an overtemperature trips immediately regardless of the count.
+        self.consecutive_failures = 0
+        self.failure_threshold = 3
         self.command_not_before = self.get_clock().now().nanoseconds * 1e-9
         self.state_lock = threading.RLock()
         self.last_health_state = None
@@ -177,6 +183,25 @@ class ArmNode(Node):
                                 if ready else 'Need 10 seconds of complete healthy feedback, no pending poll and a successful stop; keep emergency')
         return response
 
+    def handle_feedback_error(self, error):
+        """Overtemperature latches at once; a communication glitch needs a run of them."""
+        now = time.monotonic()
+        fatal = isinstance(error, TemperatureFault)
+        with self.state_lock:
+            self.consecutive_failures += 1
+            if fatal or self.consecutive_failures >= self.failure_threshold:
+                self.health.fail(error, now,
+                                 'overtemperature' if fatal else 'communication')
+                self.on_stop(None)
+                self.consecutive_failures = 0
+                self.get_logger().error('Arm feedback fault (latched): ' + str(error))
+                return
+            self.health.transient_fail(error, now)
+            self.on_stop(None)
+            self.get_logger().warning(
+                'Transient arm feedback error (%d/%d): %s'
+                % (self.consecutive_failures, self.failure_threshold, error))
+
     def poll(self):
         readings = {}
         if self.board:
@@ -199,17 +224,14 @@ class ArmNode(Node):
                     if not complete_feedback(readings, time.monotonic(), self.temp_max):
                         raise OSError('Incomplete, stale or invalid whole-arm feedback')
                     self.health.success(readings, time.monotonic())
+                    self.consecutive_failures = 0
                 msg = JointState()
                 msg.header.stamp = self.get_clock().now().to_msg()
                 msg.name = list(readings)
                 msg.position = [to_radians(n, readings[n]['raw']) for n in msg.name]
                 self.joint_pub.publish(msg)
             except (OSError, TimeoutError) as error:
-                with self.state_lock:
-                    self.health.fail(error, time.monotonic(),
-                                     'overtemperature' if isinstance(error, TemperatureFault) else 'communication')
-                    self.on_stop(None)
-                self.get_logger().error('Arm feedback fault (latched): ' + str(error))
+                self.handle_feedback_error(error)
         stamp = self.get_clock().now().to_msg()
         with self.state_lock:
             now = time.monotonic()

@@ -55,9 +55,11 @@ class GraspTargetTransform(Node):
         self.declare_parameter('target_frame', 'arm_base')
         self.declare_parameter('max_point_age_sec', 1.0)
         self.declare_parameter('max_future_sec', 0.25)
+        self.declare_parameter('max_tf_lag_sec', 0.75)
 
         self.target_frame = str(self.get_parameter('target_frame').value)
         self.max_age = float(self.get_parameter('max_point_age_sec').value)
+        self.max_tf_lag = float(self.get_parameter('max_tf_lag_sec').value)
         self.max_future = float(self.get_parameter('max_future_sec').value)
         if not self.target_frame or self.max_age <= 0 or self.max_future < 0:
             raise ValueError('Invalid target transform configuration')
@@ -75,12 +77,14 @@ class GraspTargetTransform(Node):
             'Passive target transform ready; waiting for timestamped camera-to-base TF')
 
     def report(self, valid, reason, source_frame='', stamp_sec=0,
-               point_base=None):
+               point_base=None, tf_lag_sec=None):
         payload = {'valid': bool(valid), 'reason': str(reason),
                    'source_frame': source_frame,
                    'target_frame': self.target_frame,
                    'stamp_sec': int(stamp_sec),
                    'point_base_m': list(point_base) if point_base else None}
+        if tf_lag_sec is not None:
+            payload['tf_lag_sec'] = round(float(tf_lag_sec), 4)
         msg = String()
         msg.data = json.dumps(payload, separators=(',', ':'), allow_nan=False)
         self.status_pub.publish(msg)
@@ -105,19 +109,58 @@ class GraspTargetTransform(Node):
             self.report(False, 'future_target_stamp', source_frame, stamp_sec)
             return
 
-        if not self.tf_buffer.can_transform(
+        tf_lag = 0.0
+        if self.tf_buffer.can_transform(
                 self.target_frame, source_frame, stamp,
                 timeout=Duration(seconds=0.0)):
-            self.report(False, 'waiting_for_camera_to_target_tf',
-                        source_frame, stamp_sec)
-            return
+            try:
+                transform = self.tf_buffer.lookup_transform(
+                    self.target_frame, source_frame, stamp,
+                    timeout=Duration(seconds=0.0))
+            except (TransformException, ValueError, TypeError) as error:
+                self.report(False, 'transform_error: ' + str(error),
+                            source_frame, stamp_sec)
+                return
+            reason = 'transformed'
+        else:
+            # Arm feedback runs at 2 Hz while the camera delivers ~8 Hz, so a
+            # fresh image stamp is almost always NEWER than the newest
+            # arm_base->camera TF. tf2 refuses to extrapolate into the future, so
+            # an exact-time lookup dropped EVERY point and the chain never
+            # produced /grasp/target_base. Waiting cannot help either: this
+            # callback blocks a single-threaded executor, including the TF
+            # listener that would otherwise fill the buffer. Fall back to the
+            # newest transform while it is still within one arm-feedback period,
+            # and report the skew so a slow arm is never silently hidden.
+            try:
+                latest = self.tf_buffer.lookup_transform(
+                    self.target_frame, source_frame, Time())
+            except (TransformException, ValueError, TypeError) as error:
+                self.report(False, 'waiting_for_camera_to_target_tf: ' + str(error),
+                            source_frame, stamp_sec)
+                return
+            lag = (stamp.nanoseconds
+                   - Time.from_msg(latest.header.stamp).nanoseconds) * 1e-9
+            # A NEGATIVE lag means the newest TF is NEWER than the image, which
+            # is the harmless direction: the arm pose is at most a few hundred
+            # microseconds "after" the picture it is applied to. Refusing it as
+            # out-of-range was wrong -- it threw away perfectly good points
+            # whenever the 2 Hz arm feedback happened to land just after the
+            # frame. Only bound how far into the future the TF may be, using the
+            # same tolerance already applied to the point stamp.
+            # Read live so the budget can be tightened at runtime (and tested).
+            max_lag = float(self.get_parameter('max_tf_lag_sec').value)
+            if lag > max_lag or lag < -self.max_future:
+                self.report(False, 'tf_lag_out_of_range', source_frame, stamp_sec,
+                            tf_lag_sec=lag)
+                return
+            transform = latest
+            tf_lag = lag
+            reason = 'transformed_with_latest_tf'
         try:
-            transform = self.tf_buffer.lookup_transform(
-                self.target_frame, source_frame, stamp,
-                timeout=Duration(seconds=0.0))
             point_base = transform_xyz(
                 (msg.point.x, msg.point.y, msg.point.z), transform)
-        except (TransformException, ValueError, TypeError) as error:
+        except (ValueError, TypeError) as error:
             self.report(False, 'transform_error: ' + str(error),
                         source_frame, stamp_sec)
             return
@@ -127,7 +170,8 @@ class GraspTargetTransform(Node):
         result.header.frame_id = self.target_frame
         result.point.x, result.point.y, result.point.z = point_base
         self.target_pub.publish(result)
-        self.report(True, 'transformed', source_frame, stamp_sec, point_base)
+        self.report(True, reason, source_frame, stamp_sec, point_base,
+                    tf_lag_sec=tf_lag)
 
 
 def main(args=None):

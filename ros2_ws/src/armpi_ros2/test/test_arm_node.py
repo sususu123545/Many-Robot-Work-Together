@@ -132,8 +132,46 @@ class ArmCallbackTests(unittest.TestCase):
         status = json.loads(self.node.status_pub.publish.call_args[0][0].data)
         self.assertFalse(status['feedback_real']);self.assertFalse(status['feedback_complete'])
         self.assertTrue(status['estop']);self.assertEqual(status['health_state'], 'READ_ERROR')
-        self.assertEqual(status['fault_count'], 1)
+        # `estop` here is the startup lock, not a fault: one missed reply is
+        # transient and must NOT be counted as a latched fault.
+        self.assertEqual(status['fault_count'], 0)
         self.node.joint_pub.publish.assert_not_called()
+
+    def test_single_read_miss_aborts_motion_without_latching_the_estop(self):
+        self.healthy();self.assertTrue(self.reset().success)
+        self.assertTrue(self.grant(enable_gripper_motion=True).successful)
+        self.node.board.fail_temperature = 5
+        self.node.poll()
+        status = json.loads(self.node.status_pub.publish.call_args[0][0].data)
+        self.assertFalse(status['estop']);self.assertEqual(status['fault_count'], 0)
+        self.assertEqual(status['health_state'], 'READ_ERROR')
+        # Transient is not permission: the unverified cycle must still refuse.
+        self.node.on_gripper(self.command('r_joint', 90))
+        self.assertEqual(self.node.board.moves, [])
+
+    def test_repeated_read_misses_latch_the_estop(self):
+        self.healthy();self.assertTrue(self.reset().success)
+        self.node.board.fail_temperature = 5
+        for _ in range(self.node.failure_threshold):
+            self.node.poll()
+        status = json.loads(self.node.status_pub.publish.call_args[0][0].data)
+        self.assertTrue(status['estop']);self.assertEqual(status['fault_count'], 1)
+        self.assertEqual(self.node.health.last_fault['kind'], 'communication')
+        self.assertFalse(self.reset().success)
+
+    def test_a_healthy_cycle_breaks_the_failure_run(self):
+        # Clear the startup lock first, otherwise `estop` is True for that reason
+        # and the assertion would say nothing about the fault latch.
+        self.healthy();self.assertTrue(self.reset().success)
+        self.node.board.fail_temperature = 5
+        self.node.poll();self.node.poll()
+        self.assertEqual(self.node.consecutive_failures, 2)
+        self.node.board.fail_temperature = None
+        self.node.poll()
+        self.assertEqual(self.node.consecutive_failures, 0)
+        self.node.board.fail_temperature = 5
+        self.node.poll()
+        self.assertFalse(self.node.health.estop)
 
     def test_overtemperature_immediately_stops_and_latches(self):
         self.node.board.hot = 6

@@ -49,13 +49,14 @@ response = future.result()
 print('reset_ok=%s message=%s' % (
     getattr(response, 'success', None), getattr(response, 'message', None)))
 # Read one more status so the caller sees the post-reset gate, not the prompt.
+# The FULL json is printed on purpose: an earlier version summarised it with a
+# guessed field name and reported `arm_motion=None` forever, which hid the one
+# value that actually matters here.
 latest.clear()
 deadline = time.monotonic() + 10.0
 while time.monotonic() < deadline and not latest:
     rclpy.spin_once(node, timeout_sec=0.2)
-print('gate_after: estop=%s health=%s arm_motion=%s' % (
-    latest.get('estop'), latest.get('health_state'),
-    latest.get('arm_motion_enabled')))
+print('status_after: %s' % json.dumps(latest, sort_keys=True))
 node.destroy_node()
 rclpy.shutdown()
 PY

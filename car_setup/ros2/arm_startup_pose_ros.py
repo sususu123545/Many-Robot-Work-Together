@@ -49,6 +49,11 @@ NAMES = [] if REVOKE_ONLY else [n for n in os.environ['JOINTS'].split(',') if n]
 if not REVOKE_ONLY and (not NAMES or any(n not in CENTRE for n in NAMES)):
     raise SystemExit('JOINTS must name known joints')
 TARGETS = {n: int(os.environ['POSE_' + n]) for n in NAMES}
+# Which gates this job actually needs. A gripper-only job must leave the arm
+# gate OFF, so every gate check below has to be written against these rather
+# than against enable_arm_motion directly.
+NEEDS_ARM = any(n != 'r_joint' for n in NAMES)
+NEEDS_GRIPPER = 'r_joint' in NAMES
 STEP = int(os.environ.get('STEP', '100'))
 DURATION = float(os.environ.get('DURATION', '0.6'))
 GATE_TRIES = int(os.environ.get('GATE_TRIES', '6'))
@@ -238,22 +243,55 @@ def reset_and_authorize():
     request.parameters = [
         Parameter(name='enable_arm_motion',
                   value=ParameterValue(type=ParameterType.PARAMETER_BOOL,
-                                       bool_value=any(n != 'r_joint' for n in NAMES))),
+                                       bool_value=NEEDS_ARM)),
         Parameter(name='enable_gripper_motion',
                   value=ParameterValue(type=ParameterType.PARAMETER_BOOL,
-                                       bool_value='r_joint' in NAMES)),
+                                       bool_value=NEEDS_GRIPPER)),
     ]
     result = call(param_client, request)
     if not result or not result.result.successful:
         print('  authorize refused: '
               + (result.result.reason if result else 'NO_RESPONSE'), flush=True)
         return False
-    return wait_until(lambda v: not v.get('estop') and v.get('enable_arm_motion') is True,
-                      5, 'motion gate')
+
+    def gates_ready(view):
+        """Wait for exactly the gates this job asked for, and no others.
+
+        The old check demanded enable_arm_motion unconditionally, so a job whose
+        JOINTS were only ['r_joint'] could never pass it: that job correctly
+        leaves the arm gate OFF, then waited 5 s and reported 'could not secure
+        the motion gate'. Measuring the gripper on its own was therefore
+        impossible, which is exactly the safest way to measure it.
+        """
+        if view.get('estop'):
+            return False
+        if NEEDS_ARM and view.get('enable_arm_motion') is not True:
+            return False
+        if NEEDS_GRIPPER and view.get('enable_gripper_motion') is not True:
+            return False
+        return True
+
+    return wait_until(gates_ready, 5, 'motion gate')
 
 
 signal.signal(signal.SIGTERM, on_termination)
 signal.signal(signal.SIGINT, on_termination)
+
+
+def gate_lost(view):
+    """True when a gate this job relies on has gone away (or an e-stop latched).
+
+    Checking enable_arm_motion unconditionally aborted every gripper-only job on
+    its first message, because such a job is supposed to run with the arm gate
+    OFF. Only the gates this job asked for count as lost.
+    """
+    if view.get('estop'):
+        return True
+    if NEEDS_ARM and view.get('enable_arm_motion') is not True:
+        return True
+    if NEEDS_GRIPPER and view.get('enable_gripper_motion') is not True:
+        return True
+    return False
 
 try:
     if REVOKE_ONLY:
@@ -313,7 +351,7 @@ try:
         if all(abs(v) <= TOLERANCE for v in remaining.values()):
             print('  all joints within %d ticks; stopping' % TOLERANCE, flush=True)
             break
-        if snapshot().get('estop') or not snapshot().get('enable_arm_motion'):
+        if gate_lost(snapshot()):
             raise SystemExit('REFUSED latch interrupted travel; no automatic reset/retry')
         following = {n: position[n] + max(-STEP, min(STEP, remaining[n])) for n in NAMES}
         angles = [to_radians(n, following[n]) for n in NAMES]

@@ -34,12 +34,16 @@ SERVO_TO_JOINT = {3: 'joint4', 4: 'joint3', 5: 'joint2', 6: 'joint1'}
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--x', type=float, required=True)
-    parser.add_argument('--y', type=float, required=True)
-    parser.add_argument('--z', type=float, required=True)
-    parser.add_argument('--pitch', type=float, required=True)
+    parser.add_argument('--x', type=float)
+    parser.add_argument('--y', type=float)
+    parser.add_argument('--z', type=float)
+    parser.add_argument('--pitch', type=float)
+    parser.add_argument('--gripper-target', type=int,
+                        help='emit an r_joint-ONLY job instead of an arm move. '
+                             'Keeps enable_arm_motion OFF, so the arm is locked '
+                             'while the gripper travels.')
     parser.add_argument('--current-raw', required=True,
-                        help='joint1=..,joint2=..,joint3=..,joint4=..,joint5=..')
+                        help='joint1=..,joint2=..,joint3=..,joint4=..,joint5=..[,r_joint=..]')
     parser.add_argument('--name', required=True)
     parser.add_argument('--out', required=True)
     parser.add_argument('--base-pose',
@@ -57,24 +61,35 @@ def main():
         current[name.strip()] = int(value)
 
     base = json.loads(Path(args.base_pose).read_text(encoding='utf-8'))
-    branches = inverse_kinematics_all(args.x, args.y, args.z, args.pitch)
-    branch = branches[0]
-    servo = branch['servo_targets']
 
-    targets = {}
-    for key, name in SERVO_TO_JOINT.items():
-        targets[name] = int(servo[key])
-    # The wrist roll is NOT an IK output. It must stay where the hand-eye
-    # calibration was taken (joint5_raw_reference) or the arm_base->camera
-    # transform silently describes a different camera pose.
-    targets['joint5'] = (args.keep_joint5 if args.keep_joint5 is not None
-                         else current.get('joint5', 499))
-    ordered = {name: targets[name]
-               for name in ('joint1', 'joint2', 'joint3', 'joint4', 'joint5')}
+    if args.gripper_target is not None:
+        if (args.x, args.y, args.z, args.pitch) != (None, None, None, None):
+            parser.error('--gripper-target cannot be combined with a target pose')
+        if 'r_joint' not in current:
+            parser.error('--current-raw must include r_joint for a gripper job')
+        branch = None
+        ordered = {'r_joint': int(args.gripper_target)}
+    else:
+        if None in (args.x, args.y, args.z, args.pitch):
+            parser.error('either --gripper-target or all of --x/--y/--z/--pitch')
+        branches = inverse_kinematics_all(args.x, args.y, args.z, args.pitch)
+        branch = branches[0]
+        servo = branch['servo_targets']
+        targets = {}
+        for key, name in SERVO_TO_JOINT.items():
+            targets[name] = int(servo[key])
+        # The wrist roll is NOT an IK output. It must stay where the hand-eye
+        # calibration was taken (joint5_raw_reference) or the arm_base->camera
+        # transform silently describes a different camera pose.
+        targets['joint5'] = (args.keep_joint5 if args.keep_joint5 is not None
+                             else current.get('joint5', 499))
+        ordered = {name: targets[name]
+                   for name in ('joint1', 'joint2', 'joint3', 'joint4', 'joint5')}
 
-    print('branch: elbow=%s theta3/4/5/6 = %.1f %.1f %.1f %.1f'
-          % (branch['elbow'], branch['theta3'], branch['theta4'],
-             branch['theta5'], branch['theta6']))
+    if branch is not None:
+        print('branch: elbow=%s theta3/4/5/6 = %.1f %.1f %.1f %.1f'
+              % (branch['elbow'], branch['theta3'], branch['theta4'],
+                 branch['theta5'], branch['theta6']))
     problems = []
     for name, value in ordered.items():
         low, high = base['hard_limits_raw'][name]
@@ -99,6 +114,10 @@ def main():
                     'joint3 target %d loses ground: margin %d now -> %d after '
                     '(it is the axis that has latched the arm before)'
                     % (value, margin_now, margin))
+        if name == 'r_joint' and margin < 20:
+            print('  NOTE: r_joint target is %d ticks from a limit; the fingers '
+                  'may already be resting on the mechanical stop, and a servo '
+                  'held against a stop heats up.' % margin)
 
     if problems:
         for problem in problems:
@@ -109,22 +128,33 @@ def main():
     startup['target_raw'] = ordered
     startup['target_equals_measured'] = False
     startup['decided_by_user'] = False
-    startup['ik_job'] = {
-        'target_m': [args.x, args.y, args.z],
-        'pitch_deg': args.pitch,
-        'elbow': branch['elbow'],
-        'generated_by': 'tools/perception/make_move_job.py',
-    }
+    if branch is None:
+        startup['gripper_job'] = {
+            'target_raw': ordered['r_joint'],
+            'measured_raw': current['r_joint'],
+            'generated_by': 'tools/perception/make_move_job.py',
+        }
+        warning = (
+            'r_joint is a measured/commanded tick value, NOT a measured pose. '
+            'Do not copy it into arm_startup_pose.json.')
+    else:
+        startup['ik_job'] = {
+            'target_m': [args.x, args.y, args.z],
+            'pitch_deg': args.pitch,
+            'elbow': branch['elbow'],
+            'generated_by': 'tools/perception/make_move_job.py',
+        }
+        warning = (
+            'raw is an IK target, NOT a measured pose. Do not copy it into '
+            'arm_startup_pose.json.')
     job = {
         'name': args.name,
         'recorded_at': datetime.now(timezone.utc).isoformat(timespec='seconds'),
-        'source': 'IK job generated for a guarded travel; not a measured pose',
+        'source': 'generated for a guarded travel; not a measured pose',
         'raw': ordered,
         'hard_limits_raw': base['hard_limits_raw'],
         'startup': startup,
-        'provenance_warning': (
-            'raw is an IK target, NOT a measured pose. Do not copy it into '
-            'arm_startup_pose.json.'),
+        'provenance_warning': warning,
     }
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)

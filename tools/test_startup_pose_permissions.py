@@ -16,10 +16,12 @@ SOURCE = (ROOT/'car_setup/ros2/arm_startup_pose_ros.py').read_text(encoding='utf
 
 
 class Harness:
-    def __init__(self, revoke_only=False, failure=None):
+    def __init__(self, revoke_only=False, failure=None, joints=None, pose=None):
         self.now=100.0
         self.revoke_only=revoke_only
         self.failure=failure
+        self.joints=joints or ['joint1','joint2','joint3','joint4','joint5']
+        self.pose=pose or {}
         self.arm=True if revoke_only else False
         self.gripper=True if revoke_only else False
         self.calls=[];self.events=[];self.handlers={};self.scope={};self.subscription=None
@@ -98,8 +100,8 @@ class Harness:
                                             ParameterType=NS(PARAMETER_BOOL=1)),
                  'trajectory_msgs.msg':module('trajectory_msgs.msg',JointTrajectory=Message,JointTrajectoryPoint=Message),
                  'builtin_interfaces.msg':module('builtin_interfaces.msg',Duration=Message)}
-        env={'JOINTS':'joint1,joint2,joint3,joint4,joint5',
-             **{'POSE_joint'+str(n):'500' for n in range(1,6)},
+        env={'JOINTS':','.join(self.joints),
+             **{'POSE_'+name:str(self.pose.get(name,500)) for name in self.joints},
              'ARMPI_POSE_REVOKE_ONLY':'1' if self.revoke_only else '0'}
         self.output=io.StringIO()
         with patch.dict(sys.modules,modules),patch.dict(os.environ,env,clear=True),\
@@ -191,3 +193,27 @@ class PoseResultTests(unittest.TestCase):
 
 
 if __name__=='__main__':unittest.main()
+
+
+class GripperOnlyJobTests(unittest.TestCase):
+    """A job whose JOINTS are only ['r_joint'] must never open the arm gate."""
+
+    def test_gripper_only_job_secures_the_gripper_gate_and_leaves_the_arm_locked(self):
+        # The reported r_joint already equals the target, so travel ends on the
+        # first tolerance check and the run stays fast; what matters here is
+        # that it got PAST authorization at all.
+        h = Harness(joints=['r_joint'], pose={'r_joint': 700})
+        error = h.run()
+        output = h.output.getvalue()
+        self.assertIsInstance(error, SystemExit)
+        # The old code waited for enable_arm_motion unconditionally, so a
+        # gripper-only job timed out here and reported this exact refusal.
+        self.assertNotIn('could not secure the motion gate', output)
+        self.assertIn('arm_gate=False gripper_gate=True', output)
+        self.assertFalse(h.arm, 'a gripper-only job must never open the arm gate')
+        self.assert_closed_test_helper(h)
+
+    def assert_closed_test_helper(self, harness):
+        self.assertFalse(harness.arm)
+        self.assertFalse(harness.gripper)
+        self.assertIn('"confirmed": true', harness.output.getvalue())

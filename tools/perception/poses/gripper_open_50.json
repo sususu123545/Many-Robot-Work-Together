@@ -1,0 +1,78 @@
+{
+  "name": "gripper_open_50",
+  "recorded_at": "2026-11-01T09:25:01+00:00",
+  "source": "generated for a guarded travel; not a measured pose",
+  "raw": {
+    "r_joint": 150
+  },
+  "hard_limits_raw": {
+    "joint1": [
+      0,
+      1000
+    ],
+    "joint2": [
+      125,
+      875
+    ],
+    "joint3": [
+      0,
+      1000
+    ],
+    "joint4": [
+      0,
+      1000
+    ],
+    "joint5": [
+      0,
+      1000
+    ],
+    "r_joint": [
+      0,
+      700
+    ]
+  },
+  "startup": {
+    "enabled": true,
+    "decided_by_user": false,
+    "target_raw": {
+      "r_joint": 150
+    },
+    "target_equals_measured": false,
+    "joint3_note": "907 is the measured value, not a chosen one. It is inside 0..1000 with 93 ticks to spare, and it is 7 ticks from the previously chosen 900. Both are inside the 12-tick tolerance, so the startup path behaves identically either way today; the measured number is used because the user asked for the real pose and forbade reusing the 935 cache.",
+    "gripper_note": "r_joint is deliberately absent from target_raw, so this path never commands the gripper and never authorizes enable_gripper_motion. That also avoids extra stall heating on the gripper servo, which reaches about 47 C against either mechanical stop.",
+    "near_limit_recovery": {
+      "enabled": true,
+      "scope": "Only servo 4, once per boot before the regular drivers. If above the saved target tolerance and no greater than 1040, move inward toward saved raw 907 with temperature below 55 C, stable feedback and at most 12 slow bounded steps. Other/unknown positions refuse. No command limit is expanded.",
+      "verified": "2026-10-14: ending at 997 drifted to 1002. Revised test: 1002 -> 985 -> 969 -> 955 -> 938 -> 920 -> 915 in six slow steps, 31..34 C. Full ROS2 saved-pose flow then succeeded with all five joints within tolerance; 25 seconds of observation showed READY, no new faults, joint3 about 915, chassis/gripper disabled. Full power-cycle verification pending."
+    },
+    "step_ticks": 25,
+    "duration_seconds": 1.5,
+    "gate_tries": 1,
+    "message_cap": 60,
+    "max_travel_ticks": 400,
+    "tolerance_ticks": 12,
+    "tolerance_note": "Measured 2026-10-13: commanded to 900, joint3 settled at 908 and never closed the last 8 ticks over 11 messages. A servo stops inside its own positioning deadband, so an exact tick match is not achievable and must not be treated as a stall. 12 ticks is about 2.9 degrees on an arm joint.",
+    "wait_core_seconds": 180,
+    "timeout_seconds": 600,
+    "observed_2026-10-13": {
+      "run_14_43_25": "REFUSED with no motion. The node answered 'Step too large; use incremental targets: joint3' three times. Cause: the angle conversion dropped joint3's sign, so target raw 900 was encoded with sign +1 and the node decoded it as raw 100, an 835 tick jump that no step limit can accept. Fixed by applying SIGN, plus a permanent encode/decode round trip assertion before every publish.",
+      "run_14_47_00": "joint3 travelled 935 -> 908 in 11 messages and stopped 8 ticks short of 900. Because the success test demanded an exact tick match, this looked like a stall, the guard abandoned the travel and the unit exited 3.",
+      "run_14_49_24": "within tolerance 12, reached true, 0 messages needed, exit 0, systemd Result=success.",
+      "deadband_or_load_limit": "RESOLVED 2026-10-14 as a deadband, not a load limit. Driving joint3 by bus directly (tools/joint3_recover.py) moved it 1034 -> 908 in 8 messages while the arm was under gravity load, and where a message once appeared stalled a later message moved it again. A hard load ceiling would have blocked all further motion, so the observed 'stops 8-11 ticks short' is the servo deadband.",
+      "gates_left_after_pose": "arm on, gripper off, deliberately. Revoking a gate runs apply_permissions -> on_stop(), which transmits the protocol stop packet, and its holding torque semantics for the arm joints are still unproven.",
+      "stop_packet_claim_retracted": "An earlier note claimed the stop packet does not unload the gripper because r_joint held 482 across three faults. That evidence is CONFOUNDED and must not be relied on: the gripper rests against a mechanical stop at about 100 (open) and about 482 (closed), so it would hold position with no torque at all. Treat the stop packet's holding semantics as unproven for every servo, including the gripper."
+    },
+    "observed_2026-10-14": {
+      "unit_state_at_recording": "armpi-ros2 inactive, armpi-startup-pose failed with ExecMainStatus=137 (killed on timeout), start_node active (the ROS 1 legacy sidecar). /proc/uptime 6759 s, so this was NOT a fresh boot.",
+      "pose_read_before_writing": "tools/probe_servo_state.py, two runs, exit 0, all six joints in range, /dev/rrc free both times. No motion was sent.",
+      "not_yet_run": "The startup pose has NOT been executed against this new target. Expect a zero-travel no-op: the arm is already inside the 12-tick tolerance of every target, so a run proves the gate/auth plumbing works but does NOT exercise the travel path.",
+      "cold_boot_ineffective": "Open defect, unchanged by this recording. start_node.sh starts the ROS 1 sidecar on every boot unconditionally, and the ROS 2 core is only killed by an LD06 lidar node death inside the launch. Separately, an unsupported arm droops joint3 past 1000 and latches the node, so the pose can never run. The previously reported 'success' at 14:49 happened only because joint3 was 911 that day, which is inside the limit by luck."
+    },
+    "gripper_job": {
+      "target_raw": 150,
+      "measured_raw": 100,
+      "generated_by": "tools/perception/make_move_job.py"
+    }
+  },
+  "provenance_warning": "r_joint is a measured/commanded tick value, NOT a measured pose. Do not copy it into arm_startup_pose.json."
+}

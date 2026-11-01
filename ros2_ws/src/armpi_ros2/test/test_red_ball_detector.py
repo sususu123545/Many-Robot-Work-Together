@@ -6,7 +6,8 @@ import pytest
 from sensor_msgs.msg import CameraInfo, Image
 
 from armpi_ros2.red_ball_detector import (
-    find_red_sphere, image_msg_to_bgr, sphere_center_in_camera)
+    find_red_sphere, fuse_recent_detections, image_msg_to_bgr,
+    sphere_center_in_camera)
 
 
 def _calibrated_camera():
@@ -80,3 +81,66 @@ def test_rejects_truncated_ros_image():
     msg.data = bytes(11)
     with pytest.raises(ValueError, match='shorter'):
         image_msg_to_bgr(msg)
+
+
+def _detection(x, y, radius):
+    return {'center_x': x, 'center_y': y, 'radius_px': radius}
+
+
+def test_fusion_returns_the_median_and_reports_the_spread():
+    window = [_detection(292.0, 309.0, 32.0),
+              _detection(293.0, 310.0, 32.4),
+              _detection(292.5, 309.5, 32.2),
+              _detection(291.5, 308.5, 31.8),
+              _detection(292.2, 309.2, 32.1)]
+    fusion = fuse_recent_detections(window)
+    assert fusion['frames'] == 5
+    assert fusion['center_x'] == pytest.approx(292.2)
+    assert fusion['center_y'] == pytest.approx(309.2)
+    assert fusion['radius_px'] == pytest.approx(32.1)
+    assert fusion['center_spread_px'] == pytest.approx(1.5)
+    assert fusion['radius_fraction'] == pytest.approx(0.6 / 32.1, abs=1e-6)
+
+
+def test_one_shifted_frame_cannot_drag_the_fused_target():
+    """A mean would be pulled by the outlier; the median must not move.
+
+    This is the whole point of fusing: a single frame where the blob leaks onto
+    something red used to become the published grasp target outright.
+    """
+    nominal = 32.0
+    clean = [_detection(292.0, 309.0, nominal) for _ in range(5)]
+    polluted = clean[:4] + [_detection(300.0, 320.0, nominal * 1.5)]
+    assert fuse_recent_detections(clean)['radius_px'] == pytest.approx(nominal)
+    assert fuse_recent_detections(polluted)['radius_px'] == pytest.approx(nominal)
+    assert fuse_recent_detections(polluted)['center_x'] == pytest.approx(292.0)
+
+
+def test_fusion_turns_pixel_jitter_into_a_smaller_range_error():
+    """End-to-end justification, in millimetres, through the real projection.
+
+    z is recovered from the apparent radius, so the single-frame path inherits
+    every pixel of radius jitter multiplied by the range. Fusing first must land
+    closer to the true range than either a jittered frame or the outlier.
+    """
+    camera = _calibrated_camera()
+    true_radius_px = 32.0
+    window = [_detection(292.0, 309.0, true_radius_px + delta)
+              for delta in (-0.6, -0.3, 0.0, 0.3, 0.6)]
+    true_range = sphere_center_in_camera(
+        (292.0, 309.0), true_radius_px, camera, 0.035)[0][2]
+
+    fused = fuse_recent_detections(window)
+    fused_range = sphere_center_in_camera(
+        (fused['center_x'], fused['center_y']), fused['radius_px'],
+        camera, 0.035)[0][2]
+    worst_frame_range = sphere_center_in_camera(
+        (292.0, 309.0), true_radius_px + 0.6, camera, 0.035)[0][2]
+
+    assert abs(fused_range - true_range) < 1e-3
+    assert abs(worst_frame_range - true_range) > abs(fused_range - true_range)
+
+
+def test_fusion_rejects_an_empty_window():
+    with pytest.raises(ValueError, match='No detections'):
+        fuse_recent_detections([])

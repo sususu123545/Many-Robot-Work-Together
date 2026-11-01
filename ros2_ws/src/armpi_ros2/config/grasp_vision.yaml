@@ -6,6 +6,11 @@ red_ball_detector:
     min_radius_px: 6.0
     max_radius_px: 180.0
     stability_frames: 5
-    stability_center_px: 7.0
-    stability_radius_fraction: 0.18
+    # 0.18 allowed a ~50 mm depth swing to count as "stable": z comes from the
+    # apparent radius, so 18 % of radius is 18 % of range. The published point is
+    # now the median of this window, but a gate that wide still lets a drifting
+    # ball through, so tighten it and check the measured spread reported in
+    # `fusion.radius_fraction` before trusting it.
+    stability_center_px: 3.5
+    stability_radius_fraction: 0.08
     annotated_topic: /grasp/red_ball/annotated

@@ -50,3 +50,40 @@ def test_forward_tool_pose_rejects_incomplete_or_invalid_feedback():
     with pytest.raises(ValueError, match='outside'):
         forward_tool_pose_raw({'joint1': 500, 'joint2': 876,
                                'joint3': 500, 'joint4': 500})
+
+
+def test_all_branches_keeps_the_vendor_preferred_solution_first():
+    """inverse_kinematics must stay a plain "give me the vendor branch" call."""
+    from armpi_ros2.arm_kinematics import inverse_kinematics_all
+    target, pitch = (0.0, 0.12, 0.15), -120.0
+    branches = inverse_kinematics_all(*target, pitch)
+    preferred = inverse_kinematics(*target, pitch)
+    assert branches
+    assert branches[0]['servo_targets'] == preferred['servo_targets']
+    assert branches[0]['elbow'] == 'down'
+
+
+def test_all_branches_exposes_the_alternate_elbow_when_it_is_bounded():
+    """At the real grasp target both branches exist, and they are far apart.
+
+    This is why the dry run needs the full list: the vendor-preferred branch can
+    be the FARTHER one, and picking it means asking a joint for hundreds of ticks
+    of travel it does not need.
+    """
+    from armpi_ros2.arm_kinematics import inverse_kinematics_all
+    branches = inverse_kinematics_all(0.00245, 0.28509, -0.04327, -135.0)
+    assert len(branches) == 2
+    assert {branch['elbow'] for branch in branches} == {'down', 'up'}
+    for branch in branches:
+        # The label must describe the sign the solver actually used, otherwise a
+        # planner reading it would mis-reason about which way the elbow folds.
+        expected = 'down' if branch['theta4'] < 0 else 'up'
+        assert branch['elbow'] == expected
+    down, up = branches
+    assert abs(down['servo_targets'][5] - up['servo_targets'][5]) > 200
+
+
+def test_all_branches_raises_when_no_branch_fits():
+    from armpi_ros2.arm_kinematics import inverse_kinematics_all
+    with pytest.raises(ValueError, match='outside the arm workspace'):
+        inverse_kinematics_all(0.0, 0.5, 0.0, -90.0)

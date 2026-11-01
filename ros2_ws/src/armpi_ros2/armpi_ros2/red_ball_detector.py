@@ -140,6 +140,39 @@ def find_red_sphere(image_bgr, min_radius_px=6.0, max_radius_px=180.0,
     return result, len(candidates)
 
 
+def fuse_recent_detections(recent):
+    """Median of the stable window, instead of the newest single frame.
+
+    WHY: the range z is recovered from the apparent radius -- sin(theta) = r/d --
+    so one pixel of edge jitter at r ~ 32 px moves the target by about 3 % of the
+    distance, i.e. ~8 mm at 285 mm. Publishing the latest frame therefore handed
+    the arm a target that wandered by roughly a centimetre between runs even
+    though the ball never moved. Fusing in PIXEL space (median centre + median
+    radius, then one projection) is both cheaper and more correct than averaging
+    the resulting 3-D points, because the projection is nonlinear in the radius.
+
+    Median rather than mean on purpose: a single frame where the blob leaks onto
+    a nearby red object would drag a mean and is simply out-voted by a median.
+
+    The window is safe to average only because the stability gate has already
+    rejected it when the spread is too wide, so this never smooths a moving ball.
+    """
+    if not recent:
+        raise ValueError('No detections to fuse')
+    xs = [item['center_x'] for item in recent]
+    ys = [item['center_y'] for item in recent]
+    radii = [item['radius_px'] for item in recent]
+    return {
+        'frames': len(recent),
+        'center_x': float(np.median(xs)),
+        'center_y': float(np.median(ys)),
+        'radius_px': float(np.median(radii)),
+        'center_spread_px': float(max(max(xs) - min(xs), max(ys) - min(ys))),
+        'radius_fraction': float((max(radii) - min(radii))
+                                 / max(float(np.mean(radii)), 1.0)),
+    }
+
+
 class RedBallDetector(Node):
     def __init__(self):
         super().__init__('red_ball_detector')
@@ -187,6 +220,7 @@ class RedBallDetector(Node):
         detection = None
         point = None
         count = 0
+        fusion = None
         try:
             frame = image_msg_to_bgr(msg)
             detection, count = find_red_sphere(
@@ -207,9 +241,11 @@ class RedBallDetector(Node):
                 elif not msg.header.frame_id:
                     reason = 'missing_camera_frame_id'
                 else:
+                    window = max(int(self.get_parameter('stability_frames').value), 1)
+                    fusion = fuse_recent_detections(list(self.history)[-window:])
                     point, angle = sphere_center_in_camera(
-                        (detection['center_x'], detection['center_y']),
-                        detection['radius_px'], self.camera_info,
+                        (fusion['center_x'], fusion['center_y']),
+                        fusion['radius_px'], self.camera_info,
                         float(self.get_parameter('ball_diameter_m').value))
                     pmsg = PointStamped()
                     pmsg.header = msg.header
@@ -230,6 +266,7 @@ class RedBallDetector(Node):
             'candidate_count': count,
             'ball_diameter_m': float(self.get_parameter('ball_diameter_m').value),
             'detection': detection,
+            'fusion': fusion,
             'point_camera_m': list(point) if point is not None else None,
         }
         status = String()

@@ -100,6 +100,21 @@ def inverse_kinematics(x, y, z, pitch_deg):
     solver for its normal reachable workspace. If it exceeds stock servo
     bounds, the alternate branch is considered. Returns joint angles and raw
     servo targets, or raises ValueError when no bounded solution exists.
+
+    Use inverse_kinematics_all when the caller cares WHICH branch it gets: the
+    preferred branch is the vendor's choice for teleoperation, not necessarily
+    the one that is nearest the pose the arm is already standing in, and for a
+    guarded motion the shorter travel is the safer instruction.
+    """
+    return inverse_kinematics_all(x, y, z, pitch_deg)[0]
+
+
+def inverse_kinematics_all(x, y, z, pitch_deg):
+    """Return every servo-bounded IK branch, vendor-preferred branch first.
+
+    Each entry is the same dict inverse_kinematics returns. There are at most
+    two branches (the elbow up/down pair); a branch disappears when its servo
+    targets fall outside the stock range.
     """
     _finite((x, y, z, pitch_deg), 'Target')
     x, y, z, pitch_deg = map(float, (x, y, z, pitch_deg))
@@ -137,7 +152,8 @@ def inverse_kinematics(x, y, z, pitch_deg):
         solutions.append({'theta3': angles[0], 'theta4': angles[1],
                           'theta5': angles[2], 'theta6': angles[3],
                           'servo_targets': raw_targets,
-                          'requested_pitch_deg': pitch_deg})
+                          'requested_pitch_deg': pitch_deg,
+                          'elbow': 'down' if theta4 < 0 else 'up'})
     if not solutions:
         raise ValueError('No IK branch fits the stock servo limits')
-    return solutions[0]
+    return solutions

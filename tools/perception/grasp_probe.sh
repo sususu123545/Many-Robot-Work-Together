@@ -112,14 +112,26 @@ print(ensure('/grasp/transform/status', 10.0) or 'MISSING')
 print('@@TF_ARM_CAMERA@@')
 translation = None
 rotation = None
-try:
-    tf = buffer.lookup_transform('arm_base', 'rear_camera', Time())
-    translation = tf.transform.translation
-    rotation = tf.transform.rotation
+# Retry instead of a single lookup: the tf2 buffer is filled by callbacks that
+# only run while this node spins, so a bare lookup right after the status reads
+# intermittently reports "arm_base does not exist" even though the transform is
+# being published. That false negative silently skipped the cross-check.
+tf_error = None
+tf_deadline = time.monotonic() + 10.0
+while time.monotonic() < tf_deadline:
+    try:
+        tf = buffer.lookup_transform('arm_base', 'rear_camera', Time())
+        translation = tf.transform.translation
+        rotation = tf.transform.rotation
+        break
+    except Exception as error:                                # noqa: BLE001
+        tf_error = error
+        rclpy.spin_once(node, timeout_sec=0.1)
+if translation is not None:
     print('translation=[%.4f, %.4f, %.4f]' % (
         translation.x, translation.y, translation.z))
-except Exception as error:                                    # noqa: BLE001
-    print('LOOKUP_FAILED: %s' % error)
+else:
+    print('LOOKUP_FAILED: %s' % tf_error)
 
 # Independent geometric cross-check. `target_base` was produced from an OLDER
 # arm pose than the TF looked up just now, so the two only agree if the whole

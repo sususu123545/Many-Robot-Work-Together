@@ -15,3 +15,20 @@ tools/runtime/
 ros2_ws/build/
 ros2_ws/install/
 ros2_ws/log/
+
+# SSH keys: never publish private keys, even in a project repo
+.ssh/
+
+# Large one-off bundles and scratch dirs must not enter a public repo
+tmp/
+unitree_*.tar.gz
+matrix-install-cache/
+
+# Camera-calibration raw material. The derived results stay versioned
+# (calibration_runs/*/results/*.json and *.yaml); only the heavy or
+# re-capturable files are excluded.
+calibration_runs/**/*.jpg
+calibration_runs/**/*.png
+calibration_runs/**/*.zip
+calibration_runs/**/*.npz
+calibration_runs/**/*.xwd

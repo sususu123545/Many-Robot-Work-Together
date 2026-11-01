@@ -1,0 +1,672 @@
+{
+  "image_size": [
+    640,
+    480
+  ],
+  "input_files": 29,
+  "detected": 29,
+  "missed": [],
+  "models_free": {
+    "pinhole": {
+      "rms_px": 1.14791,
+      "K": [
+        [
+          552.9573886119831,
+          0.0,
+          332.9357601400872
+        ],
+        [
+          0.0,
+          541.3329640957794,
+          198.7605014725758
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "D": [
+        -0.4792292391417068,
+        0.11561551640672568,
+        0.017389391445804016,
+        -0.007813960479063775,
+        0.09304081222852492
+      ],
+      "mean_view_rms_px": 1.05633,
+      "median_view_rms_px": 0.7665,
+      "max_view_rms_px": 2.0374,
+      "normal_spread": {
+        "median_deg": 4.61,
+        "p90_deg": 26.86,
+        "max_deg": 37.78
+      },
+      "per_view": [
+        {
+          "file": "sample_001.jpg",
+          "rms_px": 0.8384
+        },
+        {
+          "file": "sample_002.jpg",
+          "rms_px": 0.7179
+        },
+        {
+          "file": "sample_003.jpg",
+          "rms_px": 0.7546
+        },
+        {
+          "file": "sample_004.jpg",
+          "rms_px": 0.7733
+        },
+        {
+          "file": "sample_005.jpg",
+          "rms_px": 0.7665
+        },
+        {
+          "file": "sample_006.jpg",
+          "rms_px": 0.7264
+        },
+        {
+          "file": "sample_007.jpg",
+          "rms_px": 0.7712
+        },
+        {
+          "file": "sample_008.jpg",
+          "rms_px": 0.7519
+        },
+        {
+          "file": "sample_009.jpg",
+          "rms_px": 0.7572
+        },
+        {
+          "file": "sample_010.jpg",
+          "rms_px": 0.7256
+        },
+        {
+          "file": "sample_011.jpg",
+          "rms_px": 0.6974
+        },
+        {
+          "file": "sample_012.jpg",
+          "rms_px": 0.7263
+        },
+        {
+          "file": "sample_013.jpg",
+          "rms_px": 0.7811
+        },
+        {
+          "file": "sample_014.jpg",
+          "rms_px": 0.7634
+        },
+        {
+          "file": "sample_015.jpg",
+          "rms_px": 0.7603
+        },
+        {
+          "file": "sample_016.jpg",
+          "rms_px": 0.7544
+        },
+        {
+          "file": "sample_017.jpg",
+          "rms_px": 0.7012
+        },
+        {
+          "file": "sample_018.jpg",
+          "rms_px": 0.7254
+        },
+        {
+          "file": "sample_019.jpg",
+          "rms_px": 1.6929
+        },
+        {
+          "file": "sample_020.jpg",
+          "rms_px": 0.7658
+        },
+        {
+          "file": "sample_021.jpg",
+          "rms_px": 2.0374
+        },
+        {
+          "file": "sample_022.jpg",
+          "rms_px": 1.3099
+        },
+        {
+          "file": "sample_023.jpg",
+          "rms_px": 1.3003
+        },
+        {
+          "file": "sample_024.jpg",
+          "rms_px": 1.8609
+        },
+        {
+          "file": "sample_025.jpg",
+          "rms_px": 1.3561
+        },
+        {
+          "file": "sample_026.jpg",
+          "rms_px": 1.9712
+        },
+        {
+          "file": "sample_027.jpg",
+          "rms_px": 1.501
+        },
+        {
+          "file": "sample_028.jpg",
+          "rms_px": 1.5446
+        },
+        {
+          "file": "sample_029.jpg",
+          "rms_px": 1.8011
+        }
+      ]
+    },
+    "fisheye": {
+      "rms_px": 1.15809,
+      "K": [
+        [
+          541.2862332078475,
+          0.0,
+          308.9724229086448
+        ],
+        [
+          0.0,
+          536.8316520469291,
+          220.80791832049033
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "D": [
+        -0.17326533514665624,
+        0.2769737180432748,
+        -1.9737310445764125,
+        3.568868833261208
+      ],
+      "mean_view_rms_px": 1.05737,
+      "median_view_rms_px": 0.7595,
+      "max_view_rms_px": 2.0927,
+      "normal_spread": {
+        "median_deg": 4.53,
+        "p90_deg": 25.81,
+        "max_deg": 35.52
+      },
+      "per_view": [
+        {
+          "file": "sample_001.jpg",
+          "rms_px": 0.8381
+        },
+        {
+          "file": "sample_002.jpg",
+          "rms_px": 0.7193
+        },
+        {
+          "file": "sample_003.jpg",
+          "rms_px": 0.731
+        },
+        {
+          "file": "sample_004.jpg",
+          "rms_px": 0.7621
+        },
+        {
+          "file": "sample_005.jpg",
+          "rms_px": 0.7603
+        },
+        {
+          "file": "sample_006.jpg",
+          "rms_px": 0.6982
+        },
+        {
+          "file": "sample_007.jpg",
+          "rms_px": 0.7391
+        },
+        {
+          "file": "sample_008.jpg",
+          "rms_px": 0.7265
+        },
+        {
+          "file": "sample_009.jpg",
+          "rms_px": 0.7647
+        },
+        {
+          "file": "sample_010.jpg",
+          "rms_px": 0.6995
+        },
+        {
+          "file": "sample_011.jpg",
+          "rms_px": 0.6775
+        },
+        {
+          "file": "sample_012.jpg",
+          "rms_px": 0.7501
+        },
+        {
+          "file": "sample_013.jpg",
+          "rms_px": 0.7367
+        },
+        {
+          "file": "sample_014.jpg",
+          "rms_px": 0.7385
+        },
+        {
+          "file": "sample_015.jpg",
+          "rms_px": 0.7415
+        },
+        {
+          "file": "sample_016.jpg",
+          "rms_px": 0.7595
+        },
+        {
+          "file": "sample_017.jpg",
+          "rms_px": 0.7043
+        },
+        {
+          "file": "sample_018.jpg",
+          "rms_px": 0.7058
+        },
+        {
+          "file": "sample_019.jpg",
+          "rms_px": 1.7074
+        },
+        {
+          "file": "sample_020.jpg",
+          "rms_px": 0.7229
+        },
+        {
+          "file": "sample_021.jpg",
+          "rms_px": 2.0068
+        },
+        {
+          "file": "sample_022.jpg",
+          "rms_px": 1.2757
+        },
+        {
+          "file": "sample_023.jpg",
+          "rms_px": 1.3189
+        },
+        {
+          "file": "sample_024.jpg",
+          "rms_px": 1.9604
+        },
+        {
+          "file": "sample_025.jpg",
+          "rms_px": 1.4369
+        },
+        {
+          "file": "sample_026.jpg",
+          "rms_px": 2.0927
+        },
+        {
+          "file": "sample_027.jpg",
+          "rms_px": 1.6526
+        },
+        {
+          "file": "sample_028.jpg",
+          "rms_px": 1.5047
+        },
+        {
+          "file": "sample_029.jpg",
+          "rms_px": 1.7319
+        }
+      ]
+    }
+  },
+  "models_fixed_center": {
+    "pinhole": {
+      "rms_px": 1.16057,
+      "K": [
+        [
+          531.8306761168313,
+          0.0,
+          320.0
+        ],
+        [
+          0.0,
+          531.0093952722394,
+          240.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "D": [
+        -0.46825575963893257,
+        0.22239458291610684,
+        -0.010494030637101678,
+        -0.003744004906369289,
+        -0.017824371263189337
+      ],
+      "mean_view_rms_px": 1.05505,
+      "median_view_rms_px": 0.7461,
+      "max_view_rms_px": 2.1436,
+      "normal_spread": {
+        "median_deg": 4.42,
+        "p90_deg": 25.19,
+        "max_deg": 34.47
+      },
+      "per_view": [
+        {
+          "file": "sample_001.jpg",
+          "rms_px": 0.8326
+        },
+        {
+          "file": "sample_002.jpg",
+          "rms_px": 0.7269
+        },
+        {
+          "file": "sample_003.jpg",
+          "rms_px": 0.7193
+        },
+        {
+          "file": "sample_004.jpg",
+          "rms_px": 0.7581
+        },
+        {
+          "file": "sample_005.jpg",
+          "rms_px": 0.7534
+        },
+        {
+          "file": "sample_006.jpg",
+          "rms_px": 0.6904
+        },
+        {
+          "file": "sample_007.jpg",
+          "rms_px": 0.7461
+        },
+        {
+          "file": "sample_008.jpg",
+          "rms_px": 0.72
+        },
+        {
+          "file": "sample_009.jpg",
+          "rms_px": 0.7375
+        },
+        {
+          "file": "sample_010.jpg",
+          "rms_px": 0.7007
+        },
+        {
+          "file": "sample_011.jpg",
+          "rms_px": 0.6645
+        },
+        {
+          "file": "sample_012.jpg",
+          "rms_px": 0.7269
+        },
+        {
+          "file": "sample_013.jpg",
+          "rms_px": 0.7332
+        },
+        {
+          "file": "sample_014.jpg",
+          "rms_px": 0.7279
+        },
+        {
+          "file": "sample_015.jpg",
+          "rms_px": 0.7378
+        },
+        {
+          "file": "sample_016.jpg",
+          "rms_px": 0.7466
+        },
+        {
+          "file": "sample_017.jpg",
+          "rms_px": 0.6813
+        },
+        {
+          "file": "sample_018.jpg",
+          "rms_px": 0.6969
+        },
+        {
+          "file": "sample_019.jpg",
+          "rms_px": 1.6563
+        },
+        {
+          "file": "sample_020.jpg",
+          "rms_px": 0.7157
+        },
+        {
+          "file": "sample_021.jpg",
+          "rms_px": 2.0334
+        },
+        {
+          "file": "sample_022.jpg",
+          "rms_px": 1.2967
+        },
+        {
+          "file": "sample_023.jpg",
+          "rms_px": 1.274
+        },
+        {
+          "file": "sample_024.jpg",
+          "rms_px": 1.9971
+        },
+        {
+          "file": "sample_025.jpg",
+          "rms_px": 1.4491
+        },
+        {
+          "file": "sample_026.jpg",
+          "rms_px": 2.1436
+        },
+        {
+          "file": "sample_027.jpg",
+          "rms_px": 1.6541
+        },
+        {
+          "file": "sample_028.jpg",
+          "rms_px": 1.5316
+        },
+        {
+          "file": "sample_029.jpg",
+          "rms_px": 1.7447
+        }
+      ]
+    },
+    "fisheye": {
+      "rms_px": 1.19131,
+      "K": [
+        [
+          543.4156556465821,
+          0.0,
+          319.5
+        ],
+        [
+          0.0,
+          538.3276768992636,
+          239.5
+        ],
+        [
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "D": [
+        -0.17793175960422844,
+        0.14499838980651855,
+        -1.0173024045191208,
+        1.720106656744695
+      ],
+      "mean_view_rms_px": 1.08602,
+      "median_view_rms_px": 0.8267,
+      "max_view_rms_px": 2.1745,
+      "normal_spread": {
+        "median_deg": 4.56,
+        "p90_deg": 25.96,
+        "max_deg": 36.53
+      },
+      "per_view": [
+        {
+          "file": "sample_001.jpg",
+          "rms_px": 0.9005
+        },
+        {
+          "file": "sample_002.jpg",
+          "rms_px": 0.8452
+        },
+        {
+          "file": "sample_003.jpg",
+          "rms_px": 0.7428
+        },
+        {
+          "file": "sample_004.jpg",
+          "rms_px": 0.7221
+        },
+        {
+          "file": "sample_005.jpg",
+          "rms_px": 0.8724
+        },
+        {
+          "file": "sample_006.jpg",
+          "rms_px": 0.6858
+        },
+        {
+          "file": "sample_007.jpg",
+          "rms_px": 0.7288
+        },
+        {
+          "file": "sample_008.jpg",
+          "rms_px": 0.7796
+        },
+        {
+          "file": "sample_009.jpg",
+          "rms_px": 0.7075
+        },
+        {
+          "file": "sample_010.jpg",
+          "rms_px": 0.6837
+        },
+        {
+          "file": "sample_011.jpg",
+          "rms_px": 0.6756
+        },
+        {
+          "file": "sample_012.jpg",
+          "rms_px": 0.8267
+        },
+        {
+          "file": "sample_013.jpg",
+          "rms_px": 0.7042
+        },
+        {
+          "file": "sample_014.jpg",
+          "rms_px": 0.7186
+        },
+        {
+          "file": "sample_015.jpg",
+          "rms_px": 0.805
+        },
+        {
+          "file": "sample_016.jpg",
+          "rms_px": 0.8294
+        },
+        {
+          "file": "sample_017.jpg",
+          "rms_px": 0.6995
+        },
+        {
+          "file": "sample_018.jpg",
+          "rms_px": 0.7349
+        },
+        {
+          "file": "sample_019.jpg",
+          "rms_px": 1.7508
+        },
+        {
+          "file": "sample_020.jpg",
+          "rms_px": 0.6963
+        },
+        {
+          "file": "sample_021.jpg",
+          "rms_px": 2.0516
+        },
+        {
+          "file": "sample_022.jpg",
+          "rms_px": 1.4108
+        },
+        {
+          "file": "sample_023.jpg",
+          "rms_px": 1.276
+        },
+        {
+          "file": "sample_024.jpg",
+          "rms_px": 2.094
+        },
+        {
+          "file": "sample_025.jpg",
+          "rms_px": 1.5292
+        },
+        {
+          "file": "sample_026.jpg",
+          "rms_px": 2.1745
+        },
+        {
+          "file": "sample_027.jpg",
+          "rms_px": 1.7364
+        },
+        {
+          "file": "sample_028.jpg",
+          "rms_px": 1.4732
+        },
+        {
+          "file": "sample_029.jpg",
+          "rms_px": 1.6395
+        }
+      ]
+    }
+  },
+  "errors": {},
+  "status": "applied to robot and runtime verified on 2026-10-30",
+  "quality_assessment": {
+    "status": "applied_and_runtime_verified",
+    "recommended_model": "equidistant",
+    "image_count": 29,
+    "detected_count": 29,
+    "fisheye_rms_px": 1.15809,
+    "mean_per_view_rms_px": 1.05737,
+    "max_per_view_rms_px": 2.0927,
+    "centered_fisheye_rms_px": 1.19131,
+    "free_principal_point_px": [
+      308.972,
+      220.808
+    ],
+    "sensor_center_px": [
+      319.5,
+      239.5
+    ],
+    "validation": "All 29 images re-detected, per-view reprojection error checked, and fisheye undistortion preview inspected.",
+    "application": "Installed as rear_camera_calibration.yaml in the pinned ROS 2 image and loaded by /rear_camera/camera. Current camera node was restarted alone; the full core was not restarted. The new image is pinned for future ROS 2 core startups.",
+    "runtime_verification": {
+      "camera_info_url": "file:///opt/armpi_ros2/install/armpi_ros2/share/armpi_ros2/config/rear_camera_calibration.yaml",
+      "distortion_model": "equidistant",
+      "K": [
+        541.286233208,
+        0,
+        308.972422909,
+        0,
+        536.831652047,
+        220.80791832,
+        0,
+        0,
+        1
+      ],
+      "D": [
+        -0.173265335147,
+        0.276973718043,
+        -1.97373104458,
+        3.56886883326
+      ],
+      "camera_image_rate_hz": 9.829,
+      "scan_rate_hz": 10.004,
+      "ros2_core_active": true,
+      "motion_enabled": false,
+      "arm_motion_enabled": false,
+      "gripper_motion_enabled": false
+    }
+  }
+}

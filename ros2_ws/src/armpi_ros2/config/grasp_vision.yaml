@@ -1,0 +1,11 @@
+red_ball_detector:
+  ros__parameters:
+    image_topic: /rear_camera/image_raw
+    camera_info_topic: /rear_camera/camera_info
+    ball_diameter_m: 0.035
+    min_radius_px: 6.0
+    max_radius_px: 180.0
+    stability_frames: 5
+    stability_center_px: 7.0
+    stability_radius_fraction: 0.18
+    annotated_topic: /grasp/red_ball/annotated

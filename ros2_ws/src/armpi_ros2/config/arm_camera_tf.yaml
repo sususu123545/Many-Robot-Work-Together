@@ -1,0 +1,7 @@
+arm_camera_transform:
+  ros__parameters:
+    status_topic: /arm_controller/status
+    status_output_topic: /grasp/camera_tf/status
+    calibration_file: /opt/armpi-calibration/rear_camera_hand_eye.json
+    max_feedback_age_sec: 0.5
+    joint5_tolerance_ticks: 8

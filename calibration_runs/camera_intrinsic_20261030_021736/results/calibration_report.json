@@ -1,0 +1,257 @@
+{
+  "camera": "/rear_camera/image_raw",
+  "image_size": [
+    640,
+    480
+  ],
+  "pattern_inner_corners": [
+    9,
+    6
+  ],
+  "square_size_m": 0.025,
+  "input_files": 20,
+  "corner_detected": 20,
+  "missed": [],
+  "sharpness_laplacian_variance": {
+    "sample_001.jpg": 247.7,
+    "sample_002.jpg": 391.1,
+    "sample_003.jpg": 651.9,
+    "sample_004.jpg": 898.3,
+    "sample_005.jpg": 790.7,
+    "sample_006.jpg": 550.3,
+    "sample_007.jpg": 320.1,
+    "sample_008.jpg": 443.9,
+    "sample_009.jpg": 533.6,
+    "sample_010.jpg": 256.5,
+    "sample_011.jpg": 531.9,
+    "sample_012.jpg": 467.1,
+    "sample_013.jpg": 486.2,
+    "sample_014.jpg": 342.6,
+    "sample_015.jpg": 412.6,
+    "sample_016.jpg": 507.5,
+    "sample_017.jpg": 344.6,
+    "sample_018.jpg": 367.0,
+    "sample_019.jpg": 878.3,
+    "sample_020.jpg": 508.2
+  },
+  "models": {
+    "pinhole": {
+      "rms_px": 0.77564,
+      "fx": 442.041,
+      "fy": 440.178,
+      "cx": 315.135,
+      "cy": 322.755,
+      "distortion": [
+        -0.32189825,
+        -0.06134273,
+        -0.06140408,
+        -0.00479502,
+        0.28121062
+      ],
+      "per_view_mean_px": 0.76127,
+      "per_view_median_px": 0.7214,
+      "per_view_max_px": 1.3588,
+      "per_view": [
+        {
+          "file": "sample_001.jpg",
+          "rms_px": 0.8292
+        },
+        {
+          "file": "sample_002.jpg",
+          "rms_px": 0.7688
+        },
+        {
+          "file": "sample_003.jpg",
+          "rms_px": 0.6883
+        },
+        {
+          "file": "sample_004.jpg",
+          "rms_px": 0.8639
+        },
+        {
+          "file": "sample_005.jpg",
+          "rms_px": 0.8427
+        },
+        {
+          "file": "sample_006.jpg",
+          "rms_px": 0.6837
+        },
+        {
+          "file": "sample_007.jpg",
+          "rms_px": 0.758
+        },
+        {
+          "file": "sample_008.jpg",
+          "rms_px": 0.6909
+        },
+        {
+          "file": "sample_009.jpg",
+          "rms_px": 0.7097
+        },
+        {
+          "file": "sample_010.jpg",
+          "rms_px": 0.734
+        },
+        {
+          "file": "sample_011.jpg",
+          "rms_px": 0.6656
+        },
+        {
+          "file": "sample_012.jpg",
+          "rms_px": 0.7331
+        },
+        {
+          "file": "sample_013.jpg",
+          "rms_px": 0.7016
+        },
+        {
+          "file": "sample_014.jpg",
+          "rms_px": 0.7077
+        },
+        {
+          "file": "sample_015.jpg",
+          "rms_px": 0.7358
+        },
+        {
+          "file": "sample_016.jpg",
+          "rms_px": 0.7497
+        },
+        {
+          "file": "sample_017.jpg",
+          "rms_px": 0.6663
+        },
+        {
+          "file": "sample_018.jpg",
+          "rms_px": 0.6605
+        },
+        {
+          "file": "sample_019.jpg",
+          "rms_px": 1.3588
+        },
+        {
+          "file": "sample_020.jpg",
+          "rms_px": 0.677
+        }
+      ]
+    },
+    "fisheye": {
+      "rms_px": 0.79484,
+      "fx": 539.084,
+      "fy": 534.876,
+      "cx": 304.403,
+      "cy": 231.097,
+      "distortion": [
+        -0.1845615,
+        0.13898237,
+        -1.10044039,
+        2.177562
+      ],
+      "per_view_mean_px": 0.76011,
+      "per_view_median_px": 0.70915,
+      "per_view_max_px": 1.7632,
+      "per_view": [
+        {
+          "file": "sample_001.jpg",
+          "rms_px": 0.8191
+        },
+        {
+          "file": "sample_002.jpg",
+          "rms_px": 0.709
+        },
+        {
+          "file": "sample_003.jpg",
+          "rms_px": 0.6963
+        },
+        {
+          "file": "sample_004.jpg",
+          "rms_px": 0.7345
+        },
+        {
+          "file": "sample_005.jpg",
+          "rms_px": 0.7217
+        },
+        {
+          "file": "sample_006.jpg",
+          "rms_px": 0.688
+        },
+        {
+          "file": "sample_007.jpg",
+          "rms_px": 0.7186
+        },
+        {
+          "file": "sample_008.jpg",
+          "rms_px": 0.69
+        },
+        {
+          "file": "sample_009.jpg",
+          "rms_px": 0.7314
+        },
+        {
+          "file": "sample_010.jpg",
+          "rms_px": 0.6703
+        },
+        {
+          "file": "sample_011.jpg",
+          "rms_px": 0.6607
+        },
+        {
+          "file": "sample_012.jpg",
+          "rms_px": 0.7093
+        },
+        {
+          "file": "sample_013.jpg",
+          "rms_px": 0.7051
+        },
+        {
+          "file": "sample_014.jpg",
+          "rms_px": 0.7114
+        },
+        {
+          "file": "sample_015.jpg",
+          "rms_px": 0.7103
+        },
+        {
+          "file": "sample_016.jpg",
+          "rms_px": 0.7168
+        },
+        {
+          "file": "sample_017.jpg",
+          "rms_px": 0.6744
+        },
+        {
+          "file": "sample_018.jpg",
+          "rms_px": 0.6757
+        },
+        {
+          "file": "sample_019.jpg",
+          "rms_px": 1.7632
+        },
+        {
+          "file": "sample_020.jpg",
+          "rms_px": 0.6965
+        }
+      ]
+    }
+  },
+  "errors": {},
+  "note": "Offline candidate only; not applied to the robot CameraInfo.",
+  "quality_assessment": {
+    "status": "needs_more_tilt_diversity",
+    "detected_pose_count": 20,
+    "board_normal_deviation_deg": {
+      "median": 1.11,
+      "max": 21.95
+    },
+    "pinhole_free_principal_point_px": [
+      315.14,
+      322.76
+    ],
+    "pinhole_fixed_center_px": [
+      320,
+      240
+    ],
+    "pinhole_rms_free_px": 0.77564,
+    "pinhole_rms_fixed_center_px": 0.7925,
+    "interpretation": "Low reprojection error alone is insufficient: nearly coplanar poses allow materially different intrinsics with almost identical RMS. Do not apply either candidate yet."
+  }
+}

@@ -23,5 +23,9 @@ setup(
         'odom = armpi_ros2.odom_node:main',
         'bmi270 = armpi_ros2.bmi270_node:main',
         'arm = armpi_ros2.arm_node:main',
+        'red_ball_detector = armpi_ros2.red_ball_detector:main',
+        'grasp_target_transform = armpi_ros2.target_transform:main',
+        'arm_camera_transform = armpi_ros2.arm_camera_tf:main',
+        'hand_eye_calibration = armpi_ros2.hand_eye_calibration:main',
     ]},
 )

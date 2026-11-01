@@ -1,0 +1,42 @@
+{
+  "image_size": [
+    640,
+    480
+  ],
+  "files": 27,
+  "detected": 27,
+  "missed": [],
+  "models_free": {},
+  "models_fixed_center": {},
+  "errors": {
+    "pinhole": "UnboundLocalError(\"cannot access local variable 'objs' where it is not associated with a value\")",
+    "pinhole_fixed": "UnboundLocalError(\"cannot access local variable 'objs' where it is not associated with a value\")",
+    "fisheye": "UnboundLocalError(\"cannot access local variable 'objs' where it is not associated with a value\")",
+    "fisheye_fixed": "UnboundLocalError(\"cannot access local variable 'objs' where it is not associated with a value\")"
+  },
+  "status": "offline candidate; not applied",
+  "quality_assessment": {
+    "status": "provisional_needs_more_pose_diversity",
+    "pinhole_free_center_px": [
+      342.725,
+      192.173
+    ],
+    "pinhole_fixed_center_px": [
+      320,
+      240
+    ],
+    "fisheye_free_center_px": [
+      310.448,
+      216.898
+    ],
+    "fisheye_fixed_center_px": [
+      319.5,
+      239.5
+    ],
+    "pinhole_free_rms_px": 1.09545,
+    "pinhole_fixed_rms_px": 1.11439,
+    "fisheye_free_rms_px": 1.11383,
+    "fisheye_fixed_rms_px": 1.15884,
+    "interpretation": "All corners detected, but optical center estimates still move materially for a small RMS change. Offline candidate only; do not apply yet."
+  }
+}

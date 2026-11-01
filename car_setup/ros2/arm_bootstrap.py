@@ -31,9 +31,12 @@ def prepare_boot_arm(image, root=Path('/opt/armpi-ros2'), runtime=Path('/run/arm
         json.dump({'ok': False, 'state': 'running', 'started_unix': time.time()}, handle)
     name = 'armpi_arm_bootstrap_' + uuid.uuid4().hex[:12]
     command = ['docker', 'run', '--rm', '--name', name, '--network', 'none',
+               # Some pinned images are deliberately inert by default. Override
+               # that entrypoint explicitly so the bounded recovery script runs.
+               '--entrypoint', '/bin/bash',
                '--device', '/dev/rrc:/dev/rrc',
                '-v', str(root / 'joint3_recover.py') + ':/opt/joint3_recover.py:ro',
-               image, 'bash', '-lc',
+               image, '-lc',
                'source /opt/armpi_ros2/install/setup.bash && '
                'export MODE=run CONFIRM=AREA_CLEAR FINAL=' + str(final) + ' STEP=25 '
                'DURATION=1.5 SETTLE=1.8 MESSAGE_CAP=12 TEMP_ABORT=55 && '

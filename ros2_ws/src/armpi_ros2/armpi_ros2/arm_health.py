@@ -79,7 +79,8 @@ class ArmHealth:
             return False
         # A gap in polling is not a continuous healthy recovery window.
         if (self.last_complete is None or now < self.last_complete
-                or now - self.last_complete >= 1.5 or self.healthy_since is None):
+                or now - self.last_complete >= 1.5 or self.healthy_since is None
+                or not self.fresh(now)):
             self.healthy_since = now
         self.samples = {k: dict(v) for k, v in samples.items()}
         self.last_complete = now

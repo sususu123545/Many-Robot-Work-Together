@@ -1,0 +1,580 @@
+{
+  "camera": "/rear_camera/image_raw",
+  "image_size": [
+    640,
+    480
+  ],
+  "pattern_per_image": "9x6 or transposed 6x9",
+  "square_size_m": 0.025,
+  "input_files": 26,
+  "detected": 26,
+  "missed": [],
+  "sharpness": {
+    "sample_001.jpg": 247.7,
+    "sample_002.jpg": 391.1,
+    "sample_003.jpg": 651.9,
+    "sample_004.jpg": 898.3,
+    "sample_005.jpg": 790.7,
+    "sample_006.jpg": 550.3,
+    "sample_007.jpg": 320.1,
+    "sample_008.jpg": 443.9,
+    "sample_009.jpg": 533.6,
+    "sample_010.jpg": 256.5,
+    "sample_011.jpg": 531.9,
+    "sample_012.jpg": 467.1,
+    "sample_013.jpg": 486.2,
+    "sample_014.jpg": 342.6,
+    "sample_015.jpg": 412.6,
+    "sample_016.jpg": 507.5,
+    "sample_017.jpg": 344.6,
+    "sample_018.jpg": 367.0,
+    "sample_019.jpg": 878.3,
+    "sample_020.jpg": 508.2,
+    "sample_021.jpg": 835.9,
+    "sample_022.jpg": 820.2,
+    "sample_023.jpg": 371.3,
+    "sample_024.jpg": 646.4,
+    "sample_025.jpg": 353.5,
+    "sample_026.jpg": 779.5
+  },
+  "models_free": {
+    "pinhole": {
+      "rms_px": 1.07957,
+      "fx": 551.312,
+      "fy": 540.557,
+      "cx": 332.858,
+      "cy": 200.172,
+      "D": [
+        -0.48016418,
+        0.13732386,
+        0.01474792,
+        -0.00781094,
+        0.06956408
+      ],
+      "per_view_mean_px": 0.99319,
+      "per_view_median_px": 0.76895,
+      "per_view_max_px": 2.0308,
+      "per_view": [
+        {
+          "file": "sample_001.jpg",
+          "rms_px": 0.841
+        },
+        {
+          "file": "sample_002.jpg",
+          "rms_px": 0.7177
+        },
+        {
+          "file": "sample_003.jpg",
+          "rms_px": 0.7609
+        },
+        {
+          "file": "sample_004.jpg",
+          "rms_px": 0.7737
+        },
+        {
+          "file": "sample_005.jpg",
+          "rms_px": 0.7725
+        },
+        {
+          "file": "sample_006.jpg",
+          "rms_px": 0.7292
+        },
+        {
+          "file": "sample_007.jpg",
+          "rms_px": 0.7735
+        },
+        {
+          "file": "sample_008.jpg",
+          "rms_px": 0.7603
+        },
+        {
+          "file": "sample_009.jpg",
+          "rms_px": 0.7634
+        },
+        {
+          "file": "sample_010.jpg",
+          "rms_px": 0.729
+        },
+        {
+          "file": "sample_011.jpg",
+          "rms_px": 0.7036
+        },
+        {
+          "file": "sample_012.jpg",
+          "rms_px": 0.7311
+        },
+        {
+          "file": "sample_013.jpg",
+          "rms_px": 0.7843
+        },
+        {
+          "file": "sample_014.jpg",
+          "rms_px": 0.7677
+        },
+        {
+          "file": "sample_015.jpg",
+          "rms_px": 0.7681
+        },
+        {
+          "file": "sample_016.jpg",
+          "rms_px": 0.7583
+        },
+        {
+          "file": "sample_017.jpg",
+          "rms_px": 0.7072
+        },
+        {
+          "file": "sample_018.jpg",
+          "rms_px": 0.7311
+        },
+        {
+          "file": "sample_019.jpg",
+          "rms_px": 1.6865
+        },
+        {
+          "file": "sample_020.jpg",
+          "rms_px": 0.7698
+        },
+        {
+          "file": "sample_021.jpg",
+          "rms_px": 2.0308
+        },
+        {
+          "file": "sample_022.jpg",
+          "rms_px": 1.2923
+        },
+        {
+          "file": "sample_023.jpg",
+          "rms_px": 1.302
+        },
+        {
+          "file": "sample_024.jpg",
+          "rms_px": 1.8492
+        },
+        {
+          "file": "sample_025.jpg",
+          "rms_px": 1.3495
+        },
+        {
+          "file": "sample_026.jpg",
+          "rms_px": 1.9703
+        }
+      ],
+      "plane_normal_spread_deg": {
+        "median_deg": 3.47,
+        "p90_deg": 25.72,
+        "max_deg": 36.72
+      }
+    },
+    "fisheye": {
+      "rms_px": 1.08899,
+      "fx": 541.657,
+      "fy": 536.9,
+      "cx": 308.003,
+      "cy": 219.497,
+      "D": [
+        -0.10213605,
+        -0.61425208,
+        1.91086961,
+        -1.88123331
+      ],
+      "per_view_mean_px": 0.99275,
+      "per_view_median_px": 0.75195,
+      "per_view_max_px": 2.0791,
+      "per_view": [
+        {
+          "file": "sample_001.jpg",
+          "rms_px": 0.8346
+        },
+        {
+          "file": "sample_002.jpg",
+          "rms_px": 0.7242
+        },
+        {
+          "file": "sample_003.jpg",
+          "rms_px": 0.7263
+        },
+        {
+          "file": "sample_004.jpg",
+          "rms_px": 0.7758
+        },
+        {
+          "file": "sample_005.jpg",
+          "rms_px": 0.7544
+        },
+        {
+          "file": "sample_006.jpg",
+          "rms_px": 0.7029
+        },
+        {
+          "file": "sample_007.jpg",
+          "rms_px": 0.7498
+        },
+        {
+          "file": "sample_008.jpg",
+          "rms_px": 0.7286
+        },
+        {
+          "file": "sample_009.jpg",
+          "rms_px": 0.7743
+        },
+        {
+          "file": "sample_010.jpg",
+          "rms_px": 0.7076
+        },
+        {
+          "file": "sample_011.jpg",
+          "rms_px": 0.6903
+        },
+        {
+          "file": "sample_012.jpg",
+          "rms_px": 0.7541
+        },
+        {
+          "file": "sample_013.jpg",
+          "rms_px": 0.7451
+        },
+        {
+          "file": "sample_014.jpg",
+          "rms_px": 0.7473
+        },
+        {
+          "file": "sample_015.jpg",
+          "rms_px": 0.7465
+        },
+        {
+          "file": "sample_016.jpg",
+          "rms_px": 0.7602
+        },
+        {
+          "file": "sample_017.jpg",
+          "rms_px": 0.7089
+        },
+        {
+          "file": "sample_018.jpg",
+          "rms_px": 0.7028
+        },
+        {
+          "file": "sample_019.jpg",
+          "rms_px": 1.6996
+        },
+        {
+          "file": "sample_020.jpg",
+          "rms_px": 0.7283
+        },
+        {
+          "file": "sample_021.jpg",
+          "rms_px": 1.99
+        },
+        {
+          "file": "sample_022.jpg",
+          "rms_px": 1.2649
+        },
+        {
+          "file": "sample_023.jpg",
+          "rms_px": 1.3314
+        },
+        {
+          "file": "sample_024.jpg",
+          "rms_px": 1.9518
+        },
+        {
+          "file": "sample_025.jpg",
+          "rms_px": 1.4328
+        },
+        {
+          "file": "sample_026.jpg",
+          "rms_px": 2.0791
+        }
+      ],
+      "plane_normal_spread_deg": {
+        "median_deg": 3.43,
+        "p90_deg": 24.79,
+        "max_deg": 34.76
+      }
+    }
+  },
+  "models_fixed_center": {
+    "pinhole": {
+      "rms_px": 1.08923,
+      "fx": 529.687,
+      "fy": 528.036,
+      "cx": 320.0,
+      "cy": 240.0,
+      "D": [
+        -0.45731358,
+        0.16509318,
+        -0.01230827,
+        -0.00438211,
+        0.07843825
+      ],
+      "per_view_mean_px": 0.98823,
+      "per_view_median_px": 0.74535,
+      "per_view_max_px": 2.1516,
+      "per_view": [
+        {
+          "file": "sample_001.jpg",
+          "rms_px": 0.8256
+        },
+        {
+          "file": "sample_002.jpg",
+          "rms_px": 0.7151
+        },
+        {
+          "file": "sample_003.jpg",
+          "rms_px": 0.722
+        },
+        {
+          "file": "sample_004.jpg",
+          "rms_px": 0.7752
+        },
+        {
+          "file": "sample_005.jpg",
+          "rms_px": 0.7603
+        },
+        {
+          "file": "sample_006.jpg",
+          "rms_px": 0.6981
+        },
+        {
+          "file": "sample_007.jpg",
+          "rms_px": 0.7538
+        },
+        {
+          "file": "sample_008.jpg",
+          "rms_px": 0.7219
+        },
+        {
+          "file": "sample_009.jpg",
+          "rms_px": 0.7514
+        },
+        {
+          "file": "sample_010.jpg",
+          "rms_px": 0.7069
+        },
+        {
+          "file": "sample_011.jpg",
+          "rms_px": 0.6736
+        },
+        {
+          "file": "sample_012.jpg",
+          "rms_px": 0.7246
+        },
+        {
+          "file": "sample_013.jpg",
+          "rms_px": 0.7448
+        },
+        {
+          "file": "sample_014.jpg",
+          "rms_px": 0.736
+        },
+        {
+          "file": "sample_015.jpg",
+          "rms_px": 0.7402
+        },
+        {
+          "file": "sample_016.jpg",
+          "rms_px": 0.7459
+        },
+        {
+          "file": "sample_017.jpg",
+          "rms_px": 0.6854
+        },
+        {
+          "file": "sample_018.jpg",
+          "rms_px": 0.7002
+        },
+        {
+          "file": "sample_019.jpg",
+          "rms_px": 1.6369
+        },
+        {
+          "file": "sample_020.jpg",
+          "rms_px": 0.7279
+        },
+        {
+          "file": "sample_021.jpg",
+          "rms_px": 2.0064
+        },
+        {
+          "file": "sample_022.jpg",
+          "rms_px": 1.2792
+        },
+        {
+          "file": "sample_023.jpg",
+          "rms_px": 1.2816
+        },
+        {
+          "file": "sample_024.jpg",
+          "rms_px": 1.9887
+        },
+        {
+          "file": "sample_025.jpg",
+          "rms_px": 1.4407
+        },
+        {
+          "file": "sample_026.jpg",
+          "rms_px": 2.1516
+        }
+      ],
+      "plane_normal_spread_deg": {
+        "median_deg": 3.31,
+        "p90_deg": 24.14,
+        "max_deg": 33.67
+      }
+    },
+    "fisheye": {
+      "rms_px": 1.13063,
+      "fx": 546.148,
+      "fy": 542.079,
+      "cx": 319.5,
+      "cy": 239.5,
+      "D": [
+        -0.13981707,
+        -0.39290286,
+        1.37132549,
+        -1.69060709
+      ],
+      "per_view_mean_px": 1.02533,
+      "per_view_median_px": 0.78785,
+      "per_view_max_px": 2.139,
+      "per_view": [
+        {
+          "file": "sample_001.jpg",
+          "rms_px": 0.8961
+        },
+        {
+          "file": "sample_002.jpg",
+          "rms_px": 0.8471
+        },
+        {
+          "file": "sample_003.jpg",
+          "rms_px": 0.7405
+        },
+        {
+          "file": "sample_004.jpg",
+          "rms_px": 0.7266
+        },
+        {
+          "file": "sample_005.jpg",
+          "rms_px": 0.8692
+        },
+        {
+          "file": "sample_006.jpg",
+          "rms_px": 0.6847
+        },
+        {
+          "file": "sample_007.jpg",
+          "rms_px": 0.7328
+        },
+        {
+          "file": "sample_008.jpg",
+          "rms_px": 0.7754
+        },
+        {
+          "file": "sample_009.jpg",
+          "rms_px": 0.7119
+        },
+        {
+          "file": "sample_010.jpg",
+          "rms_px": 0.6867
+        },
+        {
+          "file": "sample_011.jpg",
+          "rms_px": 0.6776
+        },
+        {
+          "file": "sample_012.jpg",
+          "rms_px": 0.8299
+        },
+        {
+          "file": "sample_013.jpg",
+          "rms_px": 0.7106
+        },
+        {
+          "file": "sample_014.jpg",
+          "rms_px": 0.7233
+        },
+        {
+          "file": "sample_015.jpg",
+          "rms_px": 0.8003
+        },
+        {
+          "file": "sample_016.jpg",
+          "rms_px": 0.8354
+        },
+        {
+          "file": "sample_017.jpg",
+          "rms_px": 0.7009
+        },
+        {
+          "file": "sample_018.jpg",
+          "rms_px": 0.7398
+        },
+        {
+          "file": "sample_019.jpg",
+          "rms_px": 1.7508
+        },
+        {
+          "file": "sample_020.jpg",
+          "rms_px": 0.7001
+        },
+        {
+          "file": "sample_021.jpg",
+          "rms_px": 2.0619
+        },
+        {
+          "file": "sample_022.jpg",
+          "rms_px": 1.405
+        },
+        {
+          "file": "sample_023.jpg",
+          "rms_px": 1.284
+        },
+        {
+          "file": "sample_024.jpg",
+          "rms_px": 2.094
+        },
+        {
+          "file": "sample_025.jpg",
+          "rms_px": 1.5349
+        },
+        {
+          "file": "sample_026.jpg",
+          "rms_px": 2.139
+        }
+      ],
+      "plane_normal_spread_deg": {
+        "median_deg": 3.41,
+        "p90_deg": 24.99,
+        "max_deg": 35.7
+      }
+    }
+  },
+  "errors": {},
+  "status": "offline candidate only; not applied to robot",
+  "quality_assessment": {
+    "status": "needs_more_pose_diversity",
+    "pinhole_free_principal_point_px": [
+      332.858,
+      200.172
+    ],
+    "pinhole_fixed_principal_point_px": [
+      320,
+      240
+    ],
+    "pinhole_rms_free_px": 1.07957,
+    "pinhole_rms_fixed_px": 1.08923,
+    "fisheye_free_principal_point_px": [
+      308.003,
+      219.497
+    ],
+    "fisheye_fixed_principal_point_px": [
+      319.5,
+      239.5
+    ],
+    "fisheye_rms_free_px": 1.08899,
+    "fisheye_rms_fixed_px": 1.13063,
+    "interpretation": "Offline fits remain provisional. Fixing the principal point changes the estimated optical center materially for very little reprojection RMS change. Acquire more distinct out-of-plane board poses before applying."
+  }
+}

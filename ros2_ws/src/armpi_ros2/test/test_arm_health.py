@@ -72,6 +72,16 @@ class HealthTests(unittest.TestCase):
         self.assertEqual(h.healthy_seconds(13), 0)
         self.assertFalse(h.can_reset(13))
 
+    def test_oldest_physical_sample_expiry_restarts_recovery_window(self):
+        h=ArmHealth();healthy_window(h)
+        old=samples(10);old['joint1']['time']=9.4
+        h.success(old,10)
+        # Complete-cycle timestamps are only 1s apart, but the earliest real
+        # sample is 1.6s old. A fresh new cycle cannot erase that unhealthy gap.
+        h.success(samples(11),11)
+        self.assertEqual(h.healthy_seconds(11),0)
+        self.assertFalse(h.can_reset(11))
+
     def test_stale_feedback_and_pending_poll_cannot_reset(self):
         h = ArmHealth();now = healthy_window(h)
         self.assertFalse(h.can_reset(now+1.5))

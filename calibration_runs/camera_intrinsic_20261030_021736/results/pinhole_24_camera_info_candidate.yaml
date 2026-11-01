@@ -1,0 +1,21 @@
+# Offline provisional candidate; not applied to the robot.
+image_width: 640
+image_height: 480
+camera_name: rear_camera
+distortion_model: plumb_bob
+camera_matrix:
+  rows: 3
+  cols: 3
+  data: [493.179439712, 0, 320.279700332, 0, 490.529204096, 271.426131572, 0, 0, 1]
+distortion_coefficients:
+  rows: 1
+  cols: 5
+  data: [-0.424784772792, 0.20683064419, -0.0327996865703, -0.00410894533523, 0.00603699059294]
+rectification_matrix:
+  rows: 3
+  cols: 3
+  data: [1, 0, 0, 0, 1, 0, 0, 0, 1]
+projection_matrix:
+  rows: 3
+  cols: 4
+  data: [493.179439712, 0, 320.279700332, 0, 0, 490.529204096, 271.426131572, 0, 0, 0, 1, 0]

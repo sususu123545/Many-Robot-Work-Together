@@ -215,13 +215,25 @@ def reset_and_authorize():
           % (view.get('health_state'), view.get('healthy_seconds'),
              view.get('reset_eligible'), view.get('estop'),
              (view.get('fault') or 'NONE')[:70]), flush=True)
-    if not wait_until(lambda v: fresh_feedback(v) and v.get('reset_eligible') and not v.get('poll_pending'),
-                      45, 'reset_eligible'):
-        return False
-    result = call(reset_client, Trigger.Request())
-    if not result or not result.success:
-        print('  reset refused: ' + (result.message if result else 'NO_RESPONSE'), flush=True)
-        return False
+    if view.get('estop') is False:
+        # A normal READY arm must not call reset_estop: the controller may be
+        # polling the bus at that instant, and reset_estop requires a successful
+        # stop even when there is no latch to clear. The parameter service below
+        # remains the sole authorization path and independently rejects stale,
+        # simulated, faulted, or otherwise unhealthy feedback.
+        if (view.get('health_state') != 'READY' or view.get('fault')
+                or view.get('stop_reasons') or not fresh_feedback(view)):
+            print('  refuse normal authorization: arm is not healthy READY', flush=True)
+            return False
+        print('  latch already clear; requesting health-validated arm permission', flush=True)
+    else:
+        if not wait_until(lambda v: fresh_feedback(v) and v.get('reset_eligible') and not v.get('poll_pending'),
+                          45, 'reset_eligible'):
+            return False
+        result = call(reset_client, Trigger.Request())
+        if not result or not result.success:
+            print('  reset refused: ' + (result.message if result else 'NO_RESPONSE'), flush=True)
+            return False
     request = SetParametersAtomically.Request()
     request.parameters = [
         Parameter(name='enable_arm_motion',

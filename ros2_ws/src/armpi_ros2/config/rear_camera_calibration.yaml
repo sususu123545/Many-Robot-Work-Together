@@ -1,0 +1,22 @@
+# Rear camera intrinsic calibration from 29 checkerboard images (640x480).
+# Mean reprojection RMS: 1.057 px; overall fisheye RMS: 1.158 px.
+image_width: 640
+image_height: 480
+camera_name: rear_camera
+distortion_model: equidistant
+camera_matrix:
+  rows: 3
+  cols: 3
+  data: [541.286233208, 0, 308.972422909, 0, 536.831652047, 220.80791832, 0, 0, 1]
+distortion_coefficients:
+  rows: 1
+  cols: 4
+  data: [-0.173265335147, 0.276973718043, -1.97373104458, 3.56886883326]
+rectification_matrix:
+  rows: 3
+  cols: 3
+  data: [1, 0, 0, 0, 1, 0, 0, 0, 1]
+projection_matrix:
+  rows: 3
+  cols: 4
+  data: [541.286233208, 0, 308.972422909, 0, 0, 536.831652047, 220.80791832, 0, 0, 0, 1, 0]

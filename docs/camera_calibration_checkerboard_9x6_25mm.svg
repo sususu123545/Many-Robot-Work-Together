@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="297mm" height="210mm" viewBox="0 0 297 210">
+  <title>Camera calibration checkerboard: 9x6 inner corners, 25 mm squares</title>
+  <desc>A4 landscape print page. Print at 100 percent / actual size. The board has 10 by 7 squares, each exactly 25 mm.</desc>
+  <defs>
+    <pattern id="checker" width="50" height="50" patternUnits="userSpaceOnUse">
+      <rect x="0" y="0" width="25" height="25" fill="#000"/>
+      <rect x="25" y="25" width="25" height="25" fill="#000"/>
+    </pattern>
+  </defs>
+  <rect width="297" height="210" fill="#fff"/>
+  <rect x="23.5" y="12" width="250" height="175" fill="url(#checker)" shape-rendering="crispEdges"/>
+  <g fill="#111" font-family="Arial, sans-serif" text-anchor="middle">
+    <text x="148.5" y="198" font-size="4">9 x 6 inner corners | square size 25 mm | A4 landscape | PRINT AT 100% / ACTUAL SIZE</text>
+  </g>
+</svg>

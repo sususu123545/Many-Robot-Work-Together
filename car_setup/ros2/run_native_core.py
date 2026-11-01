@@ -17,6 +17,7 @@ import uuid
 
 ROOT = Path('/etc/armpi-ros2')
 RUNTIME = Path('/run/armpi-ros2')
+CALIBRATION = Path('/var/lib/armpi-ros2/calibration')
 LEGACY_SERVICES = ('ld06', 'odom', 'ch341-bmi270', 'auto-mapping', 'slam-control')
 LEGACY_EXECUTABLES = (
     'chassis_control_node.py', 'bmi270_imu_node.py', 'ldlidar_stl_ros_node',
@@ -121,6 +122,7 @@ def main():
     from lidar_preflight import prepare_lidar
     prepare_lidar()
     RUNTIME.mkdir(exist_ok=True)
+    CALIBRATION.mkdir(parents=True, exist_ok=True)
     seed_file = RUNTIME / 'cutover-seed.json'
     seed = json.loads(seed_file.read_text())['old_odom_pose'] if seed_file.exists() else [0, 0, 0]
     launch = ('source /opt/armpi_ros2/install/setup.bash && exec ros2 launch armpi_ros2 base.launch.py '
@@ -131,8 +133,12 @@ def main():
     name = 'armpi_ros2_native_' + uuid.uuid4().hex[:12]
     args = ['docker', 'run', '-d', '--name', name, '--label', 'armpi.owner=ros2-native-core',
             '--network', 'host', '--stop-signal', 'SIGINT',
+            # Honor the ROS environment even when the pinned image defaults to
+            # an inert entrypoint such as /bin/true.
+            '--entrypoint', '/ros_entrypoint.sh',
             '-e', 'ROS_DOMAIN_ID=42', '-e', 'ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST',
             '-v', '/sys/class/i2c-adapter:/sys/class/i2c-adapter:ro',
+            '-v', str(CALIBRATION) + ':/opt/armpi-calibration',
             '-v', cfg['bmi_library'] + ':/opt/bmi270_py:ro']
     for d in devices:
         args.extend(['--device', d + ':' + d])

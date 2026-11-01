@@ -13,6 +13,8 @@ from launch_ros.parameter_descriptions import ParameterValue
 
 def generate_launch_description():
     cfg = os.path.join(get_package_share_directory('armpi_ros2'), 'config', 'base.yaml')
+    camera_info_url = 'file://' + os.path.join(
+        get_package_share_directory('armpi_ros2'), 'config', 'rear_camera_calibration.yaml')
     arguments = [DeclareLaunchArgument(k, default_value=v) for k, v in {
         'dry_run': 'true', 'enable_motion': 'false', 'lidar': 'false',
         'imu': 'false', 'arm': 'false', 'enable_arm_motion': 'false',
@@ -24,6 +26,7 @@ def generate_launch_description():
         # wired into the shutdown guards below: an unplugged camera must not take
         # the arm and chassis down with it.
         'camera': 'false', 'camera_device': '/dev/video0',
+        'camera_info_url': camera_info_url,
         'video_server': 'false',
         # User measured 2026-10-11: 1 cm behind, 1 cm left of wheel rectangle centre.
         'lidar_port': '/dev/ld06', 'lidar_x': '-0.01', 'lidar_y': '0.01',
@@ -74,7 +77,8 @@ def generate_launch_description():
                       'image_size': [640, 480],
                       'pixel_format': 'YUYV',
                       'output_encoding': 'rgb8',
-                      'camera_frame_id': 'rear_camera'}])
+                      'camera_frame_id': 'rear_camera',
+                      'camera_info_url': LaunchConfiguration('camera_info_url')}])
     video = Node(package='web_video_server', executable='web_video_server',
                  name='web_video_server', output='screen',
                  condition=IfCondition(LaunchConfiguration('video_server')),

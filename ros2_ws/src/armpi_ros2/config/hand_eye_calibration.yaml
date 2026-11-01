@@ -1,0 +1,17 @@
+arm_camera_hand_eye_calibration:
+  ros__parameters:
+    image_topic: /rear_camera/image_raw
+    camera_info_topic: /rear_camera/camera_info
+    joint_states_topic: /joint_states
+    capture_service: /grasp/calibration/capture
+    solve_service: /grasp/calibration/solve
+    status_topic: /grasp/calibration/status
+    pattern_columns: 9
+    pattern_rows: 6
+    square_size_m: 0.025
+    output_path: /opt/armpi-calibration/rear_camera_hand_eye.json
+    samples_path: /opt/armpi-calibration/rear_camera_hand_eye.samples.json
+    resume_samples: false
+    max_joint_image_skew_sec: 0.25
+    max_candidate_age_sec: 2.5
+    detection_rate_hz: 0.5

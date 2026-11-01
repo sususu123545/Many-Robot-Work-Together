@@ -1,0 +1,21 @@
+# Offline candidate only; not applied to the robot.
+image_width: 640
+image_height: 480
+camera_name: rear_camera
+distortion_model: equidistant
+camera_matrix:
+  rows: 3
+  cols: 3
+  data: [541.656924809, 0, 308.00269726, 0, 536.899976537, 219.496555917, 0, 0, 1]
+distortion_coefficients:
+  rows: 1
+  cols: 4
+  data: [-0.102136048661, -0.614252084312, 1.91086960752, -1.88123331193]
+rectification_matrix:
+  rows: 3
+  cols: 3
+  data: [1, 0, 0, 0, 1, 0, 0, 0, 1]
+projection_matrix:
+  rows: 3
+  cols: 4
+  data: [541.656924809, 0, 308.00269726, 0, 0, 536.899976537, 219.496555917, 0, 0, 0, 1, 0]

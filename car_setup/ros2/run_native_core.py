@@ -133,6 +133,15 @@ def main():
     name = 'armpi_ros2_native_' + uuid.uuid4().hex[:12]
     args = ['docker', 'run', '-d', '--name', name, '--label', 'armpi.owner=ros2-native-core',
             '--network', 'host', '--stop-signal', 'SIGINT',
+            # Fast DDS defaults to shared-memory transport for same-host peers,
+            # and every container gets its own /dev/shm. A sidecar that reaches
+            # this core over --network host therefore discovers the whole graph
+            # (`ros2 node list` is complete) yet receives ZERO payload -- every
+            # echo sits at its timeout. The fix is to let sidecars join THIS
+            # container's IPC namespace, which requires the donor to be
+            # shareable; a container created `private` (the default) cannot be
+            # a donor once it is running. Perception probes need nothing else.
+            '--ipc', 'shareable',
             # Honor the ROS environment even when the pinned image defaults to
             # an inert entrypoint such as /bin/true.
             '--entrypoint', '/ros_entrypoint.sh',

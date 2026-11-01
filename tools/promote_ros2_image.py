@@ -75,12 +75,20 @@ def image_id(client, tag):
 
 
 def package_present(client, tag, package):
-    command = ("docker run --rm %s bash -lc "
+    # --entrypoint is mandatory: several pinned images carry an inert
+    # Config.Entrypoint (["/bin/true"]) so that a bare `docker run` does
+    # nothing. Without this override the command exits 0 with EMPTY output,
+    # which made every --expect-pkg check report MISSING and refuse a good
+    # image. It also made the selfcheck below pass on an empty string.
+    command = ("docker run --rm --entrypoint /bin/bash %s -lc "
                "'source /opt/ros/jazzy/setup.bash >/dev/null 2>&1 && ros2 pkg list 2>/dev/null'"
                % shlex.quote(tag))
     code, out, err = try_sh(client, command, timeout=180)
     if code:
         raise RuntimeError('could not list packages in %s: %s' % (tag, err or out))
+    if not out.strip():
+        raise RuntimeError('no package list returned from %s; the probe itself is broken '
+                           '(missing --entrypoint?); refusing to judge the image' % tag)
     return package in out.split()
 
 
@@ -125,14 +133,16 @@ def main():
 
         # A wrong tag is the one mistake that silently bricks the boot, so prove
         # the new image can at least import the core package before switching to it.
-        probe = ("docker run --rm %s bash -lc 'source /opt/armpi_ros2/install/setup.bash "
+        probe = ("docker run --rm --entrypoint /bin/bash %s -lc 'source /opt/armpi_ros2/install/setup.bash "
                  ">/dev/null 2>&1 && python3 -c \"import armpi_ros2.servo_protocol as m; "
                  "print(sorted(k for k in dir(m) if not k.startswith(chr(95)))[:8])\"'"
                  % shlex.quote(args.tag))
         code, out, err = try_sh(client, probe, timeout=180)
-        print('IMAGE_SELFCHECK = %s' % ('OK ' + out.strip() if code == 0 else 'FAILED'))
-        if code:
-            raise SystemExit('REFUSED: new image cannot import armpi_ros2: %s' % (err or out))
+        ok = code == 0 and out.strip().startswith('[')
+        print('IMAGE_SELFCHECK = %s' % ('OK ' + out.strip() if ok else 'FAILED'))
+        if not ok:
+            raise SystemExit('REFUSED: new image cannot import armpi_ros2: %s'
+                             % (err or out or '(empty output; inert entrypoint?)'))
 
         if not LOCAL_CORE_SCRIPT.exists():
             raise SystemExit('Missing local file: %s' % LOCAL_CORE_SCRIPT)

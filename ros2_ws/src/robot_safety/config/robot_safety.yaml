@@ -1,0 +1,26 @@
+# Liveness supervisor defaults.
+#
+# `publish_to_hardware_estop: false` is the default on purpose. /safety/estop is
+# already wired into both the chassis and the arm controller, and publishing a
+# stop there makes the arm controller latch and demand a human reset. Watch this
+# supervisor's verdict on /vla/safety_estop first, then wire it.
+vla_safety_supervisor:
+  ros__parameters:
+    source_names:      ['joint_states', 'arm_status']
+    source_topics:     ['/joint_states', '/arm_controller/status']
+    source_types:      ['joint_state', 'string']
+    # /joint_states is published from the 2 Hz servo poll; 1.5 s tolerates the
+    # occasional missed servo reply without declaring the arm dead.
+    source_timeouts:   [1.5, 2.0]
+    source_required:   [true, true]
+
+    estop_topic: '/vla/safety_estop'
+    publish_to_hardware_estop: false
+
+    # A source that has never spoken is reported as missing rather than treated
+    # as a failure, until the startup grace window has passed.
+    latch_on_missing: false
+    startup_grace_s: 10.0
+    recovery_s: 2.0
+
+    status_topic: '/safety/watchdog_status'

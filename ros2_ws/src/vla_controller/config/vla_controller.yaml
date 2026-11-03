@@ -1,0 +1,60 @@
+# VLA chunk executor defaults for the ArmPi Pro arm.
+#
+# Every number here is either measured on this robot or derived from a measured
+# number; the comment says which. Changing one without changing its comment is
+# how the numbers stop meaning anything.
+vla_chunk_executor:
+  ros__parameters:
+    # One command is a timed bus move. The arm controller rejects anything
+    # outside 0.3..5.0 s, so 20 Hz (the design document's figure) is not
+    # reachable on this hardware: it would discard five of every six actions.
+    control_dt: 0.35
+
+    # Execute 4 of the predicted H, then ask again. Matches the design
+    # document's initial value; the repository does not yet have data that
+    # argues for a different k.
+    execute_steps: 4
+
+    # Per-step displacement. 10 mm is the measured 20 s repeatability of the
+    # grasp target (max pairwise distance 9.13 mm): a bigger step cannot be
+    # corrected by the next observation.
+    max_step_m: 0.010
+    max_step_rad: 0.0872665          # 5 degrees
+
+    # Gripper is an absolute opening, so this is a per-step change limit.
+    max_gripper_step: 0.35
+
+    # Freshness. 0.75 s matches the max_tf_lag used by the grasp pipeline, so a
+    # chunk is never trusted longer than a pose is.
+    max_observation_age_s: 0.75
+    max_chunk_age_s: 1.5
+    min_scale: 0.25
+
+    # Servo-tick budget per command. The arm controller's hard limit is 100;
+    # 60 leaves room for the +/-1 tick rounding of the /joint_states round trip.
+    max_step_ticks: 60
+    max_residual_m: 0.002
+    max_yaw_deg_for_rotation: 30.0
+
+    # Reject rather than silently drop roll/yaw, which this arm cannot realise.
+    allow_projection: false
+
+    # Not implemented: the arm controller accepts one timed move at a time, so
+    # the gripper has to be interleaved, and this unit's gripper is faulted.
+    enable_gripper_output: false
+
+    joint_state_timeout_s: 1.5
+    arm_status_timeout_s: 2.0
+
+    # Working envelope in the arm-base frame (vendor convention: x lateral,
+    # y forward, z up, origin at the arm base). Narrower than the analytic
+    # 0.3585 m reach because the servo limits cut the useful set well inside it.
+    # Must be tightened once the reachable set has been measured.
+    workspace_x_min: -0.22
+    workspace_x_max: 0.22
+    workspace_y_min: 0.03
+    workspace_y_max: 0.33
+    workspace_z_min: 0.03
+    workspace_z_max: 0.34
+    workspace_max_radius: 0.34
+    workspace_min_radius: 0.05

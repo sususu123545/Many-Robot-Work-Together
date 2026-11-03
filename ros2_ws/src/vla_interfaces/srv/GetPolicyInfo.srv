@@ -1,0 +1,21 @@
+# Ask the serving policy what it will actually accept, before sending it work.
+#
+# Without this, an action-space mismatch is only discovered by a robot that
+# moves wrong; with it, the bridge can refuse to start.
+string policy_id
+---
+
+bool available
+string message
+
+# The action space and frame this policy speaks. The consumer compares these
+# against its own before the first observation is ever built.
+string action_space_id
+string action_frame
+uint32 action_dim
+float64 control_dt
+
+# The policy's claim about which components the platform can realise is not
+# trusted here; the robot's own adapter decides. Returned so that a mismatch
+# between the two can be reported as a configuration bug.
+float64[] realizable_mask

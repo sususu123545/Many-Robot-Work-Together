@@ -22,7 +22,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(REPO, 'ros2_ws', 'src')
 
 for path in (os.path.join(SRC, 'vla_controller'), os.path.join(SRC, 'armpi_ros2'),
-             os.path.join(SRC, 'robot_safety')):
+             os.path.join(SRC, 'robot_safety'), os.path.join(SRC, 'robot_agent')):
     if path not in sys.path:
         sys.path.insert(0, path)
 
@@ -40,7 +40,7 @@ NOW = 100.0
 
 def run_suites():
     results = []
-    for package in ('vla_controller', 'robot_safety'):
+    for package in ('vla_controller', 'robot_safety', 'robot_agent'):
         root = os.path.join(SRC, package)
         completed = subprocess.run(
             [sys.executable, os.path.join(root, 'run_tests.py')],

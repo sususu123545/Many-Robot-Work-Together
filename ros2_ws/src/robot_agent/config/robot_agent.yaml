@@ -1,0 +1,24 @@
+# Step-and-stare search defaults.
+#
+# The step size is not tuning taste: the detector only localises a ball after
+# five frames with the centre moving less than a few pixels, so the base has to
+# be still while looking. 45 deg steps against a ~70 deg field of view keep
+# overlap without wasting time.
+vla_search_scan:
+  ros__parameters:
+    step_deg: 45.0
+    max_sweep_deg: 360.0
+    # Chassis lease caps angular velocity at 0.20 rad/s; 0.18 leaves margin.
+    spin_speed: 0.18
+    settle_s: 0.8
+    observe_s: 2.0
+    # A single frame is never enough: the detector's own gate has already
+    # filtered unstable candidates, this is the second, coarser vote.
+    confirm_s: 0.4
+    max_duration_s: 240.0
+    direction: 1.0
+    detection_topic: '/grasp/red_ball/detection'
+    detection_timeout_s: 0.6
+    cmd_vel_topic: '/cmd_vel'
+    chassis_status_topic: '/chassis_control/status'
+    status_topic: '/vla/search_status'

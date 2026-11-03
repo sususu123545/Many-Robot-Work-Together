@@ -230,6 +230,28 @@ class Rosbridge:
     def unadvertise(self, topic):
         self.send({'op': 'unadvertise', 'topic': topic})
 
+    def drain(self, timeout=0.3):
+        """Read and discard everything already queued on the socket.
+
+        Without this, ``newest=True`` is a lie: messages still sitting unread in
+        the socket are not in ``self.inbox``, so a "latest state" read returns
+        whatever was oldest. That made a moving robot look stationary twice.
+        """
+        import time
+        deadline = time.monotonic() + timeout
+        discarded = 0
+        while time.monotonic() < deadline:
+            try:
+                text = self.ws.recv_text(timeout=max(0.01, deadline - time.monotonic()))
+            except RosbridgeError as error:
+                if 'timed out' in str(error):
+                    break
+                raise
+            if text:
+                discarded += 1
+        self.inbox.clear()
+        return discarded
+
     def wait_for_topic(self, topic, timeout, predicate=None, newest=False):
         """Block until a message on ``topic`` satisfies ``predicate``.
 

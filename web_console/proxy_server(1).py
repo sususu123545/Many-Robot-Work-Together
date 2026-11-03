@@ -13,8 +13,10 @@ from pathlib import Path
 import socketserver
 import sys
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
 from core_profile import load_core_profile
+from vision_bridge import VisionBridge, VisionError, MAX_REQUEST_BYTES
 
 PAGE = 'robot_console.html'
 CAR_TIMEOUT = 8
@@ -28,6 +30,40 @@ DIRECT = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 STATUS_FILE = Path(__file__).resolve().parents[1] / 'tools' / 'runtime' / 'robot_status.json'
 REPAIR_REQUEST_FILE = Path(__file__).resolve().parents[1] / 'tools' / 'runtime' / 'repair_tunnel.request.json'
 REPAIR_LOCK = threading.Lock()
+VISION = VisionBridge()
+
+
+def _local_model_request(handler):
+    try:
+        local = ipaddress.ip_address(handler.client_address[0]).is_loopback
+    except ValueError:
+        return False
+    host = handler.headers.get('Host', '')
+    return (local and host in ('127.0.0.1:8000', 'localhost:8000')
+            and handler.headers.get('Origin', '') == 'http://' + host)
+
+
+def _analyze_camera(handler):
+    if not _local_model_request(handler):
+        handler.close_connection = True
+        _send_json(handler, 403, {'ok': False, 'message': '仅允许本机控制台提交相机画面'})
+        return
+    try:
+        length = int(handler.headers.get('Content-Length', '0'))
+        if not 0 < length <= MAX_REQUEST_BYTES:
+            raise VisionError('图像请求为空或过大', 413)
+        if handler.headers.get_content_type() != 'application/json':
+            raise VisionError('需要 application/json 请求')
+        handler.connection.settimeout(10)
+        payload = json.loads(handler.rfile.read(length))
+        job_id = VISION.submit(payload)
+        _send_json(handler, 202, {'ok': True, 'job_id': job_id})
+    except VisionError as error:
+        handler.close_connection = True
+        _send_json(handler, error.status, {'ok': False, 'message': str(error), 'job_id': error.job_id})
+    except (ValueError, UnicodeError, OSError):
+        handler.close_connection = True
+        _send_json(handler, 400, {'ok': False, 'message': '请求格式无效或读取超时'})
 
 
 def _send_json(handler, status, payload):
@@ -120,11 +156,24 @@ class Handler(BaseHTTPRequestHandler):
         ip = q.get('ip', [''])[0]
         topic = q.get('topic', ['/rear_camera/image_raw'])[0]
         qos = '&qos_profile=sensor_data' if load_core_profile()['ros_version'] == 2 else ''
-        return 'http://%s:8080%s?topic=%s&type=mjpeg%s' % (ip, path, urllib.parse.quote(topic), qos)
+        image_type = 'jpeg' if path == '/snapshot' else 'mjpeg'
+        return 'http://%s:8080%s?topic=%s&type=%s%s' % (ip, path, urllib.parse.quote(topic), image_type, qos)
 
     def do_GET(self):
         from urllib.parse import urlparse
         path = urlparse(self.path).path
+        if path == '/api/model':
+            try:
+                _send_json(self, 200, VISION.info())
+            except (VisionError, ValueError, OSError) as error:
+                _send_json(self, 503, {'available': False, 'message': str(error)})
+            return
+        if path.startswith('/api/vision/jobs/'):
+            try:
+                _send_json(self, 200, VISION.job(path.rsplit('/', 1)[-1]))
+            except VisionError as error:
+                _send_json(self, error.status, {'ok': False, 'message': str(error)})
+            return
         if path == '/api/robot':
             try:
                 status = json.loads(STATUS_FILE.read_text(encoding='utf-8'))
@@ -143,10 +192,10 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(body)
             return
 
-        if path in ('/', '/robot_console.html', '/ros2_console.html'):
+        if path in ('/', '/robot_console.html', '/ros2_console.html', '/sensor_console.html'):
             try:
                 profile = load_core_profile()
-                page = 'ros2_console.html' if path == '/ros2_console.html' or profile['ros_version'] == 2 else PAGE
+                page = 'sensor_console.html' if path in ('/sensor_console.html', '/ros2_console.html') or profile['ros_version'] == 2 else PAGE
                 body = open(page, 'rb').read()
                 self.send_response(200)
                 self.send_header('Content-Type', 'text/html; charset=utf-8')
@@ -203,6 +252,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         from urllib.parse import urlparse
+        if urlparse(self.path).path == '/api/vision/analyze':
+            _analyze_camera(self)
+            return
         if urlparse(self.path).path == '/api/repair-tunnel':
             _request_tunnel_repair(self)
             return

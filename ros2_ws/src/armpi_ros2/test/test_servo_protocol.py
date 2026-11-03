@@ -120,6 +120,15 @@ class ServoTests(unittest.TestCase):
             self.assertEqual(p.written, [packet(bytes((7, 4)))])
         finally:b.close()
 
+    def test_offset_diagnostic_decodes_signed_reply_without_writing_calibration(self):
+        for offset in (-115, 115):
+            p = Port([packet(struct.pack('<BBbb', 1, 0x22, 0, offset))])
+            b = ServoBoard(port=p)
+            try:
+                self.assertEqual(b.offset(1), offset)
+                self.assertEqual(p.written, [packet(bytes((0x22, 1)))])
+            finally:b.close()
+
     def test_torque_diagnostic_reads_both_states_without_enabling_or_unloading(self):
         for state in (0, 1):
             with self.subTest(state=state):

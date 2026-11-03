@@ -10,6 +10,7 @@ node_modules/
 # Local ArmPi console credential/config and supervisor runtime logs
 tools/console_supervisor.local.json
 tools/runtime/
+web_console/model_config.json
 
 # Separate ROS 2 colcon build artifacts
 ros2_ws/build/

@@ -4,6 +4,7 @@ These run inside the ARM64 ROS image. Non-ROS local Python skips this module.
 """
 import json
 import time
+import threading
 import unittest
 from unittest.mock import Mock, patch
 from armpi_ros2.servo_protocol import JOINTS, to_radians
@@ -33,13 +34,14 @@ class FakeBoard:
         self.receiver_error = None
 
     def limits(self, ident):return next(list(v[3:]) for v in JOINTS.values() if v[0] == ident)
+    def offset(self, ident):return 0
     def position(self, ident):return 86 if ident == 1 else 500
     def temperature(self, ident):
         if ident == self.fail_temperature:raise TimeoutError('injected read timeout')
         return 65 if ident == self.hot else 31
     def diagnostics(self):return {'receiver_error': self.receiver_error, 'counters': {}}
     def move(self, duration, targets):self.moves.append((duration, targets))
-    def stop(self):
+    def stop(self, identifiers=None):
         self.stops += 1
         if self.fail_stop:raise OSError('injected stop failure')
     def close(self):pass
@@ -205,3 +207,65 @@ class ArmCallbackTests(unittest.TestCase):
         self.assertEqual(self.node.board.moves, [])
         self.assertFalse(self.reset().success)
         self.assertFalse(self.grant(enable_gripper_motion=True).successful)
+
+    def waiting_command(self, message):
+        """Hold the poll transaction and observe the command entering its wait."""
+        lock = threading.Lock()
+        lock.acquire()
+        waiting = threading.Event()
+
+        class ObservedLock:
+            def acquire(_self, timeout):
+                waiting.set()
+                return lock.acquire(timeout=timeout)
+            def release(_self):
+                lock.release()
+
+        self.node.feedback_cycle_lock = ObservedLock()
+        self.node.health.pending = True
+        worker = threading.Thread(target=self.node.on_command, args=(message,))
+        worker.start()
+        self.assertTrue(waiting.wait(1))
+        return lock, worker
+
+    def test_command_waits_for_poll_and_uses_committed_feedback(self):
+        self.healthy();self.assertTrue(self.reset().success)
+        self.assertTrue(self.grant(enable_arm_motion=True).successful)
+        lock, worker = self.waiting_command(self.command('joint2', 525))
+        try:
+            self.assertEqual(self.node.board.moves, [])
+            self.healthy(0)
+        finally:
+            lock.release();worker.join(2)
+        self.assertFalse(worker.is_alive())
+        self.assertEqual(self.node.board.moves[0][1], [(5, 525)])
+        self.assertTrue(self.node.last_command_result['accepted'])
+
+    def test_stop_during_poll_wait_cancels_waiting_command(self):
+        self.healthy();self.assertTrue(self.reset().success)
+        self.assertTrue(self.grant(enable_arm_motion=True).successful)
+        lock, worker = self.waiting_command(self.command('joint2', 525))
+        try:
+            self.node.on_stop(None)
+            self.healthy(0)
+        finally:
+            lock.release();worker.join(2)
+        self.assertFalse(worker.is_alive())
+        self.assertEqual(self.node.board.moves, [])
+        self.assertFalse(self.node.last_command_result['accepted'])
+        self.assertIn('Stop occurred', self.node.last_command_result['reason'])
+
+    def test_bad_gripper_does_not_block_arm_feedback_or_arm_command(self):
+        self.healthy();self.assertTrue(self.reset().success)
+        self.assertTrue(self.grant(enable_arm_motion=True).successful)
+        position = self.node.board.position
+        self.node.board.position = lambda ident: -398 if ident == 1 else position(ident)
+        self.node.poll()
+        status = json.loads(self.node.status_pub.publish.call_args[0][0].data)
+        self.assertTrue(status['arm_feedback_complete'])
+        self.assertFalse(status['gripper_feedback_complete'])
+        self.assertEqual(len(self.node.joint_pub.publish.call_args[0][0].name), 5)
+        self.node.on_command(self.command('joint2', 525))
+        self.assertTrue(self.node.last_command_result['accepted'])
+        self.node.on_gripper(self.command('r_joint', 100))
+        self.assertFalse(self.node.last_command_result['accepted'])

@@ -6,10 +6,14 @@ import math
 from .servo_protocol import JOINTS
 
 
-def complete_feedback(samples, now, max_temperature=65, max_age=1.5):
-    if set(samples) != set(JOINTS):
+def complete_feedback(samples, now, max_temperature=65, max_age=1.5,
+                      required_names=None):
+    required = tuple(JOINTS) if required_names is None else tuple(required_names)
+    if (not required or any(name not in JOINTS for name in required)
+            or not set(required).issubset(samples)):
         return False
-    for name, value in samples.items():
+    for name in required:
+        value = samples[name]
         _, _, _, low, high = JOINTS[name]
         try:
             raw, temperature, sampled = value['raw'], value['temperature'], value['time']
@@ -31,11 +35,16 @@ def motion_allowed(names, arm_enabled, gripper_enabled):
 
 
 class ArmHealth:
-    def __init__(self, recovery_seconds=10.0, max_temperature=65):
+    def __init__(self, recovery_seconds=10.0, max_temperature=65,
+                 required_names=None):
         if not math.isfinite(recovery_seconds) or recovery_seconds < 10:
             raise ValueError('Recovery requires at least 10 seconds of healthy feedback')
         if not 1 <= max_temperature <= 65:
             raise ValueError('Temperature protection must not exceed 65 C')
+        self.required_names = tuple(JOINTS) if required_names is None else tuple(required_names)
+        if (not self.required_names
+                or any(name not in JOINTS for name in self.required_names)):
+            raise ValueError('Health monitor requires known joints')
         self.recovery_seconds = recovery_seconds
         self.max_temperature = max_temperature
         self.samples = {}
@@ -89,8 +98,9 @@ class ArmHealth:
                            'monotonic_time': now, 'sequence': self.fault_count}
 
     def success(self, samples, now):
-        if not complete_feedback(samples, now, self.max_temperature):
-            self.fail('Incomplete, stale or invalid whole-arm feedback', now)
+        if not complete_feedback(samples, now, self.max_temperature,
+                                 required_names=self.required_names):
+            self.fail('Incomplete, stale or invalid required-joint feedback', now)
             return False
         # A gap in polling is not a continuous healthy recovery window.
         if (self.last_complete is None or now < self.last_complete
@@ -105,7 +115,9 @@ class ArmHealth:
         return True
 
     def fresh(self, now):
-        return self.complete_cycle and complete_feedback(self.samples, now, self.max_temperature)
+        return (self.complete_cycle and complete_feedback(
+            self.samples, now, self.max_temperature,
+            required_names=self.required_names))
 
     def healthy_seconds(self, now):
         if self.healthy_since is None or not self.fresh(now):

@@ -1,0 +1,29 @@
+{
+  "status": "fill_from_judge_before_motion",
+  "wire_color_sequence": [],
+  "medical_supply_order": [],
+  "perception": {
+    "min_confidence": 0.72,
+    "stable_frames": 3,
+    "max_detection_age_s": 0.4,
+    "min_area_px": 7,
+    "categories": {
+      "red": {
+        "hue_degrees": [345, 18],
+        "saturation_min": 0.48,
+        "value_min": 0.16,
+        "kind": "wire_candidate"
+      },
+      "yellow": {
+        "hue_degrees": [34, 76],
+        "saturation_min": 0.48,
+        "value_min": 0.16,
+        "kind": "wire_candidate"
+      }
+    }
+  },
+  "control": {
+    "action_timeout_s": 20.0,
+    "max_action_retries": 1
+  }
+}

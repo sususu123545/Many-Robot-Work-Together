@@ -23,7 +23,7 @@ JOINTS = {'joint1': (6, 500, 1, 0, 1000),
 # Formats match ros_robot_controller_sdk.py's physical read methods. Voltage
 # and torque reads are diagnostic-only APIs; the regular poll does not use them.
 READ_FORMATS = {0x05: '<BBbh', 0x07: '<BBbH', 0x09: '<BBbB',
-                0x0D: '<BBbb', 0x32: '<BBbHH'}
+                0x0D: '<BBbb', 0x22: '<BBbb', 0x32: '<BBbHH'}
 
 
 def tick_radians(name):
@@ -295,16 +295,28 @@ class ServoBoard:
     def limits(self, ident):
         return self.read(ident, 0x32, '<BBbHH')
 
+    def offset(self, ident):
+        # Official RRC SDK offset read (0x22), signed; never writes or saves it.
+        return self.read(ident, 0x22, '<BBbb')[0]
+
     def move(self, duration, targets):
         data = movement_payload(duration, targets)
         with self.lock:
             self._write(data)
 
-    def stop(self):
+    def stop(self, identifiers=None):
         # SDK stop request only: do NOT unload or enable torque. A successful
         # UART write does not prove the servo stopped or can hold its weight.
+        # `identifiers` allows an isolated gripper feedback fault to stop only
+        # servo 1 while independently healthy arm joints remain controllable.
+        ids = ([1, 2, 3, 4, 5, 6] if identifiers is None
+               else list(identifiers))
+        known = {value[0] for value in JOINTS.values()}
+        if not ids or len(ids) > len(known) or len(set(ids)) != len(ids) \
+                or any(ident not in known for ident in ids):
+            raise ValueError('Stop requires unique captured servo IDs')
         with self.lock:
-            self._write(bytes((3, 6, 1, 2, 3, 4, 5, 6)))
+            self._write(bytes((3, len(ids), *ids)))
 
     def close(self):
         self.receive_stop.set()

@@ -1,0 +1,68 @@
+{
+  "scene": "G1 minefield reconnaissance and sensor-driven traversal; manipulation disabled",
+  "scene_usd": "/mnt/llm/g1_sim_ws/competition_sim/stages/codex_g1_minefield_medical_20261019/g1_minefield_medical.usd",
+  "robot": "official Unitree G1 29-DoF no-hand articulation",
+  "coordinate_frame": {
+    "x": "course-forward",
+    "y": "cross-course",
+    "z": "up"
+  },
+  "continuity": {
+    "forest_exit_x_m": 15.0,
+    "g1_start_x_m": 14.25,
+    "minefield_x_m": [
+      15.0,
+      22.7
+    ],
+    "medical_station_x_m": 25.25,
+    "scene_end_x_m": 28.5,
+    "lane_width_m": 4.7
+  },
+  "official_requirements": [
+    "After the start command, identify and remove colored wires in the required order.",
+    "The slide reference describes red/yellow targets and decoy targets.",
+    "Then pick supplies in the required list order and place them into the designated first-aid kit."
+  ],
+  "configurable_by_judge": {
+    "wire_color_sequence": null,
+    "medical_supply_order": null,
+    "note": "The supplied official files do not specify these exact sequences or item lists."
+  },
+  "geometry_status": "visual estimate from the official reference image; no surveyed CAD dimensions",
+  "scene_scope": "independent stage; existing forest demonstration USD and source are untouched",
+  "implemented": [
+    "G1 start pose",
+    "lane boundaries",
+    "rocks and shrubs",
+    "five red/yellow wire targets",
+    "four neutral decoys",
+    "table",
+    "open receiving kit",
+    "four labeled supply proxies",
+    "standalone RGB-D color proposals",
+    "live paused-preview camera diagnostic loop",
+    "ordered fail-safe mission state machine",
+    "RGB-D minefield obstacle navigation runtime",
+    "official Unitree MJLab velocity-policy integration",
+    "red/yellow candidate logging without manipulation"
+  ],
+  "not_yet_implemented": [
+    "live Isaac Sim end-to-end traversal verification",
+    "real-scene RGB-D color and geometry calibration",
+    "wire unplugging and medical-item handling (intentionally out of current scope)"
+  ],
+  "current_navigation_scope": "Walk from the forest exit through the minefield, avoid obstacles using RGB-D mapping, log red/yellow color candidates, and stop at the minefield exit. No unplugging or manipulation commands are issued.",
+  "navigation": {
+    "controller": "RGB-D obstacle map plus sensor odometry and receding-horizon lattice planner",
+    "gait_policy": "official Unitree MJLab G1 velocity ONNX",
+    "navigation_uses_usd_object_poses": false,
+    "safety_stops": [
+      "stale RGB-D",
+      "stale sensor localization",
+      "blocked route",
+      "clearance violation",
+      "fall",
+      "lane boundary"
+    ]
+  }
+}

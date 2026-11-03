@@ -41,6 +41,7 @@ CENTRE = {'joint1': 500, 'joint2': 500, 'joint3': 500, 'joint4': 500,
 # target as 100 instead of 900 and rejects the message with "Step too large".
 SIGN = {'joint1': 1, 'joint2': 1, 'joint3': -1, 'joint4': 1, 'joint5': 1, 'r_joint': 1}
 ALL = ['joint1', 'joint2', 'joint3', 'joint4', 'joint5', 'r_joint']
+ARM_JOINTS = ['joint1', 'joint2', 'joint3', 'joint4', 'joint5']
 
 # Maintenance mode executes ONLY the same finally/revocation path. It must never
 # reset an emergency latch, create a command publisher, or authorize movement.
@@ -95,6 +96,7 @@ def to_raw(name, radians):
 rclpy.init()
 node = Node('arm_startup_pose')
 state = {}
+command_results = {}
 
 
 def on_status(message):
@@ -106,23 +108,42 @@ def on_status(message):
 
 
 node.create_subscription(String, '/arm_controller/status', on_status, 10)
+
+
+def on_command_result(message):
+    try:
+        result = json.loads(message.data)
+        stamp = result['stamp']
+        if result.get('joint_names') == NAMES:
+            command_results[(stamp['sec'], stamp['nanosec'])] = result
+            if len(command_results) > 64:
+                command_results.pop(next(iter(command_results)))
+    except (ValueError, KeyError, TypeError):
+        pass
+
+
+node.create_subscription(String, '/arm_controller/command_result', on_command_result, 10)
 snapshot = lambda: state.get('value') or {}
 actual = lambda name: ((snapshot().get('joints') or {}).get(name) or {}).get('raw')
 
 
 def fresh_feedback(view):
-    if (not view.get('feedback_complete') or not view.get('feedback_real')
+    # Startup home commands only the five arm joints. Keep the gripper out of
+    # this gate; its independent feedback gate still blocks all gripper motion.
+    arm_complete = view.get('arm_feedback_complete', view.get('feedback_complete'))
+    arm_real = view.get('arm_feedback_real', view.get('feedback_real'))
+    if (not arm_complete or not arm_real
             or time.monotonic() - state.get('received_at', 0) > 1.0):
         return False
-    ages = view.get('feedback_age_seconds') or {}
-    joints = view.get('joints') or {}
-    return (set(joints) == set(ALL) and set(ages) == set(ALL)
+    ages = view.get('arm_feedback_age_seconds') or view.get('feedback_age_seconds') or {}
+    joints = view.get('arm_joints') or view.get('joints') or {}
+    return (set(ARM_JOINTS).issubset(joints) and set(ARM_JOINTS).issubset(ages)
             and all(0 <= ages[n] < 1.5 and LIMITS[n][0] <= joints[n]['raw'] <= LIMITS[n][1]
-                    and 0 <= joints[n]['temperature'] < 65 for n in ALL))
+                    and 0 <= joints[n]['temperature'] < 65 for n in ARM_JOINTS))
 
 
 def reject_fault(view):
-    if 'manual_estop' in view.get('stop_reasons', []):
+    if 'manual_estop' in view.get('arm_stop_reasons', view.get('stop_reasons', [])):
         raise SystemExit('REFUSED manual emergency; startup cannot clear it')
     if view.get('current_read_error'):
         raise SystemExit('REFUSED current feedback error: ' + view['current_read_error'])
@@ -216,7 +237,7 @@ def on_termination(signum, _frame):
 
 def reset_and_authorize():
     view = snapshot()
-    print('  health=%s healthy_seconds=%s reset_eligible=%s estop=%s fault=%s'
+    print('  arm_health=%s arm_healthy_seconds=%s reset_eligible=%s arm_estop=%s arm_fault=%s'
           % (view.get('health_state'), view.get('healthy_seconds'),
              view.get('reset_eligible'), view.get('estop'),
              (view.get('fault') or 'NONE')[:70]), flush=True)
@@ -296,10 +317,11 @@ def gate_lost(view):
 try:
     if REVOKE_ONLY:
         raise SystemExit(0)
-    # 1. A complete, fresh whole-arm read before anything moves.
+    # 1. Fresh feedback for each of the five commanded arm joints. The gripper
+    #    has its own feedback check and stays locked if its reading is invalid.
     if not wait_until(fresh_feedback, 30, 'feedback'):
         raise SystemExit('REFUSED no complete arm feedback')
-    print('START actual=' + json.dumps({n: actual(n) for n in ALL}), flush=True)
+    print('START actual=' + json.dumps({n: actual(n) for n in ARM_JOINTS}), flush=True)
     before = {n: actual(n) for n in NAMES}
     if any(v is None for v in before.values()):
         raise SystemExit('REFUSED missing joint reading for ' + NAMES[0])
@@ -372,6 +394,13 @@ try:
         message.points = [point]
         publisher.publish(message)
         published += 1
+        key = (message.header.stamp.sec, message.header.stamp.nanosec)
+        if not wait_until(lambda _v: key in command_results, 3, 'command acceptance'):
+            raise SystemExit('REFUSED no driver acceptance result; physical execution unknown')
+        acknowledgement = command_results.pop(key)
+        print('  driver result=' + json.dumps(acknowledgement), flush=True)
+        if not acknowledgement.get('accepted'):
+            raise SystemExit('REFUSED driver rejected command: ' + acknowledgement.get('reason', 'unknown'))
         spin_for(DURATION + 0.5)
         reject_fault(snapshot())
         if not fresh_feedback(snapshot()):
@@ -392,7 +421,7 @@ try:
     reached = all(within.values())
     exact = all(deviation[n] == 0 for n in NAMES)
     print('RESULT published=%d seconds=%.1f' % (published, seconds), flush=True)
-    print('RESULT actual=' + json.dumps({n: actual(n) for n in ALL}), flush=True)
+    print('RESULT actual=' + json.dumps({n: actual(n) for n in ARM_JOINTS}), flush=True)
     print('RESULT deviation=' + json.dumps(deviation), flush=True)
     print('RESULT within_tolerance=%s exact=%s tolerance=%d'
           % (json.dumps(within), exact, TOLERANCE), flush=True)

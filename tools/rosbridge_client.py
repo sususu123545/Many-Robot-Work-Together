@@ -22,6 +22,7 @@ rosbridge's protocol is JSON over text frames::
 
 import base64
 import json
+import time
 import os
 import socket
 import struct
@@ -34,11 +35,27 @@ class RosbridgeError(RuntimeError):
 class WebSocket:
     """Client-side WebSocket, text only."""
 
-    def __init__(self, host, port, path='/', timeout=5.0):
-        self.socket = socket.create_connection((host, port), timeout=timeout)
-        self.socket.settimeout(timeout)
-        self._buffer = b''
-        self._handshake(host, port, path)
+    def __init__(self, host, port, path='/', timeout=5.0, attempts=3):
+        # rosbridge is single-threaded and queues; after a burst it can take a
+        # few seconds to answer a new handshake. Failing on the first try made a
+        # congested bridge look like a dead one.
+        last = None
+        for attempt in range(attempts):
+            try:
+                self.socket = socket.create_connection((host, port), timeout=timeout)
+                self.socket.settimeout(timeout)
+                self._buffer = b''
+                self._handshake(host, port, path)
+                return
+            except (OSError, RosbridgeError) as error:
+                last = error
+                try:
+                    self.socket.close()
+                except Exception:                  # noqa: BLE001
+                    pass
+                time.sleep(1.5 * (attempt + 1))
+        raise RosbridgeError('could not open rosbridge at %s:%d after %d attempts: %s'
+                             % (host, port, attempts, last))
 
     def _handshake(self, host, port, path):
         key = base64.b64encode(os.urandom(16)).decode()

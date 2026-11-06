@@ -159,14 +159,41 @@ class Rosbridge:
     """Thin request/response wrapper over the rosbridge JSON protocol."""
 
     def __init__(self, host='127.0.0.1', port=19091, timeout=8.0):
+        self.host = host
+        self.port = port
         self.ws = WebSocket(host, port, timeout=timeout)
         self.timeout = timeout
         self._pending = {}
         self._counter = 0
         self.inbox = []          # messages nobody claimed, newest last
         self.subscriptions = {}
+        self.reconnects = 0
 
     # -- plumbing ----------------------------------------------------------
+
+    def reconnect(self):
+        """Rebuild the socket after the SSH forward was reset, replaying subs.
+
+        The tunnel to the robot is torn down by the far end every few minutes
+        under load -- "远程主机强迫关闭了一个现有的连接" / WSAECONNRESET -- which
+        kills rosbridge in the middle of a sequence.  A grasp run takes about
+        three and a half minutes and died at almost exactly that point on three
+        consecutive attempts, always just before the gripper closed.  Retrying
+        the read on a fresh socket turns that from a hard failure into a hiccup.
+        """
+        try:
+            self.ws.close()
+        except Exception:                       # noqa: BLE001 - closing is best effort
+            pass
+        self.ws = WebSocket(self.host, self.port, timeout=self.timeout)
+        for topic, message_type in list(self.subscriptions.items()):
+            payload = {'op': 'subscribe', 'topic': topic}
+            if message_type:
+                payload['type'] = message_type
+            # write straight to the socket: going through send() would call
+            # reconnect() again on failure and loop forever
+            self.ws.send_text(json.dumps(payload))
+        self.reconnects += 1
 
     def _next_id(self):
         self._counter += 1
@@ -176,12 +203,18 @@ class Rosbridge:
         """Read until ``match(message)`` is true, or time out."""
         import time
         deadline = time.monotonic() + timeout
+        retried = False
         while time.monotonic() < deadline:
             try:
                 text = self.ws.recv_text(timeout=max(0.05, deadline - time.monotonic()))
             except RosbridgeError as error:
                 if 'timed out' in str(error):
                     return None
+                if not retried:
+                    retried = True
+                    self.reconnect()
+                    deadline = time.monotonic() + timeout
+                    continue
                 raise
             try:
                 message = json.loads(text)
@@ -195,7 +228,11 @@ class Rosbridge:
         return None
 
     def send(self, payload):
-        self.ws.send_text(json.dumps(payload))
+        try:
+            self.ws.send_text(json.dumps(payload))
+        except RosbridgeError:
+            self.reconnect()
+            self.ws.send_text(json.dumps(payload))
 
     # -- operations --------------------------------------------------------
 
@@ -234,6 +271,22 @@ class Rosbridge:
             payload['throttle_rate'] = int(throttle_rate)
         self.send(payload)
         self.subscriptions[topic] = message_type
+
+    def read_fresh(self, topic, msg_type, timeout=2.0, drain_s=0.4):
+        """Subscribe, drain the stale backlog, then read the newest sample.
+
+        This is the ONLY safe way to read state (odom, IMU, scan, arm status).
+        Four separate failures on 2026-11-05/06 all came from skipping the
+        drain: a rotating car read as stationary, a reversing car read as
+        motionless, the arm's gyro integral reading zero, and a table corner
+        vanishing from the scan.  wait_for_topic() consumes oldest-first from
+        the socket buffer, so without a drain it hands back whatever was
+        queued BEFORE the event you are asking about.
+        """
+        self.subscribe(topic, msg_type)
+        self.drain(drain_s)
+        return self.wait_for_topic(topic, timeout)
+
 
     def publish(self, topic, message, message_type=None):
         payload = {'op': 'publish', 'topic': topic, 'msg': message}
@@ -283,6 +336,13 @@ class Rosbridge:
         def match(message):
             return (message.get('op') == 'publish' and message.get('topic') == topic
                     and (predicate is None or predicate(message.get('msg') or {})))
+
+        # Auto-subscribe if this topic was never subscribed. Callers used to
+        # assume wait_for_topic subscribed on its own; without this the read
+        # just times out on a connection that never asked for the topic
+        # (2026-11-03: a healthy robot looked fully dead because of it).
+        if topic not in self.subscriptions:
+            self.subscribe(topic)
 
         candidates = [index for index, message in enumerate(self.inbox) if match(message)]
         if candidates:

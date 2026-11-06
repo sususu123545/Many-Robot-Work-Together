@@ -50,6 +50,13 @@ SELF_SECTORS = (
 # rotation_clearance refuse turns the car could comfortably make.
 ROTATION_RADIUS_M = 0.25
 
+# Anything closer than this is the sensor's own mounting bracket or the shell,
+# seen from any angle -- never a real obstacle.  Extracted to a named constant
+# on 2026-11-06 so the web console can be held to the same value:
+# tools/check_lidar_filter_sync.py compares this, SELF_SECTORS and the JS mirror
+# in web_console/sensor_console.html, and fails if either side drifts.
+MIN_RETURN_M = 0.08
+
 # A walkable corridor must be at least this deep (car length + margin).
 MIN_CORRIDOR_M = 0.60
 
@@ -61,17 +68,27 @@ def clean_scan(ranges, angle_increment):
     """
     out = []
     for i, r in enumerate(ranges):
-        # Anything under 8 cm is the sensor's own mounting bracket or
-        # shell, seen from any angle -- never a real obstacle.  The
-        # 324 deg / 0.04 m blocker that stalled all four search turns on
-        # 2026-11-06 was exactly this.
-        if r is None or r <= 0.08:
+        # Reject every kind of "no echo", not just None.  `NaN <= 0.08` and
+        # `Inf <= 0.08` are both False, so a NaN or inf return used to sail
+        # straight through this filter: it survived the self-sector test too
+        # (`nan < max_m` is False), reached emptiest_sector, and made `min(r)`
+        # return inf -- a sector with an unreadable point was scored as
+        # infinitely clear.  The LD06 behind this rosbridge sends null today
+        # (measured 2026-11-06: 89 null, 0 NaN, 0 inf in 455 points), so this
+        # is a latent hole rather than an active one, but the LaserScan
+        # convention is to publish inf, and one driver change would open it.
+        try:
+            distance = float(r)
+        except (TypeError, ValueError):
+            continue
+        if not math.isfinite(distance) or distance <= MIN_RETURN_M:
             continue
         a = i * angle_increment * 180.0 / math.pi
-        is_self = any(lo <= a <= hi and r < max_m for lo, hi, max_m in SELF_SECTORS)
+        is_self = any(lo <= a <= hi and distance < max_m
+                      for lo, hi, max_m in SELF_SECTORS)
         if is_self:
             continue
-        out.append((a, r))
+        out.append((a, distance))
     return out
 
 

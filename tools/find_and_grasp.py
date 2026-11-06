@@ -211,18 +211,33 @@ REVERSE_STEP_M = 0.10
 # slip, it is something in the way.  Slip alone was measured at 48-101%.
 REVERSE_STALL_RATIO = 0.30
 
+# ... but stalling is NOT what happened on 2026-11-06.  The operator reports the
+# car PUSHED the chair along, which means the wheels turned, the encoders
+# counted, and the delivery ratio looked healthy while furniture was being
+# dragged.  Travel-based stall detection cannot see that.
+#
+# The signature that does work: a static obstacle falls behind as the car
+# reverses, so the nearest rear return must grow by roughly the distance driven.
+# An obstacle that stays put in the same frame is moving WITH the car.
+PUSH_TOLERANCE_M = 0.05
+
 
 def reverse_measured(bridge, distance_m=BACK_OFF_M, max_bursts=6):
     """Back up by a MEASURED distance, re-checking the rear before every burst.
 
-    Two independent stop conditions, because one was not enough:
+    Three independent stop conditions, because each of the first two missed the
+    real incident on 2026-11-06:
 
     * geometry -- refuse to start, or to continue, when anything is within
       REVERSE_SAFETY_M behind the car;
-    * motion -- if a burst delivers far less travel than commanded, the car is
-      pushing something and the next burst would only push harder.
+    * pushing -- if the obstacle behind does not fall away by roughly the
+      distance driven, it is being dragged (the reported failure: the car
+      pushed a chair instead of stalling);
+    * stalling -- if a burst delivers far less travel than commanded, the car is
+      held fast and further bursts would only strain the motors.
 
-    Returns True if the car actually moved at least 60% of the request.
+    Returns True if the car actually moved at least 60% of the request without
+    being flagged for pushing.
     """
     start = read_odom(bridge)
     if start is None:
@@ -232,14 +247,14 @@ def reverse_measured(bridge, distance_m=BACK_OFF_M, max_bursts=6):
     travelled = 0.0
     stalls = 0
     for burst in range(max_bursts):
-        rear = rear_clearance(bridge)
-        if rear is None:
+        rear_before = rear_clearance(bridge)
+        if rear_before is None:
             log('  reverse aborted: no lidar return behind the car')
             break
-        room = rear - REVERSE_SAFETY_M
+        room = rear_before - REVERSE_SAFETY_M
         if room <= 0.02:
             log('  reverse aborted: %.2f m behind is inside the %.2f m safety '
-                'floor' % (rear, REVERSE_SAFETY_M))
+                'floor' % (rear_before, REVERSE_SAFETY_M))
             break
         step = min(REVERSE_STEP_M, room, distance_m - travelled)
         if step < 0.03:
@@ -253,6 +268,16 @@ def reverse_measured(bridge, distance_m=BACK_OFF_M, max_bursts=6):
             break
         moved = math.hypot(now[0] - before[0], now[1] - before[1])
         travelled += moved
+
+        rear_after = rear_clearance(bridge)
+        if rear_after is not None:
+            expected = rear_before + moved
+            if rear_after < expected - PUSH_TOLERANCE_M:
+                log('  reverse aborted: the thing behind did not fall away '
+                    '(%.2f -> %.2f m after moving %.2f, expected about %.2f) '
+                    '-- the car is pushing it'
+                    % (rear_before, rear_after, moved, expected))
+                return False
 
         if moved < step * REVERSE_STALL_RATIO:
             stalls += 1

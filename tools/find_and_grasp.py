@@ -1,0 +1,276 @@
+#!/usr/bin/env python3
+"""One-command ball retrieval.
+
+Pipeline (per round, up to --max-rounds):
+
+    1. SEARCH   search_around (4 directions on the first round, then 1)
+                -> found?  extract ball position from its stdout
+    2. APPROACH approach_ball  (aim + creep, exits 0 when inside grasp band)
+    3. GRASP    grasp_sequence (ok:true means jaws held through the lift)
+    4. NOT FOUND? pick the emptiest lidar sector, turn, walk --walk-m, retry
+
+The sibling tools run as SUBPROCESSES: each manages its own rosbridge
+connection, estop and gates, which keeps the commander simple and every
+stage's log intact.  The lidar read and the chassis motion (turn_to / drive)
+run here in-process -- publishing must never gap 0.35 s (MotionLease), and a
+subprocess boundary is exactly such a gap.
+
+Every round appends to artifacts/ball_history.json and, from 2026-11-06, that
+history is READ back: `ball_memory` turns the last sighting plus the odometry
+driven since into a single heading worth checking first.  A hit turns a
+four-quadrant sweep (four arm tucks and up to four rotations, each gated on lidar
+clearance) into a one-quadrant sweep.  A miss falls through to the full sweep, so
+the memory can only save time, never cost coverage.
+"""
+
+import argparse
+import math
+import re
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+
+from rosbridge_client import Rosbridge          # noqa: E402
+import ball_memory                              # noqa: E402
+import grasp_sequence as gs                     # noqa: E402
+import approach_ball as ab                      # noqa: E402
+from scan_clean import clean_scan, emptiest_sector  # noqa: E402
+
+HISTORY = Path(__file__).resolve().parent.parent / 'artifacts' / 'ball_history.json'
+
+# search_around prints "FOUND at bearing 90 deg (relative to the start heading)"
+# and "ball [x, y, z]  -> 0.412 m ahead, 33.9 mm tall".  The bearing is relative
+# to the heading at the START of that sweep, which is the pose we snapshot before
+# launching it -- so the two together give an odom-frame sighting.
+BEARING_RE = re.compile(r'FOUND at bearing\s+(-?\d+(?:\.\d+)?)\s+deg')
+RANGE_RE = re.compile(r'->\s*([\d.]+)\s*m ahead')
+
+
+def log(msg):
+    print(msg, flush=True)
+
+
+def run_tool(args, label):
+    """Run a sibling CLI tool, stream its tail, return (ok, output)."""
+    log('=== %s: %s ===' % (label, ' '.join(args)))
+    result = subprocess.run(
+        [sys.executable] + args, capture_output=True, text=True, timeout=900)
+    for line in result.stdout.strip().splitlines()[-10:]:
+        log('  | ' + line)
+    return result.returncode == 0, result.stdout
+
+
+def append_history(entry):
+    """Append one legacy event record next to the memory entries.
+
+    ``ball_memory`` writes ``kind`` records; the round-by-round log below writes
+    ``event`` records.  Both live in one file so a human reading it sees the
+    whole story in order, and ``ball_memory.predict`` simply ignores records it
+    does not recognise.
+    """
+    hist = ball_memory.load(str(HISTORY))
+    hist.append(entry)
+    ball_memory.save(str(HISTORY), hist, limit=400)
+
+
+def read_pose(bridge):
+    """Car pose in the odom frame: metres, yaw in degrees CCW.
+
+    Drain first.  Without it `wait_for_topic` hands back a socket-buffered
+    sample, and this project has already measured four consecutive turns as
+    0.0 deg because of exactly that (2026-11-05).
+    """
+    bridge.drain(0.4)
+    m = bridge.wait_for_topic('/odom', timeout=3)
+    if m is None:
+        return None
+    p = m['pose']['pose']['position']
+    o = m['pose']['pose']['orientation']
+    x, y, z, w = o['x'], o['y'], o['z'], o['w']
+    yaw = math.degrees(math.atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z)))
+    return {'x': p['x'], 'y': p['y'], 'yaw': yaw}
+
+
+def sighting_from(output, pose_before):
+    """Turn search_around's stdout into a memory entry, or None.
+
+    The bearing recorded is 0 -- the ball is taken to be dead ahead of the
+    heading where it was spotted -- because that is the only claim the data
+    supports.  search_around finds the ball somewhere inside a +/-200 tick j1
+    sweep (+-48 deg), and it reports the ball in ``arm_base``, a frame with no
+    transform to ``base_link`` in this stack.  Pretending to a precise bearing
+    would be inventing a number; +-48 deg is still plenty to pick which of the
+    four quadrants to check first, which is all this memory is for.
+    """
+    bearing = BEARING_RE.search(output)
+    if bearing is None or pose_before is None:
+        return None
+    distance = RANGE_RE.search(output)
+    return {'pose': {'x': pose_before['x'], 'y': pose_before['y'],
+                     'yaw': pose_before['yaw'] + float(bearing.group(1))},
+            'bearing': 0.0,
+            'range': float(distance.group(1)) if distance else 0.6}
+
+
+def run_search(bridge, quadrants, label):
+    """Run search_around for N quadrants; return (found, output, pose_before)."""
+    pose_before = read_pose(bridge)
+    ok, out = run_tool(
+        ['tools/search_around.py', '--quadrants', str(quadrants), '--ensure-gate'],
+        label)
+    return ('FOUND' in out), out, pose_before
+
+
+def read_scan(bridge):
+    bridge.subscribe('/scan', 'sensor_msgs/msg/LaserScan')
+    bridge.drain(0.5)
+    m = bridge.wait_for_topic('/scan', timeout=4)
+    if m is None:
+        return []
+    return clean_scan(m['ranges'], m['angle_increment'])
+
+
+def walk_sector(bridge, sector_deg, distance_m):
+    """Turn toward sector_deg (0 = ahead, 90 = left) then walk in segments.
+
+    Lidar angles are counterclockwise from the nose; turn_to's positive is
+    also counterclockwise, so no sign gymnastics -- just normalise >180.
+    """
+    turn = sector_deg if sector_deg <= 180 else sector_deg - 360.0
+    if abs(turn) > 8:
+        log('  turning %+0.0f deg toward the emptiest sector' % turn)
+        hist = ab.turn_to(bridge, turn)
+        for h in hist[-2:]:
+            log('    %s' % h)
+        time.sleep(0.8)
+    segments = max(1, int(round(distance_m / 0.25)))
+    for seg in range(segments):
+        log('  walking segment %d/%d (%.0f mm)' % (seg + 1, segments, 250))
+        gs.drive(bridge, 0.08, 0.25 / 0.08)
+        time.sleep(0.8)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument('--max-rounds', type=int, default=6)
+    parser.add_argument('--walk-m', type=float, default=0.5)
+    parser.add_argument('--target', type=float, default=0.24)
+    args = parser.parse_args()
+
+    bridge = Rosbridge('127.0.0.1', 19091, timeout=15)
+    started = time.monotonic()
+    history = ball_memory.load(str(HISTORY))
+
+    # Ask the memory before searching.  One remembered heading costs a single
+    # rotation to test and, when it is right, saves three rotations plus three
+    # arm tucks.  When it is wrong the full sweep still runs, so coverage is
+    # never reduced -- only the order changes.
+    guess = None
+    pose0 = read_pose(bridge)
+    if pose0 is None:
+        log('memory: cannot read /odom -- searching without it')
+    else:
+        guess = ball_memory.preferred_heading(history, pose0)
+        if guess:
+            log('memory: last seen %+.0f deg, %.2f m out, %.0f s ago '
+                '(drove %.2f m since, confidence %.2f)'
+                % (guess['bearing_deg'], guess['range_m'], guess['age_s'],
+                   guess['travelled_m'], guess['confidence']))
+        else:
+            log('memory: nothing recent enough to act on -- full sweep')
+
+    for round_index in range(1, args.max_rounds + 1):
+        found, out, pose_before = False, '', None
+
+        if guess and round_index == 1:
+            turn = guess['bearing_deg']
+            turn = turn if turn <= 180 else turn - 360
+            log('=== ROUND 1: memory heading %+.0f deg ===' % turn)
+            if abs(turn) > 8:
+                for line in ab.turn_to(bridge, turn)[-2:]:
+                    log('  ' + line)
+                time.sleep(0.8)
+            found, out, pose_before = run_search(bridge, 1, 'ROUND 1: memory sweep')
+            append_history({'t': time.strftime('%H:%M:%S'), 'round': 1,
+                            'event': 'search-memory', 'bearing': round(turn, 1),
+                            'found': found})
+            if not found:
+                log('  memory was wrong -- falling back to the full sweep')
+
+        if not found:
+            quadrants = '4' if round_index == 1 else '1'
+            found, out, pose_before = run_search(
+                bridge, quadrants, 'ROUND %d: search' % round_index)
+            append_history({'t': time.strftime('%H:%M:%S'), 'round': round_index,
+                            'event': 'search', 'found': found})
+
+        if found:
+            sighting = sighting_from(out, pose_before)
+            if sighting is not None:
+                ball_memory.record_sighting(
+                    history, sighting['pose'], sighting['bearing'],
+                    sighting['range'], source='search_around')
+                ball_memory.save(str(HISTORY), history)
+                log('  remembered: %.2f m ahead at heading %+.0f deg'
+                    % (sighting['range'], sighting['pose']['yaw']))
+
+        if not found:
+            log('  ball not visible -- relocating')
+            pts = read_scan(bridge)
+            if not pts:
+                log('  no lidar data either -- waiting 2 s and retrying')
+                time.sleep(2)
+                continue
+            sector, clear_m = emptiest_sector(pts, front_half=True)
+            if sector is None:
+                log('  no walkable corridor in the front half -- waiting 3 s')
+                append_history({'t': time.strftime('%H:%M:%S'), 'round': round_index,
+                                'event': 'no-corridor'})
+                time.sleep(3)
+                continue
+            append_history({'t': time.strftime('%H:%M:%S'), 'round': round_index,
+                            'event': 'relocate', 'sector': sector,
+                            'clear_m': round(clear_m, 2)})
+            walk_sector(bridge, sector, args.walk_m)
+            continue
+
+        # Ball found -- approach.
+        ok, out = run_tool(
+            ['tools/approach_ball.py', '--target', str(args.target),
+             '--margin', '0.03', '--max-steps', '24'],
+            'ROUND %d: approach' % round_index)
+        append_history({'t': time.strftime('%H:%M:%S'), 'round': round_index,
+                        'event': 'approach', 'ok': ok})
+        if not ok:
+            log('  approach failed -- searching again')
+            continue
+
+        # In the grasp band -- grasp.
+        ok, out = run_tool(['tools/grasp_sequence.py', '--vision', 'ground'],
+                           'ROUND %d: grasp' % round_index)
+        success = '"ok": true' in out
+        append_history({'t': time.strftime('%H:%M:%S'), 'round': round_index,
+                        'event': 'grasp', 'ok': success})
+        # A successful grasp means the ball is in the jaws: every remembered
+        # sighting is spent, and `predict` refuses to resurrect them.  A failed
+        # one leaves the memory intact -- the ball is still out there.
+        ball_memory.record_outcome(history, success,
+                                   note='round %d' % round_index)
+        ball_memory.save(str(HISTORY), history)
+        if success:
+            log('=== BALL GRASPED in %.1f min over %d round(s) ==='
+                % ((time.monotonic() - started) / 60, round_index))
+            return 0
+        log('  grasp failed -- searching again')
+
+    log('=== ball not retrieved after %d rounds (%.1f min) ==='
+        % (args.max_rounds, (time.monotonic() - started) / 60))
+    return 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())

@@ -8,8 +8,12 @@ ball got nudged out of that sector and the sweep came back empty at both a high
 and a low arm pose -- the machine could see 130 degrees and the ball was not in
 them.  Closing that gap is a chassis rotation: turn 90 degrees, sweep again.
 
-Safety: the arm is folded up before each turn.  Sweeping the body with the arm
-extended out at floor height is how you sweep a coffee cup off a table.
+Safety: the arm is returned to its boot pose before each turn.  Sweeping the
+body with the arm extended out at floor height is how you sweep a coffee cup off
+a table.  (Until 2026-11-06 this was a dedicated "fold" that raised the shoulder
+until the fingers cleared the floor; it also laid the upper arm across the
+lidar's scan plane, so the car kept seeing its own arm and refusing to turn.  It
+is gone -- the boot pose is both compact and transparent to the lidar.)
 
 What it reports
 ---------------
@@ -38,7 +42,41 @@ import scan_clean                    # noqa: E402
 import grasp_sequence as gs            # noqa: E402
 from rosbridge_client import Rosbridge  # noqa: E402
 
-TUCK_J2 = 790          # shoulder high enough that the fingers clear the floor
+# Pose used before every chassis rotation: the boot / reset pose, verbatim from
+# car_setup/ros2/arm_startup_pose.json ("target_raw").  There used to be a
+# dedicated fold here (TUCK_J2 = 790, later tried at 700): drive the shoulder up
+# until "the fingers clear the floor".  It was deleted on the operator's
+# instruction on 2026-11-06, and the numbers say he was right -- see
+# RESET_POSE_NOTE below.
+RESET_POSE = {'joint1': 483, 'joint2': 686, 'joint3': 907, 'joint4': 199}
+
+# Why the reset pose replaces the old fold, in one paragraph of forward
+# kinematics (link lengths from grasp_sequence: shoulder 0.0646 m up, upper arm
+# 0.1005 m, forearm 0.0947 m, tool 0.1633 m, angles measured from vertical):
+#
+#   reset  (j2=686, j3=907, j4=199): elbow  70 mm fwd / 136 mm up
+#                                    tool  139 mm BEHIND / 99 mm up
+#   fold   (j2=822, j3=930, j4=200): elbow  98 mm fwd /  87 mm up   <-- in the beam
+#                                    tool  105 mm BEHIND / 195 mm up
+#
+# Both poses are compact -- the fingers sit behind the arm base and inside
+# ROTATION_RADIUS_M (0.25 m) either way, which is the property that actually
+# matters: anything the fingers could sweep into already refuses the rotation.
+# The difference is the UPPER ARM.  The fold swings it out to 98 mm forward at
+# 87 mm up, i.e. straight through the lidar's only scan plane (measured 90-150 mm
+# off the floor) and only ~40 mm from the sensor, so the car sees its own arm.
+# The reset pose keeps the upper arm above that window.
+#
+# Measured on the real car before deleting the fold (raw returns under 0.13 m /
+# cleaned points inside the 0.25 m rotation radius):
+#   j2=740  59 / 1    rotation refused
+#   j2=703  40 / 12   rotation refused
+#   j2=681  27 / 7    rotation refused
+#   j2=661  31 / 0    rotation allowed
+#   reset   0 returns under 0.09 m, rotation allowed
+# The 700 I picked first was inside the refused band; the operator's "just use
+# the reset pose" is the value the measurements actually support.
+RESET_POSE_NOTE = 'boot pose, fingers retracted inside the rotation radius'
 
 # The documented search pose from arm_poses.py: covers 0.22-0.88 m of floor with
 # the camera 0.18 m up and pitched 40 degrees down.  Every sweep starts here.
@@ -53,12 +91,19 @@ def log(message):
     print(message, flush=True)
 
 
-def goto_search_pose(bridge):
-    """Walk the arm into SEARCH_POSE and report the resulting ticks."""
+def goto_pose(bridge, pose, label):
+    """Walk the arm into `pose` (joint -> target tick) and report the ticks.
+
+    Steps are capped at 55 ticks and re-read every iteration, because a single
+    >100 tick trajectory is silently dropped by the arm controller and a fixed
+    step overshoots: the deleted tuck() jumped a constant +45 and drove j2 from
+    694 to 735 when the target was 700.  Using the remaining delta instead
+    cannot overshoot by more than the servo deadband.
+    """
     ticks = gs.read_ticks(bridge)
     if ticks is None:
         return None
-    for joint, value in SEARCH_POSE.items():
+    for joint, value in pose.items():
         for _ in range(12):
             delta = value - ticks[joint]
             if abs(delta) <= 10:
@@ -68,9 +113,14 @@ def goto_search_pose(bridge):
             if fresh is None:
                 return None
             ticks = fresh
-    log('    search pose reached: j2=%d j3=%d j4=%d'
-        % (ticks['joint2'], ticks['joint3'], ticks['joint4']))
+    log('    %s reached: %s' % (label, ' '.join(
+        '%s=%d' % (joint, ticks[joint]) for joint in sorted(pose))))
     return ticks
+
+
+def goto_search_pose(bridge):
+    """Walk the arm into SEARCH_POSE and report the resulting ticks."""
+    return goto_pose(bridge, SEARCH_POSE, 'search pose')
 
 
 def spin(bridge, angular, seconds):
@@ -88,21 +138,16 @@ def spin(bridge, angular, seconds):
         time.sleep(0.05)
 
 
-def tuck(bridge):
-    """Fold the arm up so a body rotation cannot sweep anything off the table."""
-    ticks = gs.read_ticks(bridge)
-    if ticks is None:
-        return None
-    for _ in range(8):
-        if ticks['joint2'] >= TUCK_J2:
-            break
-        gs.jog('joint2', 45, duration=1.8)
-        fresh = gs.read_ticks(bridge)
-        if fresh is None:
-            return None
-        ticks = fresh
-    log('    arm folded at j2=%d' % ticks['joint2'])
-    return ticks
+def goto_reset_pose(bridge):
+    """Return the arm to the boot pose before a chassis rotation.
+
+    This is the whole of the old tuck(), and it is deliberately just "go back to
+    reset": the reset pose already retracts the fingers behind the arm base
+    (139 mm back, 99 mm up) and inside the 0.25 m rotation radius, while keeping
+    the upper arm above the lidar's scan plane.  The dedicated fold made the
+    lidar worse, not better -- see the note on RESET_POSE.
+    """
+    return goto_pose(bridge, RESET_POSE, 'reset pose')
 
 
 def sweep_heading(bridge, span, step, settle):
@@ -172,11 +217,14 @@ def main():
 
         for index in range(turns):
             if index > 0:
-                log('[turn %d] folding the arm, then rotating %.0f deg'
-                    % (index + 1, degrees_each))
-                if tuck(bridge) is None:
-                    log('    lost feedback while folding -- stopping')
+                # Reset pose, not a fold: the arm goes back to the boot pose, the
+                # one the lidar was measured clear in.  Then the rotation is
+                # gated on 2-of-3 scans seeing nothing inside 0.25 m.
+                if goto_reset_pose(bridge) is None:
+                    log('    lost feedback going to the reset pose -- stopping')
                     return 2
+                log('[turn %d] rotating %.0f deg from the reset pose'
+                    % (index + 1, degrees_each))
                 # Rotation clearance (2026-11-06): the car scraped a table
                 # corner spinning blindly, and later that same day the check
                 # itself started refusing every turn because the robot's own

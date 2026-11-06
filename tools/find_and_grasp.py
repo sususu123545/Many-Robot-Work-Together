@@ -18,9 +18,9 @@ subprocess boundary is exactly such a gap.
 Every round appends to artifacts/ball_history.json and, from 2026-11-06, that
 history is READ back: `ball_memory` turns the last sighting plus the odometry
 driven since into a single heading worth checking first.  A hit turns a
-four-quadrant sweep (four arm tucks and up to four rotations, each gated on lidar
-clearance) into a one-quadrant sweep.  A miss falls through to the full sweep, so
-the memory can only save time, never cost coverage.
+four-quadrant sweep (four returns to the boot pose and up to four rotations, each
+gated on lidar clearance) into a one-quadrant sweep.  A miss falls through to the
+full sweep, so the memory can only save time, never cost coverage.
 """
 
 import argparse
@@ -325,8 +325,8 @@ def main():
 
     # Ask the memory before searching.  One remembered heading costs a single
     # rotation to test and, when it is right, saves three rotations plus three
-    # arm tucks.  When it is wrong the full sweep still runs, so coverage is
-    # never reduced -- only the order changes.
+    # returns to the boot pose.  When it is wrong the full sweep still runs, so
+    # coverage is never reduced -- only the order changes.
     guess = None
     pose0 = read_pose(bridge)
     if pose0 is None:

@@ -11,10 +11,15 @@ The tyre hit a table corner.
 
 The revised policy keeps ALL real returns and drops only the KNOWN fixed
 self-occlusion: a narrow chassis sliver at 339-345 deg, ~0.17 m.  The arm is
-NOT filtered here either -- it occludes the lidar only while extended, and the
-car must not move while the arm is extended anyway (tuck first).  If an
-arm-extended scan is fed in by mistake, the caller will see a wall of close
-points at 0-30 deg and the clearance checks below will refuse to move.
+NOT filtered here either -- but the arm's position DOES matter, and that is not
+a filtering problem.  Measured 2026-11-06: with the shoulder driven up into the
+old "fold" pose, the upper arm sat 98 mm forward and 87 mm up, i.e. inside the
+lidar's single 90-150 mm scan plane and ~40 mm from the sensor, and every
+rotation was refused.  The fix is the pose (return to the boot pose, whose
+fingers sit behind the arm base and inside the rotation radius), not a wider
+sector table: a table of angles cannot track a joint that moves.  If an
+arm-extended scan IS fed in by mistake, the caller sees a wall of close points
+and the clearance checks below refuse to move -- which is what happened.
 
 ROTATION CLEARANCE
 ------------------

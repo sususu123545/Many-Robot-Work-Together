@@ -180,17 +180,31 @@ def read_odom(bridge):
     return (position['x'], position['y'])
 
 
-def rear_clearance(bridge, arc=(115.0, 245.0)):
-    """Nearest real thing behind the car, metres, or None if the scan is silent.
+def _rear_nearest(bridge, arc=(115.0, 245.0)):
+    """(angle, distance) of the nearest real return behind the car, or (None, None).
 
     The arc is the whole rear half, not the 150-210 tail.  Measured 2026-11-06
     after a collision: the chair leg sat at 137-149 deg while the rear check
     looked at 150-210 and reported 0.358 m clear -- 86 mm and 12 deg away from
-    the truth.  A reverse guard that narrow is a guard that misses the corner
-    that actually hits.
+    the truth.
     """
     points = read_scan(bridge)
-    ranges = [r for a, r in points if arc[0] <= a <= arc[1]]
+    behind = [(a, r) for a, r in points if arc[0] <= a <= arc[1]]
+    if not behind:
+        return None, None
+    return min(behind, key=lambda pair: pair[1])
+
+
+def rear_clearance(bridge, arc=(115.0, 245.0)):
+    """Nearest real thing behind the car, metres, or None if the scan is silent."""
+    return _rear_nearest(bridge, arc)[1]
+
+
+def _distance_at(bridge, angle, half_width_deg=10.0):
+    """Nearest return within a narrow slice around ``angle``, or None."""
+    points = read_scan(bridge)
+    lo, hi = angle - half_width_deg, angle + half_width_deg
+    ranges = [r for a, r in points if lo <= a <= hi]
     return min(ranges) if ranges else None
 
 
@@ -247,7 +261,7 @@ def reverse_measured(bridge, distance_m=BACK_OFF_M, max_bursts=6):
     travelled = 0.0
     stalls = 0
     for burst in range(max_bursts):
-        rear_before = rear_clearance(bridge)
+        target_angle, rear_before = _rear_nearest(bridge)
         if rear_before is None:
             log('  reverse aborted: no lidar return behind the car')
             break
@@ -269,14 +283,17 @@ def reverse_measured(bridge, distance_m=BACK_OFF_M, max_bursts=6):
         moved = math.hypot(now[0] - before[0], now[1] - before[1])
         travelled += moved
 
-        rear_after = rear_clearance(bridge)
+        # Follow the SAME obstacle, not whatever happens to be nearest now.
+        # Comparing the whole-arc minimum would fire spuriously whenever a
+        # closer object entered the arc from the side while we backed away.
+        rear_after = _distance_at(bridge, target_angle)
         if rear_after is not None:
             expected = rear_before + moved
             if rear_after < expected - PUSH_TOLERANCE_M:
                 log('  reverse aborted: the thing behind did not fall away '
-                    '(%.2f -> %.2f m after moving %.2f, expected about %.2f) '
-                    '-- the car is pushing it'
-                    % (rear_before, rear_after, moved, expected))
+                    '(%.0f deg: %.2f -> %.2f m after moving %.2f, expected '
+                    'about %.2f) -- the car is not actually getting anywhere'
+                    % (target_angle, rear_before, rear_after, moved, expected))
                 return False
 
         if moved < step * REVERSE_STALL_RATIO:

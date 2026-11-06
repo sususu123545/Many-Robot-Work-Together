@@ -30,6 +30,7 @@ Usage
 import argparse
 import math
 import os
+import signal
 import sys
 import time
 
@@ -134,10 +135,55 @@ def wrap_deg(angle):
     return (angle + 180.0) % 360.0 - 180.0
 
 
+STOP_TWIST = {'linear': {'x': 0.0, 'y': 0.0, 'z': 0.0},
+              'angular': {'x': 0.0, 'y': 0.0, 'z': 0.0}}
+
+
+def _install_stop_on_signal(cmd, restore):
+    """Make SIGINT/SIGTERM stop the base instead of leaving it spinning.
+
+    Learned the hard way on 2026-11-06: a turn was killed by an external timeout
+    while it was publishing a non-zero /cmd_vel.  `finally` does NOT run on
+    SIGTERM's default action, so the stop packet was never sent and the car kept
+    rotating until the operator asked why it was spinning in circles.  This base
+    has no command timeout of its own, so the last command it hears is the one it
+    obeys, indefinitely.
+    """
+    def handler(signum, frame):
+        try:
+            for _ in range(4):
+                cmd.publish('/cmd_vel', STOP_TWIST, 'geometry_msgs/msg/Twist')
+                time.sleep(0.05)
+        except Exception:                    # noqa: BLE001 - must never mask exit
+            pass
+        raise SystemExit('stopped on signal %d' % signum)
+
+    installed = []
+    for name in ('SIGINT', 'SIGTERM'):
+        number = getattr(signal, name, None)
+        if number is None:
+            continue
+        try:
+            restore.append((number, signal.getsignal(number)))
+            signal.signal(number, handler)
+            installed.append(number)
+        except (ValueError, OSError):        # not the main thread
+            pass
+    return installed
+
+
+def _restore_signals(restore):
+    for number, previous in restore:
+        try:
+            signal.signal(number, previous)
+        except (ValueError, OSError):
+            pass
+
+
 def turn(bridge, degrees, rate=0.25, timeout_s=None):
     """Rotate in place by `degrees`, closed on the wheel encoders.
 
-    Two things are wrong with the old open-loop `spin(bridge, rate, seconds)`:
+    Four things are wrong with the old open-loop `spin(bridge, rate, seconds)`:
 
     1. It published /cmd_vel on the SAME rosbridge connection that already
        subscribed to /scan.  Measured 2026-11-06: a 90 deg turn at 0.5 rad/s
@@ -150,6 +196,15 @@ def turn(bridge, degrees, rate=0.25, timeout_s=None):
        81, 101, 112, 127 and 31 percent.  Encoders are the only trustworthy
        displacement source on this chassis, so the turn is driven until the
        yaw has actually changed, not until a timer expires.
+    3. It had no stall guard.  A turn that makes no progress must give up.
+    4. The stop packet lived only in `finally`, which SIGTERM skips.
+
+    Progress is accumulated from CONSECUTIVE yaw readings, not measured as
+    yaw-minus-start.  The naive form cannot complete a 180 deg turn at all:
+    `wrap_deg` folds the difference into (-180, 180], so as the car closes on
+    180 the value sits at 179.9 and a hair of overshoot flips it to -180.
+    Measured 2026-11-06: a 180 deg request spun until an external timeout killed
+    it.  Accumulating the steps handles 180, 359 and multi-turn requests.
 
     Connections are dedicated and short-lived: one to publish, one to read
     /odom.  Subscribing to two topics on one connection cannibalises messages.
@@ -166,39 +221,50 @@ def turn(bridge, degrees, rate=0.25, timeout_s=None):
         cmd.close()
         odom.close()
         return None
-    start_yaw = yaw_from_odom(start)
 
     target = abs(float(degrees))
+    rate = max(abs(float(rate)), 0.05)
     direction = 1.0 if degrees >= 0 else -1.0
-    limit = timeout_s if timeout_s is not None else (target / max(rate, 0.05)) * 3.0 + 3.0
+    limit = timeout_s if timeout_s is not None else (target / rate) * 4.0 + 5.0
     twist = {'linear': {'x': 0.0, 'y': 0.0, 'z': 0.0},
-             'angular': {'x': 0.0, 'y': 0.0, 'z': direction * float(rate)}}
+             'angular': {'x': 0.0, 'y': 0.0, 'z': direction * rate}}
     deadline = time.monotonic() + limit
+    stall_limit = 4.0
+
+    previous_yaw = yaw_from_odom(start)
     travelled = 0.0
-    signed = 0.0
+    best = 0.0
+    last_progress = time.monotonic()
+    restore = []
+    _install_stop_on_signal(cmd, restore)
     try:
         while time.monotonic() < deadline:
             cmd.publish('/cmd_vel', twist, 'geometry_msgs/msg/Twist')
             message = odom.wait_for_topic('/odom', timeout=0.08)
             if message is not None:
-                # Signed, so the log cannot report a -45 deg turn as +45: the
-                # caller decides the direction and must be able to see if the
-                # car went the other way.
-                signed = wrap_deg(yaw_from_odom(message) - start_yaw)
-                travelled = abs(signed)
-                if travelled >= target:
+                now_yaw = yaw_from_odom(message)
+                # Signed so the log cannot report a -60 deg turn as +60.
+                travelled += wrap_deg(now_yaw - previous_yaw)
+                previous_yaw = now_yaw
+                if abs(travelled) > best + 1.0:
+                    best = abs(travelled)
+                    last_progress = time.monotonic()
+                if abs(travelled) >= target:
+                    break
+                if time.monotonic() - last_progress > stall_limit:
+                    log('    turn STALLED at %.1f of %+.1f deg -- giving up'
+                        % (travelled, degrees))
                     break
             time.sleep(0.02)
     finally:
+        _restore_signals(restore)
         for _ in range(4):
-            cmd.publish('/cmd_vel', {'linear': {'x': 0.0, 'y': 0.0, 'z': 0.0},
-                                     'angular': {'x': 0.0, 'y': 0.0, 'z': 0.0}},
-                        'geometry_msgs/msg/Twist')
+            cmd.publish('/cmd_vel', STOP_TWIST, 'geometry_msgs/msg/Twist')
             time.sleep(0.05)
         cmd.close()
         odom.close()
-    log('    turned %+.1f of %+.1f deg requested' % (signed, degrees))
-    return signed
+    log('    turned %+.1f of %+.1f deg requested' % (travelled, degrees))
+    return travelled
 
 
 def goto_reset_pose(bridge):
@@ -213,15 +279,59 @@ def goto_reset_pose(bridge):
     return goto_pose(bridge, RESET_POSE, 'reset pose')
 
 
+def jog_towards(bridge, joint, target, settle=0.0, max_steps=8,
+                step_cap=80, tolerance=10):
+    """Drive one joint to `target`, in steps small enough for the controller.
+
+    The sweep used to make a SINGLE jog of ``max(-55, min(55, delta))`` per sample
+    and then move on.  For a 200-tick offset that means it asked for 200, sent 55,
+    and never came back -- so the nine "positions" of a +/-200 tick sweep were
+    really two poses 55 ticks apart, revisited eight times.  Measured on
+    2026-11-06, every j1 target in a 4-quadrant run alternated between 527 and
+    466: the sweep covered +/-13 deg, not +/-48, and four headings covered 104
+    deg of the room instead of 360.
+
+    Returns the final tick, or None if feedback was lost.
+    """
+    for _ in range(max_steps):
+        ticks = gs.read_ticks(bridge)
+        if ticks is None:
+            return None
+        delta = target - ticks[joint]
+        if abs(delta) <= tolerance:
+            return ticks[joint]
+        gs.jog(joint, max(-step_cap, min(step_cap, delta)), duration=1.5)
+        if settle:
+            time.sleep(settle)
+    ticks = gs.read_ticks(bridge)
+    return None if ticks is None else ticks[joint]
+
+
 def sweep_heading(bridge, span, step, settle):
     """j1 sweep at the current heading.  Returns (ticks, located) or (ticks, None)."""
     ticks = gs.read_ticks(bridge)
     if ticks is None:
         return None, None
     home = ticks['joint1']
+    # Outward on one side, then outward on the other.  The previous order
+    # zig-zagged [+50, -50, +100, -100, ...], which with a step cap costs twice
+    # the travel of walking out and back -- and, more importantly, the cap made
+    # the whole sweep a no-op (see jog_towards).
     offsets = [0]
     for distance in range(step, span + 1, step):
-        offsets.extend((distance, -distance))
+        offsets.append(distance)
+    for distance in range(step, span + 1, step):
+        offsets.append(-distance)
+
+    # Settle before the FIRST sample too.  Offset 0 needs no jog, so without this
+    # the very first detection runs the instant goto_search_pose's last jog
+    # returns and the arm is still ringing; ball_in_base needs several stable
+    # frames, so a shot taken mid-vibration silently reads as "no ball".
+    # Undiagnosed on 2026-11-06: one 4-quadrant run missed a ball standing 0.46 m
+    # away that the same pose found immediately when the sweep was run alone.
+    # This settle is the one difference the log showed, so it is closed first;
+    # the miss is NOT proven to have been this.
+    time.sleep(max(0.8, settle))
 
     for offset in offsets:
         target = home + offset
@@ -231,9 +341,9 @@ def sweep_heading(bridge, span, step, settle):
         current = gs.read_ticks(bridge)
         if current is None:
             return None, None
-        delta = target - current['joint1']
-        if abs(delta) >= gs.MIN_JOG_TICKS:
-            gs.jog('joint1', max(-55, min(55, delta)), duration=1.5)
+        if abs(target - current['joint1']) >= gs.MIN_JOG_TICKS:
+            if jog_towards(bridge, 'joint1', target, settle=settle) is None:
+                return None, None
             time.sleep(settle)
         ticks = gs.read_ticks(bridge)
         if ticks is None:

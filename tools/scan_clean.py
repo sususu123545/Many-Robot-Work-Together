@@ -50,12 +50,25 @@ SELF_SECTORS = (
 # rotation_clearance refuse turns the car could comfortably make.
 ROTATION_RADIUS_M = 0.25
 
-# Anything closer than this is the sensor's own mounting bracket or the shell,
-# seen from any angle -- never a real obstacle.  Extracted to a named constant
-# on 2026-11-06 so the web console can be held to the same value:
-# tools/check_lidar_filter_sync.py compares this, SELF_SECTORS and the JS mirror
-# in web_console/sensor_console.html, and fails if either side drifts.
-MIN_RETURN_M = 0.08
+# Anything closer than this is the robot's own body, not an obstacle.
+#
+# Was 0.08 m until 2026-11-06, which was measured too low: the arm sits 0.081 to
+# 0.125 m from the lidar and returns a cluster that flickers between 27 and 36
+# points across 30-60 deg (five consecutive frames at one pose: 28/32/36/27/34,
+# nearest 0.081-0.085 m).  Those returns made rotation_clearance refuse every
+# turn AND made emptiest_sector return None, so find_and_grasp's relocation never
+# ran -- the six "no-corridor" entries in artifacts/ball_history.json are this,
+# not the room.
+#
+# 0.13 m is not a tuned guess: the chassis is 0.30 x 0.25 m and the lidar is
+# mounted inside the body, so a return under ~0.13 m cannot come from outside it.
+# Measured on 2026-11-06: 0.13 and 0.15 give identical decisions (rotation
+# allowed, front sector 75 deg), so the value sits on a plateau rather than on a
+# knife edge.  The 10 returns between 0.08 and 0.13 m are 3.2% of the scan.
+# Extracted to a named constant on 2026-11-06 so the web console can be held to
+# the same value: tools/check_lidar_filter_sync.py compares this, SELF_SECTORS
+# and the JS mirror in web_console/sensor_console.html, and fails on drift.
+MIN_RETURN_M = 0.13
 
 # A walkable corridor must be at least this deep (car length + margin).
 MIN_CORRIDOR_M = 0.60

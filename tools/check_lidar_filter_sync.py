@@ -55,8 +55,12 @@ def js_filter():
     sectors = re.search(r'const\s+SELF_SECTORS\s*=\s*(\[\[.*?\]\])', html, re.S)
     minimum = re.search(r'const\s+MIN_RANGE_M\s*=\s*([0-9.]+)', html)
     if sectors is None or minimum is None:
-        raise SystemExit('%s no longer defines SELF_SECTORS / MIN_RANGE_M; '
-                         'this checker needs updating' % JS_SIDE)
+        raise SystemExit(
+            '%s does not define SELF_SECTORS / MIN_RANGE_M.\n'
+            'Either the console has not been migrated to the shared filter yet, or '
+            'the names changed.  Until it is migrated the console applies its own '
+            'rule, which is exactly the situation this checker exists to catch.'
+            % JS_SIDE)
     rows = json.loads(sectors.group(1))
     return float(minimum.group(1)), [tuple(float(x) for x in row) for row in rows]
 

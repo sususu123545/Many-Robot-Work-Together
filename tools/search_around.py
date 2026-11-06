@@ -178,15 +178,25 @@ def main():
                     log('    lost feedback while folding -- stopping')
                     return 2
                 # Rotation clearance (2026-11-06): the car scraped a table
-                # corner spinning blindly.  The chassis sweep radius is ~0.35 m;
-                # if anything real is inside 0.40 m, skip this heading instead
-                # of grinding through it.
-                bridge.drain(0.4)
-                scan_msg = bridge.wait_for_topic('/scan', timeout=3)
-                if scan_msg is not None:
-                    pts = scan_clean.clean_scan(
-                        scan_msg['ranges'], scan_msg['angle_increment'])
-                    clear, offenders = scan_clean.rotation_clearance(pts)
+                # corner spinning blindly, and later that same day the check
+                # itself started refusing every turn because the robot's own
+                # wheels were being counted as obstacles.  Two changes: the
+                # self-occlusion table now covers the wheels, and the decision
+                # needs 2 of 3 consecutive scans to agree -- the self-returns
+                # are intermittent, so one frame used to flip the answer.
+                scans = []
+                for _ in range(3):
+                    bridge.drain(0.4)
+                    scan_msg = bridge.wait_for_topic('/scan', timeout=3)
+                    if scan_msg is None:
+                        continue
+                    scans.append(scan_clean.clean_scan(
+                        scan_msg['ranges'], scan_msg['angle_increment']))
+                    time.sleep(0.15)
+                if scans:
+                    clear, offenders = scan_clean.rotation_clearance_agreed(scans)
+                    log('    rotation clearance over %d scans: %s'
+                        % (len(scans), 'clear' if clear else 'BLOCKED'))
                     if not clear:
                         nearest = min(offenders, key=lambda p: p[1])
                         log('    rotation BLOCKED: %d points inside %.2f m '
@@ -194,6 +204,9 @@ def main():
                             % (len(offenders), scan_clean.ROTATION_RADIUS_M,
                                nearest[1], nearest[0]))
                         continue
+                else:
+                    log('    no scan available -- refusing to spin blind')
+                    continue
                 seconds = math.radians(degrees_each) / args.rate
                 spin(bridge, args.rate, seconds)
                 time.sleep(1.2)

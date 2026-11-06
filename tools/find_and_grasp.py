@@ -38,7 +38,7 @@ from rosbridge_client import Rosbridge          # noqa: E402
 import ball_memory                              # noqa: E402
 import grasp_sequence as gs                     # noqa: E402
 import approach_ball as ab                      # noqa: E402
-from scan_clean import clean_scan, emptiest_sector  # noqa: E402
+from scan_clean import clean_scan, emptiest_sector, rotation_clearance_agreed  # noqa: E402
 
 HISTORY = Path(__file__).resolve().parent.parent / 'artifacts' / 'ball_history.json'
 
@@ -139,10 +139,25 @@ def walk_sector(bridge, sector_deg, distance_m):
 
     Lidar angles are counterclockwise from the nose; turn_to's positive is
     also counterclockwise, so no sign gymnastics -- just normalise >180.
+
+    Returns True when the walk happened, False when the rotation gate refused.
+    The gate was missing here until 2026-11-06: search_around checked clearance
+    before spinning but this path did not, so the one relocation that ever ran
+    turned blind.  It is the same three-scan, two-vote check, for the same
+    reason -- the robot's own wheels return intermittently and a single frame
+    used to decide whether the car was allowed to move.
     """
     turn = sector_deg if sector_deg <= 180 else sector_deg - 360.0
     if abs(turn) > 8:
-        log('  turning %+0.0f deg toward the emptiest sector' % turn)
+        scans = [read_scan(bridge) for _ in range(3)]
+        clear, offenders = rotation_clearance_agreed(scans)
+        if not clear:
+            nearest = min(offenders, key=lambda p: p[1])
+            log('  rotation BLOCKED: nearest %.2f m at %.0f deg -- not turning'
+                % (nearest[1], nearest[0]))
+            return False
+        log('  turning %+0.0f deg toward the emptiest sector (clearance agreed '
+            'over %d scans)' % (turn, len([s for s in scans if s])))
         hist = ab.turn_to(bridge, turn)
         for h in hist[-2:]:
             log('    %s' % h)
@@ -152,6 +167,7 @@ def walk_sector(bridge, sector_deg, distance_m):
         log('  walking segment %d/%d (%.0f mm)' % (seg + 1, segments, 250))
         gs.drive(bridge, 0.08, 0.25 / 0.08)
         time.sleep(0.8)
+    return True
 
 
 def main():

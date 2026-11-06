@@ -33,10 +33,25 @@ it (including a +-15 deg corridor check) is beyond min_clear.
 import math
 
 # Fixed chassis occlusion, measured 2026-11-05/06.  The lidar sits INSIDE the
-# shell, so FOUR shell edges live in its plane -- and all four move with the
-# car (proven 2026-11-06: distances stayed constant while odometry showed
-# 0.27 m of travel).  Each sector has its own measured max depth.
+# shell, so the shell edges, the arm and the wheels all live in its plane -- and
+# everything here moves with the car (proven 2026-11-06: distances stayed
+# constant while odometry showed 0.27 m of travel, and the arm's cluster slid
+# from 10 deg to 38 deg when only the arm moved).
+#
+# Each entry is (from_deg, to_deg, max_m): drop the return when its angle is
+# inside the range AND its distance is under max_m.  The max_m values are the
+# measured maximum plus a 2-3 cm margin, not guesses -- see the commit that
+# introduced them for the 30-frame profile behind each number.
+#
+# This table is per-chassis.  Change the lidar mount, the arm, or the wheels and
+# it has to be re-measured; a stale entry either hides a real obstacle (too
+# generous) or re-creates the "the robot thinks it is surrounded" failure (too
+# tight).  tools/check_lidar_filter_sync.py keeps the web console identical.
 SELF_SECTORS = (
+    (139.0, 149.0, 0.18),   # rear-left shell corner (measured 0.131-0.157)
+    (207.0, 238.0, 0.20),   # tail + left wheel (measured 0.131-0.172, 86 hits)
+    (263.0, 282.0, 0.17),   # right wheel, outer face (measured 0.134-0.140)
+    (303.0, 327.0, 0.18),   # right-front wheel (measured 0.131-0.151)
     (339.0, 345.0, 0.25),   # right-front shell sliver (~0.17 m)
     (0.0,   30.0,  0.12),   # front-left shell edge (~0.06-0.08 m)
     (325.0, 360.0, 0.15),   # front-right shell edge (~0.06-0.08 m)
@@ -117,6 +132,42 @@ def rotation_clearance(points, radius_m=ROTATION_RADIUS_M):
     """Can the car spin in place?  Returns (ok, list_of_offending_points)."""
     offenders = [(a, r) for a, r in points if r < radius_m]
     return (len(offenders) == 0), offenders
+
+
+def rotation_clearance_agreed(scans, radius_m=ROTATION_RADIUS_M, votes_to_refuse=2):
+    """Decide from SEVERAL scans so one noisy frame cannot flip the answer.
+
+    Measured 2026-11-06: with the self-occlusion table incomplete, two
+    consecutive frames at a standstill disagreed -- (False, True) -- and a single
+    frame decided whether the car was allowed to move at all.  Returns from the
+    robot's own body are intermittent (a wheel edge catches the beam on some
+    sweeps and not others), so a one-frame test randomly refuses work that is
+    perfectly safe.
+
+    Refuse only when at least ``votes_to_refuse`` of the supplied scans see an
+    obstacle inside the radius.  With the conventional three scans and two
+    votes, one bad frame is tolerated and a real object still stops the car
+    (it shows up in every frame).
+
+    Returns (ok, offending_points) where the points come from the frames that
+    voted to refuse, so a caller can log what actually blocked it.
+    """
+    scans = [points for points in scans if points]
+    if not scans:
+        return False, []
+    offenders = []
+    voters = 0
+    for points in scans:
+        ok, frame_offenders = rotation_clearance(points, radius_m)
+        if not ok:
+            voters += 1
+            offenders.extend(frame_offenders)
+    if voters >= votes_to_refuse:
+        # de-duplicate: the same object appears in every refusing frame
+        unique = sorted(set((round(a, 1), round(r, 3)) for a, r in offenders),
+                        key=lambda item: item[1])
+        return False, [(a, r) for a, r in unique]
+    return True, []
 
 
 def corridor_clear(points, centre_deg, half_width_deg=15.0, min_clear=MIN_CORRIDOR_M):

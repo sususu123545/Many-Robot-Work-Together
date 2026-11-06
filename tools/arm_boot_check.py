@@ -35,6 +35,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
 from rosbridge_client import Rosbridge  # noqa: E402
+import servo_health                     # noqa: E402
 
 # Vendor tick encoding, taken from arm_jog.py.  The arm joints span 240 deg over
 # 1000 ticks; the gripper spans 180 deg over 1000, so it needs its own scale --
@@ -137,6 +138,12 @@ def main(argv=None):
         print('arm: estop=%s health=%s fault=%s'
               % (status.get('estop'), status.get('health_state'),
                  status.get('last_fault')), flush=True)
+        # Temperature and fault history come from servo_health: the controller
+        # only polls temperatures for servos 1-4, so a hot servo 5 is invisible
+        # here except through last_fault.  It happened on 2026-11-06.
+        health = servo_health.read_health(status)
+        for line in servo_health.describe(health):
+            print('  ' + line, flush=True)
         print('', flush=True)
         verdict, code, lines = inspect(ticks)
         for line in lines:

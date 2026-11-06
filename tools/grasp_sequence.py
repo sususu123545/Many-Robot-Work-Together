@@ -51,6 +51,7 @@ from ball_in_arm_base import (camera_point, load_calibration,  # noqa: E402
                               mat_mul, mat_vec, CALIBRATION)
 from gripper_jog import (status, read_r, reset_estop, set_gates,  # noqa: E402
                          read_stamp)
+import servo_health                                          # noqa: E402
 from rosbridge_client import Rosbridge                      # noqa: E402
 import detectors                                            # noqa: E402
 from ground_localizer import locate as locate_on_plane      # noqa: E402
@@ -161,10 +162,30 @@ def log(message):
 
 
 def secure_gate(bridge, arm, gripper, timeout=120):
-    """Grab the gate inside the node's health window (the timer cycles to zero)."""
+    """Grab the gate inside the node's health window (the timer cycles to zero).
+
+    Refuses outright when a servo is already at its critical temperature.  On
+    2026-11-06 a jammed wrist took servo 5 to 65 C and the protection tripped
+    seven times while the pipeline kept authorising motion; the temperature was
+    readable the whole time.  A recorded ``last_fault`` is only logged, not
+    refused on: it survives an estop reset and would block a healthy arm
+    forever.
+    """
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         state = status(bridge)
+        health = servo_health.read_health(state)
+        hot = {sid: value for sid, value in health['temps'].items()
+               if value >= servo_health.CRITICAL_TEMP_C}
+        if hot:
+            log('    REFUSING to authorise motion: servo %s'
+                % ', '.join('%d at %d C' % (sid, value)
+                            for sid, value in sorted(hot.items())))
+            return False
+        if health['last_fault']:
+            log('    note: last fault was [%s] %s'
+                % (health['last_fault'].get('kind'),
+                   health['last_fault'].get('message')))
         if state.get('reset_eligible') and (state.get('healthy_seconds') or 0) > 11:
             if reset_estop(bridge):
                 return set_gates(bridge, arm=arm, gripper=gripper)
@@ -747,6 +768,10 @@ def main():
         if not arm_gate(bridge):
             report.update(stage='arm_gate', detail='cannot secure arm gate')
             return finish(report, 2)
+        # Baseline the fault counter: a fault recorded BEFORE this run is
+        # history (it survives an estop reset), but one that appears during the
+        # run means something is binding right now and the arm should stop.
+        monitor = servo_health.Monitor(status(bridge))
         time.sleep(1)
 
         ticks = read_ticks(bridge)

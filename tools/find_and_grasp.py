@@ -170,6 +170,79 @@ def walk_sector(bridge, sector_deg, distance_m):
     return True
 
 
+def read_odom(bridge):
+    """Odometry position, or None.  Drain first -- see read_pose."""
+    bridge.drain(0.4)
+    message = bridge.wait_for_topic('/odom', timeout=3)
+    if message is None:
+        return None
+    position = message['pose']['pose']['position']
+    return (position['x'], position['y'])
+
+
+def rear_clearance(bridge):
+    """Nearest real thing behind the car, metres, or None if the scan is silent.
+
+    Angles 150-210 are the tail; the measured self-occlusion there is already
+    removed by scan_clean, so whatever is left is worth respecting.
+    """
+    points = read_scan(bridge)
+    ranges = [r for a, r in points if 150.0 <= a <= 210.0]
+    return min(ranges) if ranges else None
+
+
+BACK_OFF_M = 0.20
+
+
+def reverse_measured(bridge, distance_m=BACK_OFF_M, max_bursts=4):
+    """Back up by a MEASURED distance -- the last resort when nothing is walkable.
+
+    Why measured and not timed: forward efficiency on this chassis was measured
+    at 60% and 101% within half an hour on 2026-11-06, and reverse at 48%.  An
+    open-loop "0.08 m/s for N seconds" is wrong by a factor of two either way,
+    which matters when the point of reversing is to gain a specific gap.
+
+    Refuses when the rear is not clear enough to absorb the move.  Returns True
+    if the car actually moved at least 60% of the request.
+    """
+    rear = rear_clearance(bridge)
+    if rear is None:
+        log('  cannot reverse: no lidar return behind the car')
+        return False
+    if rear < distance_m + 0.15:
+        log('  cannot reverse: only %.2f m behind (need %.2f)'
+            % (rear, distance_m + 0.15))
+        return False
+
+    start = read_odom(bridge)
+    if start is None:
+        log('  cannot reverse: no odometry')
+        return False
+
+    travelled = 0.0
+    for burst in range(max_bursts):
+        now = read_odom(bridge)
+        if now is None:
+            break
+        travelled = math.hypot(now[0] - start[0], now[1] - start[1])
+        if travelled >= distance_m * 0.8:
+            break
+        # 0.08 m/s is the commanded rate; measured delivery has been 48-60% of
+        # that, so budget for the low end and let the loop correct upward.
+        gs.drive(bridge, -0.08, 1.0)
+        time.sleep(0.8)
+
+    # Re-measure AFTER the last burst.  Reading it at the top of the loop made
+    # the reported distance one burst stale, so a run that used all its bursts
+    # could report 0.16 m for a car that had actually moved 0.24 m -- and then
+    # return False for a reverse that worked.
+    now = read_odom(bridge)
+    if now is not None:
+        travelled = math.hypot(now[0] - start[0], now[1] - start[1])
+    log('  reversed %.2f m in total (asked %.2f)' % (travelled, distance_m))
+    return travelled >= distance_m * 0.6
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--max-rounds', type=int, default=6)
@@ -241,17 +314,40 @@ def main():
                 log('  no lidar data either -- waiting 2 s and retrying')
                 time.sleep(2)
                 continue
+            # Relocation ladder (2026-11-06).  The old code had exactly one rung
+            # -- "no corridor in the front half -> wait 3 s" -- and that rung is
+            # what artifacts/ball_history.json recorded six times.  A car whose
+            # nose is against furniture has no way out under that rule, and the
+            # retry re-reads the same blocked scan.
+            #
+            #   1. turn toward the best direction in the front half and walk
+            #   2. if the front half has nothing, consider the whole circle
+            #   3. if the turn is refused, reverse a measured distance and retry
+            #   4. only then wait
             sector, clear_m = emptiest_sector(pts, front_half=True)
+            half = 'front'
             if sector is None:
-                log('  no walkable corridor in the front half -- waiting 3 s')
+                sector, clear_m = emptiest_sector(pts, front_half=False)
+                half = 'any'
+                if sector is not None:
+                    log('  front half blocked; best direction overall is %.0f deg '
+                        '(%.2f m)' % (sector, clear_m or 0))
+            if sector is not None:
                 append_history({'t': time.strftime('%H:%M:%S'), 'round': round_index,
-                                'event': 'no-corridor'})
-                time.sleep(3)
+                                'event': 'relocate', 'sector': sector,
+                                'half': half, 'clear_m': round(clear_m, 2)})
+                if walk_sector(bridge, sector, args.walk_m):
+                    continue
+                log('  the turn was refused -- trying to reverse instead')
+
+            if reverse_measured(bridge, BACK_OFF_M):
+                append_history({'t': time.strftime('%H:%M:%S'), 'round': round_index,
+                                'event': 'back-off', 'metres': BACK_OFF_M})
                 continue
+            log('  cannot turn and cannot reverse -- waiting 3 s')
             append_history({'t': time.strftime('%H:%M:%S'), 'round': round_index,
-                            'event': 'relocate', 'sector': sector,
-                            'clear_m': round(clear_m, 2)})
-            walk_sector(bridge, sector, args.walk_m)
+                            'event': 'no-corridor'})
+            time.sleep(3)
             continue
 
         # Ball found -- approach.

@@ -180,65 +180,92 @@ def read_odom(bridge):
     return (position['x'], position['y'])
 
 
-def rear_clearance(bridge):
+def rear_clearance(bridge, arc=(115.0, 245.0)):
     """Nearest real thing behind the car, metres, or None if the scan is silent.
 
-    Angles 150-210 are the tail; the measured self-occlusion there is already
-    removed by scan_clean, so whatever is left is worth respecting.
+    The arc is the whole rear half, not the 150-210 tail.  Measured 2026-11-06
+    after a collision: the chair leg sat at 137-149 deg while the rear check
+    looked at 150-210 and reported 0.358 m clear -- 86 mm and 12 deg away from
+    the truth.  A reverse guard that narrow is a guard that misses the corner
+    that actually hits.
     """
     points = read_scan(bridge)
-    ranges = [r for a, r in points if 150.0 <= a <= 210.0]
+    ranges = [r for a, r in points if arc[0] <= a <= arc[1]]
     return min(ranges) if ranges else None
 
 
 BACK_OFF_M = 0.20
 
+# Never reverse closer than this to anything, whatever the caller asked for.
+# The chassis has no force or current sensing, so contact is not observable
+# electrically -- distance is the only thing standing between the car and a
+# chair leg.
+REVERSE_SAFETY_M = 0.30
 
-def reverse_measured(bridge, distance_m=BACK_OFF_M, max_bursts=4):
-    """Back up by a MEASURED distance -- the last resort when nothing is walkable.
+# Short bursts, re-checked every time.  The old version measured the rear ONCE
+# before the loop and then reversed blind for up to four bursts; the chair was
+# hit on burst two and the car kept going.
+REVERSE_STEP_M = 0.10
 
-    Why measured and not timed: forward efficiency on this chassis was measured
-    at 60% and 101% within half an hour on 2026-11-06, and reverse at 48%.  An
-    open-loop "0.08 m/s for N seconds" is wrong by a factor of two either way,
-    which matters when the point of reversing is to gain a specific gap.
+# A burst that delivers less than this fraction of what was commanded is not
+# slip, it is something in the way.  Slip alone was measured at 48-101%.
+REVERSE_STALL_RATIO = 0.30
 
-    Refuses when the rear is not clear enough to absorb the move.  Returns True
-    if the car actually moved at least 60% of the request.
+
+def reverse_measured(bridge, distance_m=BACK_OFF_M, max_bursts=6):
+    """Back up by a MEASURED distance, re-checking the rear before every burst.
+
+    Two independent stop conditions, because one was not enough:
+
+    * geometry -- refuse to start, or to continue, when anything is within
+      REVERSE_SAFETY_M behind the car;
+    * motion -- if a burst delivers far less travel than commanded, the car is
+      pushing something and the next burst would only push harder.
+
+    Returns True if the car actually moved at least 60% of the request.
     """
-    rear = rear_clearance(bridge)
-    if rear is None:
-        log('  cannot reverse: no lidar return behind the car')
-        return False
-    if rear < distance_m + 0.15:
-        log('  cannot reverse: only %.2f m behind (need %.2f)'
-            % (rear, distance_m + 0.15))
-        return False
-
     start = read_odom(bridge)
     if start is None:
         log('  cannot reverse: no odometry')
         return False
 
     travelled = 0.0
+    stalls = 0
     for burst in range(max_bursts):
-        now = read_odom(bridge)
-        if now is None:
+        rear = rear_clearance(bridge)
+        if rear is None:
+            log('  reverse aborted: no lidar return behind the car')
             break
-        travelled = math.hypot(now[0] - start[0], now[1] - start[1])
-        if travelled >= distance_m * 0.8:
+        room = rear - REVERSE_SAFETY_M
+        if room <= 0.02:
+            log('  reverse aborted: %.2f m behind is inside the %.2f m safety '
+                'floor' % (rear, REVERSE_SAFETY_M))
             break
-        # 0.08 m/s is the commanded rate; measured delivery has been 48-60% of
-        # that, so budget for the low end and let the loop correct upward.
-        gs.drive(bridge, -0.08, 1.0)
-        time.sleep(0.8)
+        step = min(REVERSE_STEP_M, room, distance_m - travelled)
+        if step < 0.03:
+            break
 
-    # Re-measure AFTER the last burst.  Reading it at the top of the loop made
-    # the reported distance one burst stale, so a run that used all its bursts
-    # could report 0.16 m for a car that had actually moved 0.24 m -- and then
-    # return False for a reverse that worked.
-    now = read_odom(bridge)
-    if now is not None:
-        travelled = math.hypot(now[0] - start[0], now[1] - start[1])
+        before = read_odom(bridge)
+        gs.drive(bridge, -0.08, step / 0.08)
+        time.sleep(0.8)
+        now = read_odom(bridge)
+        if before is None or now is None:
+            break
+        moved = math.hypot(now[0] - before[0], now[1] - before[1])
+        travelled += moved
+
+        if moved < step * REVERSE_STALL_RATIO:
+            stalls += 1
+            log('  burst %d moved %.3f m of %.3f commanded -- something is in '
+                'the way (%d/2)' % (burst + 1, moved, step, stalls))
+            if stalls >= 2:
+                log('  reverse aborted: the car is not moving as commanded')
+                break
+        else:
+            stalls = 0
+        if travelled >= distance_m * 0.9:
+            break
+
     log('  reversed %.2f m in total (asked %.2f)' % (travelled, distance_m))
     return travelled >= distance_m * 0.6
 

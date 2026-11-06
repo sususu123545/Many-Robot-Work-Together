@@ -123,19 +123,82 @@ def goto_search_pose(bridge):
     return goto_pose(bridge, SEARCH_POSE, 'search pose')
 
 
-def spin(bridge, angular, seconds):
-    """Rotate in place.  The mecanum base turns reliably; translation does not."""
+def yaw_from_odom(message):
+    """Yaw in degrees from an Odometry message's quaternion."""
+    q = message['pose']['pose']['orientation']
+    return math.degrees(math.atan2(2.0 * (q['w'] * q['z'] + q['x'] * q['y']),
+                                   1.0 - 2.0 * (q['y'] ** 2 + q['z'] ** 2)))
+
+
+def wrap_deg(angle):
+    return (angle + 180.0) % 360.0 - 180.0
+
+
+def turn(bridge, degrees, rate=0.25, timeout_s=None):
+    """Rotate in place by `degrees`, closed on the wheel encoders.
+
+    Two things are wrong with the old open-loop `spin(bridge, rate, seconds)`:
+
+    1. It published /cmd_vel on the SAME rosbridge connection that already
+       subscribed to /scan.  Measured 2026-11-06: a 90 deg turn at 0.5 rad/s
+       delivered 25.7 deg (29%), then 17.7 deg, then -0.2 deg, while the
+       identical command sent from a dedicated connection moved /odom at
+       0.205 rad/s against a 0.18 command (114%).  The scan subscription was
+       eating the publish budget, and nothing in the code could see it.
+    2. It assumed the car delivers what /cmd_vel asks for.  On this mecanum
+       base it does not: measured delivery ratios across sessions are 48, 60,
+       81, 101, 112, 127 and 31 percent.  Encoders are the only trustworthy
+       displacement source on this chassis, so the turn is driven until the
+       yaw has actually changed, not until a timer expires.
+
+    Connections are dedicated and short-lived: one to publish, one to read
+    /odom.  Subscribing to two topics on one connection cannibalises messages.
+
+    Returns the delivered turn in degrees (signed, +ve = left), or None if /odom
+    never answered.
+    """
+    cmd = Rosbridge('127.0.0.1', 19091, timeout=10)
+    odom = Rosbridge('127.0.0.1', 19091, timeout=10)
+    odom.subscribe('/odom', 'nav_msgs/msg/Odometry')
+    odom.drain(0.5)
+    start = odom.wait_for_topic('/odom', timeout=4)
+    if start is None:
+        cmd.close()
+        odom.close()
+        return None
+    start_yaw = yaw_from_odom(start)
+
+    target = abs(float(degrees))
+    direction = 1.0 if degrees >= 0 else -1.0
+    limit = timeout_s if timeout_s is not None else (target / max(rate, 0.05)) * 3.0 + 3.0
     twist = {'linear': {'x': 0.0, 'y': 0.0, 'z': 0.0},
-             'angular': {'x': 0.0, 'y': 0.0, 'z': float(angular)}}
-    deadline = time.monotonic() + seconds
-    while time.monotonic() < deadline:
-        bridge.publish('/cmd_vel', twist, 'geometry_msgs/msg/Twist')
-        time.sleep(0.05)
-    for _ in range(3):
-        bridge.publish('/cmd_vel', {'linear': {'x': 0.0, 'y': 0.0, 'z': 0.0},
-                                    'angular': {'x': 0.0, 'y': 0.0, 'z': 0.0}},
-                       'geometry_msgs/msg/Twist')
-        time.sleep(0.05)
+             'angular': {'x': 0.0, 'y': 0.0, 'z': direction * float(rate)}}
+    deadline = time.monotonic() + limit
+    travelled = 0.0
+    signed = 0.0
+    try:
+        while time.monotonic() < deadline:
+            cmd.publish('/cmd_vel', twist, 'geometry_msgs/msg/Twist')
+            message = odom.wait_for_topic('/odom', timeout=0.08)
+            if message is not None:
+                # Signed, so the log cannot report a -45 deg turn as +45: the
+                # caller decides the direction and must be able to see if the
+                # car went the other way.
+                signed = wrap_deg(yaw_from_odom(message) - start_yaw)
+                travelled = abs(signed)
+                if travelled >= target:
+                    break
+            time.sleep(0.02)
+    finally:
+        for _ in range(4):
+            cmd.publish('/cmd_vel', {'linear': {'x': 0.0, 'y': 0.0, 'z': 0.0},
+                                     'angular': {'x': 0.0, 'y': 0.0, 'z': 0.0}},
+                        'geometry_msgs/msg/Twist')
+            time.sleep(0.05)
+        cmd.close()
+        odom.close()
+    log('    turned %+.1f of %+.1f deg requested' % (signed, degrees))
+    return signed
 
 
 def goto_reset_pose(bridge):
@@ -200,7 +263,8 @@ def main():
     parser.add_argument('--step', type=int, default=50)
     parser.add_argument('--settle', type=float, default=0.7)
     parser.add_argument('--no-rotate', action='store_true')
-    parser.add_argument('--rate', type=float, default=0.5, help='rotation rad/s')
+    parser.add_argument('--rate', type=float, default=0.25,
+                        help='rotation rad/s (0.25 measured reliable; 0.5 slipped)')
     parser.add_argument('--ensure-gate', action='store_true')
     args = parser.parse_args()
 
@@ -255,9 +319,11 @@ def main():
                 else:
                     log('    no scan available -- refusing to spin blind')
                     continue
-                seconds = math.radians(degrees_each) / args.rate
-                spin(bridge, args.rate, seconds)
-                time.sleep(1.2)
+                if turn(bridge, degrees_each, args.rate) is None:
+                    log('    /odom never answered -- cannot confirm the turn, '
+                        'stopping rather than sweeping a heading we did not reach')
+                    return 2
+                time.sleep(1.0)
 
             log('[heading %d/%d] entering the search pose' % (index + 1, turns))
             if goto_search_pose(bridge) is None:

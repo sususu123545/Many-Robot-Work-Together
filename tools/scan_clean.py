@@ -90,6 +90,31 @@ ROTATION_RADIUS_M = 0.25
 # and the JS mirror in web_console/sensor_console.html, and fails on drift.
 MIN_RETURN_M = 0.13
 
+# Everything closer than this is the robot's own chassis -- for the ROTATION gate.
+#
+# Derived from geometry, not tuned: the base plate in robot_description is
+# 0.16 m (x) x 0.286 m (y), the wheels bulge ~0.02 m outboard, so the furthest
+# point of the car from a lidar mounted inside the body is the wheel-tip corner
+# at hypot(0.08, 0.163) = 0.182 m.  Measured self-returns peak at 0.181 m.
+# 0.182 against 0.181 is the whole argument: the robot cannot see an external
+# object closer than its own skin, and its own skin is 19 cm out.
+#
+# Why a RADIUS and not more sector entries: on 2026-11-06 the sector table leaked
+# at 148, 210, 324, 149, 253 and 287 deg -- six boundaries in one day -- because
+# every entry was tracing the outline of a wheel in angle, and a new heading
+# exposes a new slice of that outline.  A circle has no boundaries.  The stuck
+# cluster that finally forced this: 0-12 deg at 0.133-0.181 m, unchanged when
+# j2 moved 51 ticks, unchanged when j1 moved 52 ticks, unchanged when the car was
+# physically carried to another spot, and no camera frame showed anything within
+# 0.6 m -- i.e. the car.
+#
+# ⚠ Scope: this filter is applied ONLY by rotation_clearance*, so the proximity
+# and reverse paths keep seeing 0.13-0.19 m.  The cost is real and documented as
+# D11 in docs/小车缺陷体检-2026-11-06.md: while spinning, an obstacle the car is
+# already touching is invisible.  A robot that can only see from 19 cm out needs
+# a bumper switch; no amount of filtering can substitute for one.
+SELF_RADIUS_M = 0.19
+
 # A walkable corridor must be at least this deep (car length + margin).
 MIN_CORRIDOR_M = 0.60
 
@@ -133,13 +158,20 @@ def sectors(points, bucket_deg=30.0):
     return buckets
 
 
-def rotation_clearance(points, radius_m=ROTATION_RADIUS_M):
-    """Can the car spin in place?  Returns (ok, list_of_offending_points)."""
-    offenders = [(a, r) for a, r in points if r < radius_m]
+def rotation_clearance(points, radius_m=ROTATION_RADIUS_M,
+                       self_radius_m=SELF_RADIUS_M):
+    """Can the car spin in place?  Returns (ok, list_of_offending_points).
+
+    Points closer than ``self_radius_m`` are dropped before the test: they are
+    the car's own wheels and shell (see SELF_RADIUS_M).  Without that, the gate
+    answers "BLOCKED" at every heading and the pipeline concludes it is boxed in.
+    """
+    offenders = [(a, r) for a, r in points if self_radius_m <= r < radius_m]
     return (len(offenders) == 0), offenders
 
 
-def rotation_clearance_agreed(scans, radius_m=ROTATION_RADIUS_M, votes_to_refuse=2):
+def rotation_clearance_agreed(scans, radius_m=ROTATION_RADIUS_M,
+                              votes_to_refuse=2, self_radius_m=SELF_RADIUS_M):
     """Decide from SEVERAL scans so one noisy frame cannot flip the answer.
 
     Measured 2026-11-06: with the self-occlusion table incomplete, two
@@ -155,7 +187,9 @@ def rotation_clearance_agreed(scans, radius_m=ROTATION_RADIUS_M, votes_to_refuse
     (it shows up in every frame).
 
     Returns (ok, offending_points) where the points come from the frames that
-    voted to refuse, so a caller can log what actually blocked it.
+    voted to refuse, so a caller can log what actually blocked it.  Only the
+    band ``self_radius_m`` .. ``radius_m`` is judged; see SELF_RADIUS_M for why
+    the near edge exists at all.
     """
     scans = [points for points in scans if points]
     if not scans:
@@ -163,7 +197,7 @@ def rotation_clearance_agreed(scans, radius_m=ROTATION_RADIUS_M, votes_to_refuse
     offenders = []
     voters = 0
     for points in scans:
-        ok, frame_offenders = rotation_clearance(points, radius_m)
+        ok, frame_offenders = rotation_clearance(points, radius_m, self_radius_m)
         if not ok:
             voters += 1
             offenders.extend(frame_offenders)

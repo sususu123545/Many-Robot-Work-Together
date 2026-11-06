@@ -4,7 +4,7 @@
 Reusable one-shot SSH runner for the ArmPi Pro car.
 
 Usage:
-    python pi_run.py --host 10.120.150.178 --user pi --password raspberrypi \
+    python pi_run.py --host 10.120.150.178 --user pi --password <password> \
         --cmd "hostname" --cmd "uname -m" [--timeout 15]
 
 Design notes (learned the hard way on a flaky WiFi link):
@@ -20,6 +20,8 @@ import threading
 import time
 
 import paramiko
+
+import car_auth
 
 T0 = time.time()
 
@@ -84,7 +86,10 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--host", required=True)
     ap.add_argument("--user", default="pi")
-    ap.add_argument("--password", default="raspberrypi")
+    ap.add_argument("--password", default=None,
+                        help='SSH password. Omit to use $ARM_PASSWORD or '
+                             'tools/runtime/arm_creds.json (there is no '
+                             'default: this repository is public)')
     ap.add_argument("--port", type=int, default=22)
     ap.add_argument("--timeout", type=float, default=15.0)
     ap.add_argument("--cmd", action="append", default=[])
@@ -104,7 +109,7 @@ def main():
         try:
             client.connect(
                 hostname=args.host, port=args.port,
-                username=args.user, password=args.password,
+                username=args.user, password=car_auth.resolve_password(args.password),
                 timeout=args.timeout, banner_timeout=args.timeout,
                 auth_timeout=args.timeout,
                 allow_agent=False, look_for_keys=False,

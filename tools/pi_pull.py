@@ -19,6 +19,8 @@ import time
 
 import paramiko
 
+import car_auth
+
 T0 = time.time()
 
 
@@ -102,7 +104,10 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--host", required=True)
     ap.add_argument("--user", default="pi")
-    ap.add_argument("--password", default="raspberrypi")
+    ap.add_argument("--password", default=None,
+                        help='SSH password. Omit to use $ARM_PASSWORD or '
+                             'tools/runtime/arm_creds.json (there is no '
+                             'default: this repository is public)')
     ap.add_argument("--remote", required=True)
     ap.add_argument("--local", required=True)
     ap.add_argument("--timeout", type=float, default=60.0)
@@ -116,7 +121,7 @@ def main():
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     log("connecting to %s@%s ..." % (args.user, args.host))
-    client.connect(hostname=args.host, username=args.user, password=args.password,
+    client.connect(hostname=args.host, username=args.user, password=car_auth.resolve_password(args.password),
                    timeout=15, banner_timeout=15, auth_timeout=15,
                    allow_agent=False, look_for_keys=False)
     client.get_transport().set_keepalive(10)

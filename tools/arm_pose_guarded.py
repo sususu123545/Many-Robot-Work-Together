@@ -21,6 +21,9 @@ from pathlib import Path
 
 import paramiko
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import car_auth                                    # noqa: E402
+
 REPO = Path(__file__).resolve().parents[1]
 ROS_SCRIPT = REPO / 'car_setup' / 'ros2' / 'arm_startup_pose_ros.py'
 ROS2_SETUP = 'source /opt/ros/jazzy/setup.bash && export ROS_DOMAIN_ID=42 && '
@@ -47,7 +50,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--host', required=True)
     parser.add_argument('--user', default='pi')
-    parser.add_argument('--password', default='raspberrypi')
+    parser.add_argument('--password', default=None,
+                        help='SSH password. Omit to use $ARM_PASSWORD or '
+                             'tools/runtime/arm_creds.json (this repo is public, '
+                             'so there is deliberately no default)')
     parser.add_argument('--pose', default=str(REPO / 'car_setup' / 'ros2'
                                               / 'arm_startup_pose.json'))
     parser.add_argument('--source', choices=('startup', 'raw'), default='startup')
@@ -93,7 +99,8 @@ def main():
         raise SystemExit('The container script must stay ASCII for safe piping')
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    client.connect(args.host, username=args.user, password=args.password,
+    client.connect(args.host, username=args.user,
+                   password=car_auth.resolve_password(args.password),
                    timeout=10, auth_timeout=10, allow_agent=False, look_for_keys=False)
     try:
         container = json.loads(

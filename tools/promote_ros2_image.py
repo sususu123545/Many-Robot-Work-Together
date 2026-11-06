@@ -45,6 +45,8 @@ from pathlib import Path
 
 import paramiko
 
+import car_auth
+
 REPO = Path(__file__).resolve().parents[1]
 LOCAL_CORE_SCRIPT = REPO / 'car_setup' / 'ros2' / 'run_native_core.py'
 REMOTE_CORE_SCRIPT = '/opt/armpi-ros2/run_native_core.py'
@@ -97,7 +99,10 @@ def main():
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--host', required=True)
     parser.add_argument('--user', default='pi')
-    parser.add_argument('--password', default='raspberrypi')
+    parser.add_argument('--password', default=None,
+                        help='SSH password. Omit to use $ARM_PASSWORD or '
+                             'tools/runtime/arm_creds.json (there is no '
+                             'default: this repository is public)')
     parser.add_argument('--port', type=int, default=22)
     parser.add_argument('--tag', required=True, help='new image tag to pin')
     parser.add_argument('--expect-pkg', action='append', default=[],
@@ -110,7 +115,7 @@ def main():
 
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    client.connect(args.host, port=args.port, username=args.user, password=args.password,
+    client.connect(args.host, port=args.port, username=args.user, password=car_auth.resolve_password(args.password),
                    timeout=15, auth_timeout=15, allow_agent=False, look_for_keys=False)
     try:
         new_id = image_id(client, args.tag)

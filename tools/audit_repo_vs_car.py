@@ -31,6 +31,9 @@ from pathlib import Path
 
 import paramiko
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import car_auth                                    # noqa: E402
+
 REPO = Path(__file__).resolve().parents[1]
 
 RUNTIME = '/opt/armpi-ros2'
@@ -175,7 +178,10 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--host', required=True)
     ap.add_argument('--user', default='pi')
-    ap.add_argument('--password', default='raspberrypi')
+    ap.add_argument('--password', default=None,
+                    help='SSH password. Omit to use $ARM_PASSWORD or '
+                         'tools/runtime/arm_creds.json (no default: this repo '
+                         'is public)')
     ap.add_argument('--tag', help='image tag to inspect (default: core.json image)')
     ap.add_argument('--show-diff', action='store_true',
                     help='print a unified diff for every differing text file')
@@ -184,7 +190,8 @@ def main():
 
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    client.connect(args.host, username=args.user, password=args.password,
+    client.connect(args.host, username=args.user,
+                   password=car_auth.resolve_password(args.password),
                    timeout=15, auth_timeout=15, allow_agent=False, look_for_keys=False)
     try:
         code, out, _ = sh(client, 'hostname; cat /proc/uptime; '

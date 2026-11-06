@@ -21,6 +21,8 @@ from pathlib import Path
 
 import paramiko
 
+import car_auth
+
 REPO = Path(__file__).resolve().parents[1]
 UNIT_NAME = 'armpi-startup-pose.service'
 UNIT_SRC = REPO / 'car_setup' / 'ros2' / UNIT_NAME
@@ -93,7 +95,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--host', required=True)
     parser.add_argument('--user', default='pi')
-    parser.add_argument('--password', default='raspberrypi')
+    parser.add_argument('--password', default=None,
+                        help='SSH password. Omit to use $ARM_PASSWORD or '
+                             'tools/runtime/arm_creds.json (there is no '
+                             'default: this repository is public)')
     parser.add_argument('--action', required=True,
                         choices=('install', 'enable', 'disable', 'run', 'status', 'uninstall'))
     parser.add_argument('--confirm-arm-area-clear', action='store_true',
@@ -104,7 +109,7 @@ def main():
 
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    client.connect(args.host, username=args.user, password=args.password,
+    client.connect(args.host, username=args.user, password=car_auth.resolve_password(args.password),
                    timeout=10, auth_timeout=10, allow_agent=False, look_for_keys=False)
     try:
         if args.action == 'install':

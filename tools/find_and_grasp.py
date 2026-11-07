@@ -77,6 +77,26 @@ def append_history(entry):
     ball_memory.save(str(HISTORY), hist, limit=400)
 
 
+def commit_memory(entries):
+    """Write our kind records WITHOUT erasing the legacy round log.
+
+    Bug found on the first real ball_memory run, 2026-11-07.  main() loads
+    `history` ONCE at startup, but append_history() re-reads the file on every
+    event, so the two writers drift apart.  Each `ball_memory.save(HISTORY,
+    history)` then wrote a stale snapshot and silently deleted the round events
+    appended since.  The finished run had 31 records where 34 were expected:
+    three 'search' / 'approach' / 'grasp' events had vanished.  The sighting and
+    outcome survived only because they happened to be written last.
+
+    Merge against the CURRENT disk contents instead: keep every non-kind record
+    (the human-readable log) and take the kind records from our in-memory list.
+    """
+    on_disk = ball_memory.load(str(HISTORY))
+    legacy = [item for item in on_disk if not item.get('kind')]
+    mine = [item for item in entries if item.get('kind')]
+    ball_memory.save(str(HISTORY), legacy + mine)
+
+
 def read_pose(bridge):
     """Car pose in the odom frame: metres, yaw in degrees CCW.
 
@@ -372,7 +392,7 @@ def main():
                 ball_memory.record_sighting(
                     history, sighting['pose'], sighting['bearing'],
                     sighting['range'], source='search_around')
-                ball_memory.save(str(HISTORY), history)
+                commit_memory(history)
                 log('  remembered: %.2f m ahead at heading %+.0f deg'
                     % (sighting['range'], sighting['pose']['yaw']))
 
@@ -441,7 +461,7 @@ def main():
         # one leaves the memory intact -- the ball is still out there.
         ball_memory.record_outcome(history, success,
                                    note='round %d' % round_index)
-        ball_memory.save(str(HISTORY), history)
+        commit_memory(history)
         if success:
             log('=== BALL GRASPED in %.1f min over %d round(s) ==='
                 % ((time.monotonic() - started) / 60, round_index))

@@ -3,6 +3,11 @@ Description=ArmPi Pro arm_base/rear_camera TF publisher (sidecar container)
 Documentation=file:///home/pi/arm_tf/run.sh
 After=armpi-ros2.service docker.service
 Wants=armpi-ros2.service
+# PartOf propagates restart/stop from the core: the sidecar joins the core's IPC
+# namespace by container id, so a core restart invalidates it and it must be
+# recreated.  Without this the unit stays "active" while publishing nothing --
+# measured 2026-11-07, a core restart left the TF tree without arm_base.
+PartOf=armpi-ros2.service
 # The container joins the core container's IPC namespace with
 # --ipc container:<id>, and that id is only valid while the core is up, so this
 # unit has to run after it and cannot be restarted independently after a reboot.

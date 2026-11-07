@@ -11,8 +11,30 @@ import time
 sys.path.insert(0, '/opt/armpi_ros2/install/armpi_ros2/lib/python3.12/site-packages')
 from armpi_ros2.servo_protocol import JOINTS, ServoBoard, to_radians
 
-TARGET = {'joint1': 503, 'joint2': 697, 'joint3': 844, 'joint4': 189,
-          'joint5': 499, 'r_joint': 96}
+# Boot pose.  These five numbers are copied from
+# car_setup/ros2/arm_startup_pose.json "startup.target_raw", so the two boot
+# mechanisms finally name the same pose.  The old values (503/697/844/189) had no
+# recorded provenance and disagreed with the documented pose by up to 63 ticks.
+#
+# r_joint is deliberately ABSENT.  It used to be here with target 96, but the
+# open-direction mechanical stop is about 100: measured 2026-11-07 the gripper
+# sat at 107 and could not get closer, so `done` (which needs every joint inside
+# tolerance) was never true and the loop always burned all 20 rounds.  It is also
+# the "gripper stall heating" the startup pose was designed to avoid by leaving
+# r_joint out of target_raw.  Never command the gripper at boot.
+TARGET = {'joint1': 483, 'joint2': 686, 'joint3': 907, 'joint4': 199,
+          'joint5': 496}
+
+# How close a joint must get before it counts as arrived.
+#
+# The loop used to test 6 ticks, which is TIGHTER THAN THE HARDWARE.  Measured
+# 2026-11-07 on this arm: command 844 -> settles 852 (8 off), command 199 ->
+# settles 193 (6 off), command 907 -> settles 912 (5 off).  A servo stops inside
+# its own deadband and cannot land on a tick, which is why
+# arm_startup_pose.json records tolerance_ticks = 12 with the note "an exact tick
+# match is not achievable and must not be treated as a stall".  12 is used here
+# for the same reason.
+DONE_TOLERANCE = 12
 MAX_STEP = 60
 DURATION = 2.0
 TEMP_LIMIT = 60
@@ -61,7 +83,7 @@ def main():
                 return 3
             delta = goal - cur
             worst = max(worst, abs(delta))
-            if abs(delta) > 6:
+            if abs(delta) > DONE_TOLERANCE:
                 done = False
             step = max(-MAX_STEP, min(MAX_STEP, delta))
             targets.append((ident, max(lo, min(hi, cur + step))))
@@ -105,7 +127,7 @@ def main():
             cur = None
         result[j] = cur
         delta = None if cur is None else cur - goal
-        if delta is not None and abs(delta) > 12:
+        if delta is not None and abs(delta) > DONE_TOLERANCE:
             ok = False
         print('  %-8s raw=%-4s 目标=%-4d 差=%s' % (j, cur, goal, delta))
     board.close()

@@ -11,17 +11,34 @@
 set -eu
 
 CONTAINER=arm_tf_publisher
+CORE=armpi_ros2_native
 MOUNT_DIR=/home/pi/arm_tf
 CALIB_DIR=/var/lib/armpi-ros2/calibration
+WAIT_SECONDS=${WAIT_SECONDS:-120}
 
-CORE=$(docker ps --format '{{.Names}} {{.ID}}' | awk '/^armpi_ros2_native /{print $2; exit}')
-if [ -z "${CORE:-}" ]; then
-    echo "core container armpi_ros2_native is not running" >&2
+# The core is recreated on every restart, and a sidecar that joins it with
+# --ipc container:<name> must not even try until the NEW container exists.
+# Measured 2026-11-07: systemd's PartOf restart fires both units at once, the
+# sidecar found no running core, exited 1 and stayed dead -- the TF tree then
+# silently had no arm_base while every other health check looked fine.
+waited=0
+while [ "$waited" -lt "$WAIT_SECONDS" ]; do
+    if docker inspect "$CORE" --format '{{.State.Running}}' 2>/dev/null | grep -q true; then
+        break
+    fi
+    sleep 3
+    waited=$((waited + 3))
+done
+if ! docker inspect "$CORE" --format '{{.State.Running}}' 2>/dev/null | grep -q true; then
+    echo "core container $CORE did not come up within ${WAIT_SECONDS}s" >&2
     exit 1
 fi
-IMG=$(docker inspect "$CORE" --format '{{.Config.Image}}')
-echo "core=$CORE image=$IMG"
 
+IMG=$(docker inspect "$CORE" --format '{{.Config.Image}}')
+echo "core=$CORE image=$IMG (waited ${waited}s)"
+
+# A killed `docker run` client leaves its container behind, and --name then
+# conflicts on the next start. Clear it unconditionally.
 docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
 docker run -d --name "$CONTAINER" \
     --network host \

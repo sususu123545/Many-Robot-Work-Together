@@ -10,7 +10,10 @@ Requires=docker.service
 Type=simple
 # armpi-ros2 会用固定名字重建核心容器；等它就绪后再加入它的 IPC 命名空间。
 ExecStartPre=/bin/sh -c 'for i in $(seq 1 90); do docker inspect armpi_ros2_native >/dev/null 2>&1 && exit 0; sleep 2; done; exit 1'
-ExecStart=/bin/sh -c 'IMAGE=$(docker inspect armpi_ros2_native --format "{{.Config.Image}}"); exec docker run --rm --name frame_relay --network host --ipc container:armpi_ros2_native -e ROS_DOMAIN_ID=42 -e ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST -e FRAME_RELAY_PORT=8099 -v /home/pi/frame_relay.py:/relay.py:ro "$IMAGE" bash -lc "source /opt/armpi_ros2/install/setup.bash && exec python3 /relay.py"'
+# 被 kill 的 docker run 客户端会把容器留在后面，--name 下次就会冲突。
+# 实测 2026-11-07：systemd 停服务时留下 frame_relay 容器，重启时报
+# "Conflict. The container name /frame_relay is already in use"，服务再也起不来。
+ExecStart=/bin/sh -c 'docker rm -f frame_relay >/dev/null 2>&1; IMAGE=$(docker inspect armpi_ros2_native --format "{{.Config.Image}}"); exec docker run --rm --name frame_relay --network host --ipc container:armpi_ros2_native -e ROS_DOMAIN_ID=42 -e ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST -e FRAME_RELAY_PORT=8099 -v /home/pi/frame_relay.py:/relay.py:ro "$IMAGE" bash -lc "source /opt/armpi_ros2/install/setup.bash && exec python3 /relay.py"'
 Restart=on-failure
 RestartSec=3
 

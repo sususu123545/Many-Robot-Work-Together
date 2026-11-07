@@ -18,6 +18,15 @@ import uuid
 ROOT = Path('/etc/armpi-ros2')
 RUNTIME = Path('/run/armpi-ros2')
 CALIBRATION = Path('/var/lib/armpi-ros2/calibration')
+# Occupancy maps live on the host, not in the image.
+#
+# nav2_amcl needs a map file, and the map is the one thing on this car that gets
+# re-surveyed regularly.  Baking it into the image would mean a `docker commit`
+# + `core.json` edit + core restart every time the map improves -- exactly the
+# ceremony we want to avoid.  Bind-mounting a host directory (same shape as
+# CALIBRATION) lets us drop a new workshop.pgm/.yaml in place and just restart
+# the localisation node.
+MAPS = Path('/var/lib/armpi-ros2/maps')
 LEGACY_SERVICES = ('ld06', 'odom', 'ch341-bmi270', 'auto-mapping', 'slam-control')
 LEGACY_EXECUTABLES = (
     'chassis_control_node.py', 'bmi270_imu_node.py', 'ldlidar_stl_ros_node',
@@ -151,6 +160,7 @@ def main():
     prepare_pose(cfg['image'])
     RUNTIME.mkdir(exist_ok=True)
     CALIBRATION.mkdir(parents=True, exist_ok=True)
+    MAPS.mkdir(parents=True, exist_ok=True)
     seed_file = RUNTIME / 'cutover-seed.json'
     seed = json.loads(seed_file.read_text())['old_odom_pose'] if seed_file.exists() else [0, 0, 0]
     launch = ('source /opt/armpi_ros2/install/setup.bash && exec ros2 launch armpi_ros2 base.launch.py '
@@ -178,6 +188,7 @@ def main():
             '-e', 'ROS_DOMAIN_ID=42', '-e', 'ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST',
             '-v', '/sys/class/i2c-adapter:/sys/class/i2c-adapter:ro',
             '-v', str(CALIBRATION) + ':/opt/armpi-calibration',
+            '-v', str(MAPS) + ':/opt/armpi-maps',
             '-v', cfg['bmi_library'] + ':/opt/bmi270_py:ro']
     for d in devices:
         args.extend(['--device', d + ':' + d])

@@ -1,0 +1,120 @@
+# nav2_amcl + nav2_map_server parameters for the ArmPi Pro (ROS 2 Jazzy).
+#
+# Why amcl at all
+# ---------------
+# slam_toolbox has a localisation mode, but it needs to be TOLD where the car is
+# when it starts (map_start_pose).  The whole point of this stage is that the
+# car works out its own position after a power cut, so we need a global, no
+# prior pose estimator -- that is what the AMCL particle filter does: it seeds
+# particles over the whole map and lets the first few scans collapse them.
+#
+# Frames verified on this car:
+#   map            published by amcl
+#   odom           published by mecanum_odom (odom -> base_link at 20 Hz)
+#   base_link      the robot body (NOT base_footprint; nothing publishes that)
+#   base_laser     latched static TF, header.frame_id of /scan
+#
+# Numbers below are sized for a 4-core Pi 4 that is already running 11 nodes;
+# the defaults assume a desktop.  Raise max_particles only after measuring CPU.
+
+amcl:
+  ros__parameters:
+    use_sim_time: false
+
+    # -- frames -------------------------------------------------------------
+    global_frame_id: map
+    odom_frame_id: odom
+    base_frame_id: base_link
+    scan_topic: scan
+    map_topic: map
+    tf_broadcast: true
+    # 1.0 s, not the default 1.0-but-usually-lowered: this car's TF has been
+    # measured to publish odom->base_link up to 50 ms behind the scan stamp, and
+    # tf2 refuses to extrapolate. Give the buffer room.
+    transform_tolerance: 1.0
+
+    # -- motion model -------------------------------------------------------
+    # Mecanum base: it can strafe, and /odom reports a lateral velocity.
+    # DifferentialMotionModel would throw that away and mispredict every strafe.
+    robot_model_type: nav2_amcl::OmniMotionModel
+    alpha1: 0.3
+    alpha2: 0.3
+    alpha3: 0.3
+    alpha4: 0.3
+    alpha5: 0.3
+
+    # -- laser model --------------------------------------------------------
+    # Ranges match slam_toolbox_mapping.yaml so the map and the live scan agree
+    # about what counts as a measurement.  6 m, NOT 3 m: see the mapping notes.
+    laser_min_range: 0.15
+    laser_max_range: 6.0
+    laser_model_type: likelihood_field
+    lambda_short: 0.1
+    sigma_hit: 0.2
+    z_hit: 0.5
+    z_rand: 0.5
+    z_max: 0.05
+    z_short: 0.05
+    laser_likelihood_max_dist: 2.0
+
+    # 605 beams per scan is far more than the filter needs and the Pi 4 cannot
+    # afford them; 60 well-spread beams is the usual compromise.
+    max_beams: 60
+    do_beamskip: false
+    beam_skip_distance: 0.5
+    beam_skip_threshold: 0.3
+    beam_skip_error_threshold: 0.9
+
+    # -- particle filter ----------------------------------------------------
+    min_particles: 300
+    max_particles: 2000
+    pf_err: 0.05
+    pf_z: 0.99
+    resample_interval: 1
+    # Left at 0: adaptive recovery needs a good odometry model, and this chassis
+    # has ~38% linear odometry error. Random injection would just add noise.
+    recovery_alpha_slow: 0.0
+    recovery_alpha_fast: 0.0
+
+    # -- update cadence -----------------------------------------------------
+    # The default 0.25 m / 0.2 rad means a filter update every 11.5 deg of
+    # rotation.  This car maps by rotating in place, so make the angular gate
+    # finer than the default or it localises in visible steps.
+    update_min_d: 0.10
+    update_min_a: 0.10
+
+    # -- initial pose -------------------------------------------------------
+    # THE point of this stage: no initial pose is supplied, so the filter starts
+    # spread over the whole map and finds itself.  Do not flip these on.
+    set_initial_pose: false
+    always_reset_initial_pose: false
+    first_map_only: true
+    save_pose_rate: 0.5
+
+map_server:
+  ros__parameters:
+    use_sim_time: false
+    # Host directory bind-mounted by run_native_core.py -- re-surveying the map
+    # only needs a file replacement plus a node restart, never a new image.
+    yaml_filename: /opt/armpi-maps/workshop.yaml
+    topic_name: map
+    frame_id: map
+
+lifecycle_manager:
+  ros__parameters:
+    use_sim_time: false
+    autostart: true
+    # Order matters: the map has to exist before amcl can seed particles
+    # against it.
+    node_names:
+      - map_server
+      - amcl
+    # 10 s (the nav2 default) is too tight on this chassis: a 360 deg mapping
+    # survey on 4 cores starved the bond once and the manager tore the whole
+    # localisation stack down with
+    #   CRITICAL FAILURE: SERVER map_server IS DOWN after not receiving a
+    #   heartbeat for 10000 ms
+    # 30 s still catches a real crash (the node is gone, so it never recovers)
+    # without tripping on a loaded Pi.
+    bond_timeout: 30.0
+    attempt_respawn_reconnection: true

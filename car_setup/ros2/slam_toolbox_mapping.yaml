@@ -13,6 +13,25 @@
 #   minimum_travel_distance/heading : 0.5 m / 0.5 rad -> 0.10 m / 0.20 rad.
 #                 The stock values are sized for a full-size robot; this car
 #                 moves in 25 mm steps and would otherwise never add a scan.
+#   check_min_dist_and_heading_precisely : false -> TRUE.  This one is not a
+#                 tuning preference, it is a correctness fix.  See
+#                 SlamToolbox::shouldProcessScan() in slam_toolbox_common.cpp:
+#
+#                   if (check_min_dist_and_heading_precisely_) {
+#                     if (dist2 < min_dist2 && heading_diff < min_rotation)
+#                       return false;              // both small -> reject
+#                   } else if (dist2 < 0.8 * min_dist2) {
+#                     return false;                // ONLY distance is checked
+#                   }
+#
+#                 With the stock `false`, a pure in-place rotation has
+#                 dist2 == 0 and is rejected forever, so the map freezes after
+#                 the very first scan.  Verified on this car 2026-11-07: a full
+#                 360.1 deg spin produced ZERO new map cells (free stayed 2114,
+#                 occupied 119 across 55 consecutive /map messages), while the
+#                 same binary with minimum_travel_distance:=0 grew the map with
+#                 the car standing still.  Rotation-only surveying is the whole
+#                 point on this chassis, so the precise check must be on.
 #   map_update_interval : 5 -> 2 s, for a usable /map while walking.
 #
 # The old car_setup/ld06_slam_toolbox.launch is ROS 1 XML and CANNOT be used.
@@ -49,7 +68,7 @@
     use_scan_best_pose: true
     minimum_travel_distance: 0.10
     minimum_travel_heading: 0.20
-    check_min_dist_and_heading_precisely: false
+    check_min_dist_and_heading_precisely: true
 
     scan_buffer_size: 5
     scan_buffer_maximum_scan_distance: 8.0

@@ -51,6 +51,12 @@
     use_scan_barycenter: true
     minimum_travel_distance: 0.10
     minimum_travel_heading: 0.20
+    # Must be true here too.  With the stock `false`,
+    # SlamToolbox::shouldProcessScan() compares ONLY SquaredDistance and ignores
+    # heading entirely, so a pure in-place rotation (dist2 == 0) is rejected
+    # forever and the node stops updating the pose -- measured on this car
+    # 2026-11-07 while mapping.  See slam_toolbox_mapping.yaml for the numbers.
+    check_min_dist_and_heading_precisely: true
     scan_buffer_size: 5
     scan_buffer_maximum_scan_distance: 8.0
     link_match_minimum_response_fine: 0.1

@@ -1,7 +1,7 @@
 #!/bin/bash
 # One mapping session, start to finish, with a live record of /map growth.
 #
-#   bash /tmp/slam_session.sh [SECONDS] [OUTPUT_PREFIX]
+#   bash /tmp/slam_session.sh [SECONDS] [OUTPUT_PREFIX] [MAX_LASER_RANGE]
 #
 # Starts slam_toolbox against the real mapping params, activates the lifecycle
 # node, records every /map frame for SECONDS, saves the final map, then stops
@@ -13,6 +13,11 @@ set +u
 
 DURATION=${1:-100}
 OUT=${2:-/tmp/workshop}
+# 6 m, not 3 m.  Measured 2026-11-07: 26% of LD06 beams return nothing and the
+# returns are mostly beyond 1 m, so clipping at 3 m throws away another 19% and
+# shreds the free space into ~122 disconnected pieces (looks like radial
+# streaks).  At 6 m the free space is ONE connected region and speckle is zero.
+MAX_RANGE=${3:-6.0}
 
 source /opt/ros/jazzy/setup.bash
 source /opt/armpi_ros2/install/setup.bash 2>/dev/null || true
@@ -25,7 +30,7 @@ sleep 1
 
 timeout $((DURATION + 40)) ros2 run slam_toolbox async_slam_toolbox_node \
     --ros-args --params-file /tmp/slam_toolbox_mapping.yaml \
-    -p max_laser_range:=3.0 \
+    -p max_laser_range:=$MAX_RANGE \
     --log-level info >/tmp/slam_session.out 2>&1 &
 PID=$!
 

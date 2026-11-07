@@ -8,8 +8,16 @@
 #   scan_topic  : /scan, whose header.frame_id is base_laser (verified), and
 #                 base_link->base_laser is a latched static TF (verified in the
 #                 container with ros2 topic echo /tf_static -- it is NOT empty)
-#   max_laser_range : 20 -> 8 m.  The LD06 advertises 25 m, but the work area is
-#                 a few metres; clipping cuts reflective-floor noise.
+#   max_laser_range : 20 -> 8 m in the file, and 6 m is what actually gets used
+#                 (slam_toolbox.launch.py / slam_session.sh pass it).  The LD06
+#                 advertises 25 m, but the work area is a few metres; clipping
+#                 cuts reflective-floor noise.  6 m was measured 2026-11-07 --
+#                 do NOT go down to 3 m to "keep the patch small": 26% of beams
+#                 return nothing at all and the returns are mostly beyond 1 m, so
+#                 3 m throws away another 19% and shreds the free space into
+#                 ~122 disconnected pieces (looks like radial streaks).  At 6 m
+#                 the free space is ONE connected region with zero speckle.
+#                 Shrink the AREA by rotating in place, not by cutting range.
 #   minimum_travel_distance/heading : 0.5 m / 0.5 rad -> 0.10 m / 0.20 rad.
 #                 The stock values are sized for a full-size robot; this car
 #                 moves in 25 mm steps and would otherwise never add a scan.

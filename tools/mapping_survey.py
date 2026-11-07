@@ -65,9 +65,11 @@ def main():
                         help='full revolutions in place (2 is usually enough)')
     parser.add_argument('--rate', type=float, default=0.25,
                         help='rotation rate rad/s; 0.25 measured reliable')
-    parser.add_argument('--max-laser-range', type=float, default=3.0,
+    parser.add_argument('--max-laser-range', type=float, default=6.0,
                         help='informational: pass the SAME value to the '
-                             'slam_toolbox launch so the map stays small')
+                             'slam_toolbox launch so the map stays small. '
+                             '6.0 measured good; 3.0 shreds the free space '
+                             'into ~122 disconnected pieces on this lidar')
     parser.add_argument('--force', action='store_true',
                         help='skip the rotation-clearance precheck (not advised)')
     args = parser.parse_args()

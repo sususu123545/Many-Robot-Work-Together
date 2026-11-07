@@ -1,7 +1,0 @@
-image: workshop_20261107_v2.pgm
-resolution: 0.050000
-origin: [-2.790403, -2.690875, 0.000000]
-negate: 0
-occupied_thresh: 0.65
-free_thresh: 0.196
-mode: trinary

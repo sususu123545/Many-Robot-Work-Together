@@ -1,6 +1,6 @@
-image: workshop_20261107.pgm
+image: workshop.pgm
 resolution: 0.050000
-origin: [-2.875236, -2.758322, 0.000000]
+origin: [-2.385323, -2.469711, 0.000000]
 negate: 0
 occupied_thresh: 0.65
 free_thresh: 0.196

@@ -23,6 +23,7 @@ from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 
 
 def generate_launch_description():
@@ -48,6 +49,8 @@ def generate_launch_description():
             name='slam_toolbox',
             output='screen',
             parameters=[params_file,
-                        {'max_laser_range': LaunchConfiguration('max_laser_range')}],
+                        {'max_laser_range': ParameterValue(
+                            LaunchConfiguration('max_laser_range'),
+                            value_type=float)}],
         ),
     ])

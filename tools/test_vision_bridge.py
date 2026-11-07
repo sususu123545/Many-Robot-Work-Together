@@ -118,7 +118,7 @@ class VisionTests(unittest.TestCase):
         self.assertEqual(server.requests, [])
 
     def test_post_requires_same_origin_and_bounded_body(self):
-        spec = importlib.util.spec_from_file_location('sensor_proxy', ROOT/'web_console'/'proxy_server(1).py')
+        spec = importlib.util.spec_from_file_location('sensor_proxy', ROOT/'web_console'/'proxy_server.py')
         proxy = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(proxy)
         class Handler:

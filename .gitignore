@@ -33,3 +33,13 @@ calibration_runs/**/*.png
 calibration_runs/**/*.zip
 calibration_runs/**/*.npz
 calibration_runs/**/*.xwd
+
+# vendor meshes/URDF: no licence for redistribution
+sim/assets/
+
+# Training images are large, re-capturable, and often contain the workbench.
+# Keep the schema and the tooling in git, never the pixels.
+datasets/
+*.onnx
+*.pt
+*.engine

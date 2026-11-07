@@ -5,8 +5,8 @@
 </head><body>
 <h2>ArmPi ROS 2 硬件控制</h2>
 <p>仅手动低速控制，不提供自动探索。没有自动回中、自动抓取或断线续跑。运动前保留现场物理急停。</p>
-<section><input id="endpoint" value="ws://127.0.0.1:9090" aria-label="ROS2 WebSocket地址"><button id="connect">连接 ROS 2</button><button id="disconnect">断开</button><strong id="connection">未连接</strong>
-<p>本机隧道监督器会将 9090 转发至小车 ROS 2 的 127.0.0.1:9091。首次切换保持运动锁定，真实反馈在线不等于已允许动作。</p>
+<section><input id="endpoint" value="ws://127.0.0.1:19091" aria-label="ROS2 WebSocket地址"><button id="connect">连接 ROS 2</button><button id="disconnect">断开</button><strong id="connection">未连接</strong>
+<p>本机隧道监督器会把 19091 转发至小车 ROS 2 的 127.0.0.1:9091。首次切换保持运动锁定，真实反馈在线不等于已允许动作。</p>
 <button id="estop" class="danger">ROS 2 软件急停（底盘＋机械臂）</button><button id="stop">停止全部运动</button><button id="reset">复位机械臂保护（不授权动作）</button><button id="resetBase">复位底盘保护</button>
 <p><button id="authorizeArm" disabled>仅授权机械臂</button><button id="authorizeGripper" disabled>仅授权夹爪</button><button id="revokeArm">撤销臂／夹爪授权</button>开机、重连及保护复位均不会自动授权。五关节连续健康回读至少10秒后才能人工复位。</p>
 <p><label><input id="permit" type="checkbox">我在现场，运动空间已确认安全，允许本页发送手动运动</label></p></section>

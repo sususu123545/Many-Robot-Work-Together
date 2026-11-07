@@ -32,7 +32,7 @@ from core_profile import load_core_profile
 ROOT = Path(__file__).resolve().parents[1]
 TOOLS = ROOT / "tools"
 WEB_CONSOLE = ROOT / "web_console"
-PROXY = WEB_CONSOLE / "proxy_server(1).py"
+PROXY = WEB_CONSOLE / "proxy_server.py"
 TUNNEL = TOOLS / "ssh_tunnel.py"
 DEFAULT_CONFIG = TOOLS / "console_supervisor.local.json"
 LOG_DIR = TOOLS / "runtime"

@@ -32,15 +32,32 @@
 'use strict';
 const $=id=>document.getElementById(id);
 const STALE_MS=3000;
+// 相机画面从代理的“帧总线”取最新帧（代理维持唯一上游连接，不会拖死车端视频服务）。
+// 轮询间隔 ~70 ms，实际帧率由相机/上游决定（当前约 10~12 fps）。
+const CAMERA_POLL_MS=70;
 const state={ws:null,retry:null,retryDelay:1000,host:'',scan:null,scanAt:0,cameraAt:0,scanTimes:[],cameraTimes:[],radius:4,cameraGeneration:0,cameraAbort:null,cameraTimer:null,imageUrl:null,latestFrame:null,frameCapturedAt:0,modelAvailable:false,analysisBusy:false,analysisUrl:null,disposed:false};
 function setStatus(id,kind,text){const el=$(id);el.dataset.state=kind;el.querySelector('span').textContent=text;}
 function rate(times,now){const recent=times.filter(t=>now-t<3000);return recent.length>1?((recent.length-1)*1000/(recent[recent.length-1]-recent[0])).toFixed(1):'—';}
 function markTime(list,now){list.push(now);while(list.length&&now-list[0]>4000)list.shift();}
-function validRange(r,scan){return Number.isFinite(r)&&r>0&&r>=scan.range_min&&r<=scan.range_max;}
+// 2026-11-06: 与 tools/scan_clean.py 同源 —— 只删已知的自遮挡扇形 + 8cm 底噪，
+// 不再按距离一刀切。旧的 r>=0.3 会把 30cm 内的真实障碍一起删掉，
+// 11-06 轮胎撞桌角就是这条规则把真实桌腿删了（人看到的图比机器的判断更差）。
+// ⚠ 改这里的 SELF_SECTORS 必须同步改 tools/scan_clean.py；
+//   tools/check_lidar_filter_sync.py 会逐项比对，不一致直接报错。
+const MIN_RANGE_M=0.13;
+const SELF_SECTORS=[[139,149,0.18],[207,238,0.20],[263,282,0.17],[303,327,0.18],[339,345,0.25],[0,30,0.12],[325,360,0.15],[145,210,0.32]];
+function lidarAngleDeg(scan,i){return (scan.angle_min+i*scan.angle_increment)*180/Math.PI;}
+function validRange(r,scan,i){
+  if(!Number.isFinite(r)||r<=MIN_RANGE_M||r<scan.range_min||r>scan.range_max)return false;
+  const a=Math.max(0,Math.min(360,lidarAngleDeg(scan,i)));
+  for(let k=0;k<SELF_SECTORS.length;k++){const s=SELF_SECTORS[k];
+    if(a>=s[0]&&a<=s[1]&&r<s[2])return false;}
+  return true;
+}
 function acceptScan(scan){
   if(!scan||!Array.isArray(scan.ranges)||!Number.isFinite(scan.angle_min)||!Number.isFinite(scan.angle_increment)||!Number.isFinite(scan.range_min)||!Number.isFinite(scan.range_max)||scan.range_max<=scan.range_min)return;
   state.scan=scan;state.scanAt=performance.now();markTime(state.scanTimes,state.scanAt);
-  const valid=scan.ranges.filter(r=>validRange(r,scan));
+  const valid=scan.ranges.filter((r,i)=>validRange(r,scan,i));
   $('pointCount').textContent=String(valid.length);$('nearest').textContent=valid.length?valid.reduce((a,b)=>Math.min(a,b),Infinity).toFixed(2):'—';
   drawScan();updateStatus();
 }
@@ -53,13 +70,13 @@ function drawScan(){
   ctx.strokeStyle='#202d3b';ctx.lineWidth=1;ctx.font='10px ui-monospace,Consolas,monospace';ctx.fillStyle='#687c90';
   for(let i=1;i<=4;i++){const r=radius*i/4;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.stroke();ctx.fillText((state.radius*i/4)+' m',x+6,y-r+14);}
   ctx.setLineDash([3,6]);ctx.beginPath();ctx.moveTo(x-radius,y);ctx.lineTo(x+radius,y);ctx.moveTo(x,y-radius);ctx.lineTo(x,y+radius);ctx.stroke();ctx.setLineDash([]);
-  if(state.scan&&performance.now()-state.scanAt<STALE_MS){ctx.fillStyle='#9aebbe';state.scan.ranges.forEach((r,i)=>{if(!validRange(r,state.scan)||r>state.radius)return;const a=state.scan.angle_min+i*state.scan.angle_increment;ctx.beginPath();ctx.arc(x-Math.sin(a)*r*scale,y-Math.cos(a)*r*scale,1.55,0,Math.PI*2);ctx.fill();});}
+  if(state.scan&&performance.now()-state.scanAt<STALE_MS){ctx.fillStyle='#9aebbe';state.scan.ranges.forEach((r,i)=>{if(!validRange(r,state.scan,i)||r>state.radius)return;const a=state.scan.angle_min+i*state.scan.angle_increment;ctx.beginPath();ctx.arc(x-Math.sin(a)*r*scale,y-Math.cos(a)*r*scale,1.55,0,Math.PI*2);ctx.fill();});}
   ctx.fillStyle='#83e4b114';ctx.beginPath();ctx.arc(x,y,19,0,Math.PI*2);ctx.fill();ctx.fillStyle='#d3e9df';ctx.beginPath();ctx.moveTo(x,y-9);ctx.lineTo(x+6,y+6);ctx.lineTo(x,y+3);ctx.lineTo(x-6,y+6);ctx.closePath();ctx.fill();
 }
 function connectRadar(){
   if(state.disposed)return;clearTimeout(state.retry);
   if(state.ws){state.ws.onclose=null;state.ws.close();}
-  const ws=new WebSocket('ws://127.0.0.1:9090');state.ws=ws;
+  const ws=new WebSocket('ws://127.0.0.1:19091');state.ws=ws;
   ws.onopen=()=>{if(state.ws!==ws)return;state.retryDelay=1000;ws.send(JSON.stringify({op:'subscribe',id:'sensor-view-scan',topic:'/scan',type:'sensor_msgs/msg/LaserScan',throttle_rate:100,queue_length:1}));updateStatus();};
   ws.onmessage=event=>{if(state.ws!==ws)return;try{const m=JSON.parse(event.data);if(m.op==='publish'&&m.topic==='/scan')acceptScan(m.msg);}catch{/* Ignore malformed telemetry. */}};
   ws.onerror=()=>ws.close();
@@ -74,37 +91,23 @@ function resetCamera(){
 async function pollCamera(generation){
   if(state.disposed||generation!==state.cameraGeneration||!state.host)return;
   if(document.hidden){state.cameraTimer=setTimeout(()=>pollCamera(generation),1000);return;}
-  const controller=new AbortController();state.cameraAbort=controller;let timeout=setTimeout(()=>controller.abort(),6000),nextUrl=null,reader=null;
+  const controller=new AbortController();state.cameraAbort=controller;let timeout=setTimeout(()=>controller.abort(),4000),nextUrl=null;
   try{
-    const query=new URLSearchParams({ip:state.host,topic:'/rear_camera/image_raw',t:String(Date.now())});
-    const response=await fetch('/stream?'+query,{signal:controller.signal,cache:'no-store'});
+    const response=await fetch('/frame?t='+Date.now(),{signal:controller.signal,cache:'no-store'});
     if(!response.ok)throw new Error('camera unavailable');
-    if(!response.body||!response.headers.get('Content-Type')?.includes('multipart/'))throw new Error('invalid video stream');
-    reader=response.body.getReader();let pending=new Uint8Array(0);
-    while(generation===state.cameraGeneration&&!state.disposed){
-      const part=await reader.read();if(part.done)throw new Error('video stream ended');
-      const merged=new Uint8Array(pending.length+part.value.length);merged.set(pending);merged.set(part.value,pending.length);pending=merged;
-      let latest=null,parsed;
-      while((parsed=extractJpeg(pending))!==null){latest=parsed.frame;pending=parsed.rest;}
-      if(pending.length>4*1024*1024)throw new Error('oversized video frame');
-      if(!latest)continue;
-      nextUrl=URL.createObjectURL(new Blob([latest],{type:'image/jpeg'}));const frame=new Image();frame.src=nextUrl;await frame.decode();
-      if(generation!==state.cameraGeneration||state.disposed){URL.revokeObjectURL(nextUrl);nextUrl=null;break;}
-      const oldUrl=state.imageUrl;state.imageUrl=nextUrl;nextUrl=null;$('camera').src=state.imageUrl;if(oldUrl)URL.revokeObjectURL(oldUrl);
-      state.cameraAt=performance.now();state.latestFrame=latest;state.frameCapturedAt=Date.now()/1000;markTime(state.cameraTimes,state.cameraAt);$('resolution').textContent=frame.naturalWidth+' × '+frame.naturalHeight;
-      $('cameraStage').classList.add('has-frame');clearTimeout(timeout);timeout=setTimeout(()=>controller.abort(),6000);updateStatus();
-    }
-  }catch(error){if(nextUrl)URL.revokeObjectURL(nextUrl);if(generation===state.cameraGeneration)updateStatus();}
-  finally{clearTimeout(timeout);controller.abort();if(reader)reader.cancel().catch(()=>{});if(generation===state.cameraGeneration&&!state.disposed)state.cameraTimer=setTimeout(()=>pollCamera(generation),1500);}
-}
-// MJPEG is a sequence of complete JPEG images; markers can span network chunks.
-function extractJpeg(bytes){
-  let start=-1;
-  for(let i=0;i<bytes.length-1;i++){
-    if(start<0&&bytes[i]===255&&bytes[i+1]===216){start=i;i++;continue;}
-    if(start>=0&&bytes[i]===255&&bytes[i+1]===217)return {frame:bytes.slice(start,i+2),rest:bytes.slice(i+2)};
-  }
-  return null;
+    if(!(response.headers.get('Content-Type')||'').includes('image/'))throw new Error('invalid frame');
+    const blob=await response.blob();
+    if(!blob.size)throw new Error('empty frame');
+    if(generation!==state.cameraGeneration||state.disposed)return;
+    const bytes=new Uint8Array(await blob.arrayBuffer());
+    nextUrl=URL.createObjectURL(blob);const frame=new Image();frame.src=nextUrl;await frame.decode();
+    if(generation!==state.cameraGeneration||state.disposed){URL.revokeObjectURL(nextUrl);return;}
+    const oldUrl=state.imageUrl;state.imageUrl=nextUrl;nextUrl=null;$('camera').src=state.imageUrl;if(oldUrl)URL.revokeObjectURL(oldUrl);
+    state.cameraAt=performance.now();state.latestFrame=bytes;state.frameCapturedAt=Date.now()/1000;
+    markTime(state.cameraTimes,state.cameraAt);$('resolution').textContent=frame.naturalWidth+' × '+frame.naturalHeight;
+    $('cameraStage').classList.add('has-frame');updateStatus();
+  }catch(error){if(nextUrl)URL.revokeObjectURL(nextUrl);}
+  finally{clearTimeout(timeout);controller.abort();if(generation===state.cameraGeneration&&!state.disposed)state.cameraTimer=setTimeout(()=>pollCamera(generation),CAMERA_POLL_MS);}
 }
 async function discoverRobot(){
   try{

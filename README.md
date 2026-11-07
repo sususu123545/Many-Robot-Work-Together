@@ -83,7 +83,7 @@
 |---|---|
 | 系统 | Windows |
 | Python | `C:\Users\Administrator\.workbuddy\binaries\python\envs\default\Scripts\python.exe`（带 paramiko 5.0.0） |
-| 本地代理 | `proxy_server(1).py`，监听 `127.0.0.1:8000` |
+| 本地代理 | `proxy_server.py`，监听 `127.0.0.1:8000` |
 | 浏览器 | 任意现代浏览器（推荐 Edge / Chrome） |
 
 ---
@@ -94,7 +94,7 @@
 flowchart LR
     subgraph PC["Windows 电脑"]
         B["浏览器<br/>robot_console.html"]
-        P["本地代理<br/>proxy_server(1).py<br/>127.0.0.1:8000"]
+        P["本地代理<br/>proxy_server.py<br/>127.0.0.1:8000"]
         B -->|"页面 / 视频流"| P
     end
 
@@ -145,7 +145,7 @@ flowchart LR
 
 ```bat
 cd /d D:\多车协作
-"C:\Users\Administrator\.workbuddy\binaries\python\envs\default\Scripts\python.exe" "proxy_server(1).py"
+"C:\Users\Administrator\.workbuddy\binaries\python\envs\default\Scripts\python.exe" "proxy_server.py"
 ```
 
 然后浏览器打开 `http://127.0.0.1:8000`。
@@ -240,7 +240,7 @@ GCLOSE = -0.50                   保守闭合，约 541 脉冲
 D:\多车协作\
 ├─ 启动控制台.bat            ← 一键启动（本地代理 + 浏览器）
 ├─ robot_console.html        ← 控制台前端（单文件，内嵌 roslib.js 1.3.0）
-├─ proxy_server(1).py        ← 本地代理，转发视频流到小车 8080
+├─ proxy_server.py        ← 本地代理，转发视频流到小车 8080
 ├─ 开机恢复.md               ← 关机后恢复步骤 + 排错速查
 ├─ README.md                 ← 本文件
 │
@@ -269,7 +269,7 @@ Many-Robot-Work-Together/
 ├─ armpi_pro/                     ← 车端 ROS 源码 + 原厂软件（21 个功能包）
 ├─ web_console/
 │  ├─ robot_console.html          ← ✅ 当前在用的控制台（rosbridge 直连版）
-│  ├─ proxy_server(1).py          ← ✅ 当前在用的本地代理
+│  ├─ proxy_server.py          ← ✅ 当前在用的本地代理
 │  ├─ 启动控制台.bat               ← ✅ 一键启动
 │  ├─ server.py                   ← ⚠️ 早期 FastAPI 版后端（未使用，留档）
 │  └─ static/index.html           ← ⚠️ 早期 FastAPI 版前端（未使用，留档）

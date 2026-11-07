@@ -22,6 +22,9 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+import llm_planner
+import pi_adapter
+
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 
@@ -110,6 +113,7 @@ def _snapshot() -> dict:
         return {
             "robot": dict(robot_state),
             "tasks": [dict(tasks[tid]) for tid in tasks_order],
+            "mission": _mission_snapshot(),
         }
 
 
@@ -206,6 +210,102 @@ app = FastAPI(title="多车协作 · 送水控制台")
 
 class TaskIn(BaseModel):
     command: str
+
+
+# ---------------------------------------------------------------------------
+# 阶段 2：自然语言 -> 本地模型 -> 真车动作（模型自己发任务）
+# ---------------------------------------------------------------------------
+MAX_STEPS = 6            # 一次需求最多让模型推进几步，防止它绕圈
+
+mission_state = {
+    "active": False,
+    "message": "",
+    "status": "idle",     # idle / planning / running / done / failed
+    "steps": [],          # [{action, say, result}]
+    "step_index": 0,
+}
+_mission_lock = threading.Lock()
+
+
+def _mission_update(**fields):
+    with _mission_lock:
+        mission_state.update(fields)
+
+
+def _mission_snapshot():
+    with _mission_lock:
+        return json.loads(json.dumps(mission_state, ensure_ascii=False))
+
+
+def _run_mission(message: str):
+    """模型闭环：规划一个动作 -> 执行 -> 把结果回灌 -> 再规划。"""
+    config = llm_planner.load_config()
+    history = []
+    steps = []
+    _mission_update(active=True, message=message, status="planning",
+                    steps=steps, step_index=0)
+    try:
+        for step in range(MAX_STEPS):
+            plan, error = llm_planner.plan_actions(config, message, history)
+            if plan is None:
+                plan = llm_planner.keyword_fallback(message)
+                plan["say"] = (plan.get("say") or "") +                     "（模型输出不合规，已退回关键词解析）"
+                error = error
+            action = plan["action"]
+            entry = {"action": action, "say": plan.get("say", ""), "result": ""}
+            steps.append(entry)
+            _mission_update(status="running", step_index=step,
+                            steps=list(steps))
+            if action in ("done", "stop"):
+                entry["result"] = "结束"
+                _mission_update(status="done", steps=list(steps))
+                return
+            outcome = pi_adapter.run(action, plan.get("params") or {},
+                                     progress=lambda note: entry.__setitem__("progress", note))
+            entry["result"] = outcome.get("summary", "")
+            entry["ok"] = bool(outcome.get("ok"))
+            _mission_update(steps=list(steps))
+            history.append({"role": "assistant",
+                            "content": json.dumps(plan, ensure_ascii=False)})
+            history.append({"role": "user",
+                            "content": "动作 %s 的执行结果：%s" % (action, entry["result"])})
+            if not outcome.get("ok"):
+                _mission_update(status="failed", steps=list(steps))
+                return
+        _mission_update(status="done", steps=list(steps))
+    except Exception as error:  # noqa: BLE001
+        _mission_update(status="failed",
+                        steps=list(steps) + [{"action": "error", "say": "",
+                                              "result": str(error)}])
+    finally:
+        _mission_update(active=False)
+
+
+class ChatIn(BaseModel):
+    message: str
+
+
+@app.post("/api/chat")
+def chat(body: ChatIn):
+    text = (body.message or "").strip()
+    if not text:
+        return {"ok": False, "error": "消息为空"}
+    with _mission_lock:
+        if mission_state["active"]:
+            return {"ok": False, "error": "上一个任务还在执行，先等它结束或取消"}
+    threading.Thread(target=_run_mission, args=(text,), daemon=True).start()
+    return {"ok": True, "message": text}
+
+
+@app.get("/api/mission")
+def mission():
+    return _mission_snapshot()
+
+
+@app.post("/api/mission/cancel")
+def mission_cancel():
+    _mission_update(status="cancelled")
+    return {"ok": True}
 
 
 @app.post("/api/task")

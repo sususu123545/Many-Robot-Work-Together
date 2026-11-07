@@ -1,0 +1,18 @@
+[Unit]
+Description=ArmPi camera frame relay (compressed image -> HTTP :8099)
+Documentation=docs/控制台相机不显示-MJPEG假死修复-2026-11-03.md
+After=docker.service armpi-ros2.service
+Wants=armpi-ros2.service
+PartOf=armpi-ros2.service
+Requires=docker.service
+
+[Service]
+Type=simple
+# armpi-ros2 会用固定名字重建核心容器；等它就绪后再加入它的 IPC 命名空间。
+ExecStartPre=/bin/sh -c 'for i in $(seq 1 90); do docker inspect armpi_ros2_native >/dev/null 2>&1 && exit 0; sleep 2; done; exit 1'
+ExecStart=/bin/sh -c 'IMAGE=$(docker inspect armpi_ros2_native --format "{{.Config.Image}}"); exec docker run --rm --name frame_relay --network host --ipc container:armpi_ros2_native -e ROS_DOMAIN_ID=42 -e ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST -e FRAME_RELAY_PORT=8099 -v /home/pi/frame_relay.py:/relay.py:ro "$IMAGE" bash -lc "source /opt/armpi_ros2/install/setup.bash && exec python3 /relay.py"'
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

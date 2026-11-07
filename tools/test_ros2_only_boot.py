@@ -48,7 +48,7 @@ class BootTests(unittest.TestCase):
 
     def test_ros2_video_uses_sensor_qos(self):
         from types import SimpleNamespace
-        tree=ast.parse((ROOT/'web_console/proxy_server(1).py').read_text(encoding='utf-8'))
+        tree=ast.parse((ROOT/'web_console/proxy_server.py').read_text(encoding='utf-8'))
         handler=next(n for n in tree.body if isinstance(n,ast.ClassDef) and n.name=='Handler')
         method=next(n for n in handler.body if isinstance(n,ast.FunctionDef) and n.name=='_car_url')
         scope={'urllib':__import__('urllib'),'load_core_profile':lambda:{'ros_version':2}}

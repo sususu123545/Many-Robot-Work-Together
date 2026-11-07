@@ -1,0 +1,58 @@
+# ROS 2 (Jazzy) slam_toolbox parameters for LOCALIZATION on a saved map.
+#
+# This is the piece that makes cross-boot ball memory possible: after the map is
+# built once and saved to disk, this node publishes map->odom at startup, so the
+# car has a frame that survives a power cycle.  A ball sighting can then be
+# stored as a map-frame point instead of an odom-frame one.
+#
+# ⚠️ THE OPEN PROBLEM (kidnapped robot): slam_toolbox's localization mode needs
+# to know where the car starts.  `map_start_pose` is commented out in the stock
+# template; when omitted it assumes the car is at the map origin.  So either:
+#   (a) put the car back at the SAME physical spot and heading on every boot
+#       (cheap, works with what is installed), or
+#   (b) install nav2_amcl for global, no-initial-pose localisation
+#       (NOT installed: `ros2 pkg list | grep nav2` is empty on 2026-11-07).
+# Do not claim cross-boot localisation until one of these is actually verified.
+#
+# Before enabling: set map_file_name to the basename produced by the mapping
+# pass (the map_saver writes <name>.pgm + <name>.yaml), and set map_start_pose
+# to [x, y, yaw] in the map frame if the docking spot is not the origin.
+/**:
+  ros__parameters:
+    solver_plugin: solver_plugins::CeresSolver
+    ceres_linear_solver: SPARSE_NORMAL_CHOLESKY
+    ceres_preconditioner: SCHUR_JACOBI
+    ceres_trust_strategy: LEVENBERG_MARQUARDT
+    ceres_dogleg_type: TRADITIONAL_DOGLEG
+    ceres_loss_function: None
+
+    odom_frame: odom
+    map_frame: map
+    base_frame: base_link
+    scan_topic: /scan
+    mode: localization
+
+    debug_logging: false
+    throttle_scans: 1
+    transform_publish_period: 0.02
+    map_update_interval: 5.0
+    resolution: 0.05
+    min_laser_range: 0.15
+    max_laser_range: 8.0
+    minimum_time_interval: 0.2
+    transform_timeout: 0.2
+    tf_buffer_duration: 30.0
+    stack_size_to_use: 40000000
+
+    map_file_name: /var/lib/armpi-ros2/maps/workshop
+    # map_start_pose: [0.0, 0.0, 0.0]
+
+    use_scan_matching: true
+    use_scan_barycenter: true
+    minimum_travel_distance: 0.10
+    minimum_travel_heading: 0.20
+    scan_buffer_size: 5
+    scan_buffer_maximum_scan_distance: 8.0
+    link_match_minimum_response_fine: 0.1
+    link_scan_maximum_distance: 1.5
+    do_loop_closing: false

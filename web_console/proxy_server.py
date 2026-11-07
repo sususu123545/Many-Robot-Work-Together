@@ -18,6 +18,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
 from core_profile import load_core_profile
 from vision_bridge import VisionBridge, VisionError, MAX_REQUEST_BYTES
 
+# Page paths must be anchored to this file, NOT to the process working
+# directory.  Measured 2026-11-07: launching `python D:/多车协作/web_console/
+# proxy_server.py` from the repo root made "/" return 500 "No such file or
+# directory: 'sensor_console.html'".  docs/开机恢复.md tells the operator to
+# cd to the repo root, so this has to work from anywhere.
+WEB_DIR = Path(__file__).resolve().parent
 PAGE = 'robot_console.html'
 CAR_TIMEOUT = 8
 
@@ -80,6 +86,32 @@ class FrameHub:
             pass
         return ''
 
+    def _relay_base(self):
+        """Prefer the local SSH tunnel over the IP recorded in robot_status.json.
+
+        Measured 2026-11-07: robot_status.json still held the OLD LAN IP
+        192.168.86.178 while the car was on Tailscale 100.102.57.19, so both the
+        8099 stream and the 8080 fallback timed out and the console stayed black.
+        The tunnel (127.0.0.1:19099 -> car 8099) is the path every tool in
+        tools/ uses and stays valid when the IP changes.  Probe it cheaply with
+        one cached frame before committing to a long-lived stream.
+
+        Returns (base_url, is_local_tunnel).
+        """
+        local = 'http://127.0.0.1:19099'
+        try:
+            probe = DIRECT.open(local + '/frame', timeout=2)
+            try:
+                head = probe.read(2)
+            finally:
+                probe.close()
+            if head == b'\xff\xd8':
+                return local, True
+        except Exception:                                    # noqa: BLE001
+            pass
+        ip = self._car_ip()
+        return ('http://%s:8099' % ip, False) if ip else ('', False)
+
     def _run(self):
         """Read the car's frame-relay stream; fall back to a one-shot 8080 JPEG.
 
@@ -90,13 +122,13 @@ class FrameHub:
         """
         import urllib.parse
         while True:
-            ip = self._car_ip()
-            if not ip:
+            base, is_local = self._relay_base()
+            if not base:
                 time.sleep(2.0)
                 continue
             response = None
             try:
-                url = 'http://%s:8099/stream' % ip
+                url = base + '/stream'
                 request = urllib.request.Request(
                     url, headers={'User-Agent': 'armpi-frame-hub/1.0'})
                 response = DIRECT.open(request, timeout=5)
@@ -133,8 +165,9 @@ class FrameHub:
             except Exception as error:                       # noqa: BLE001
                 self.connected = False
                 self.last_error = 'relay stream: %s: %s' % (type(error).__name__, error)
-                fallback = ('http://%s:8080/snapshot?topic=%s&type=jpeg&qos_profile=sensor_data'
-                            % (ip, urllib.parse.quote(self.topic)))
+                fallback = (base + '/frame') if is_local else (
+                    'http://%s:8080/snapshot?topic=%s&type=jpeg&qos_profile=sensor_data'
+                    % (self._car_ip(), urllib.parse.quote(self.topic)))
                 try:
                     request = urllib.request.Request(
                         fallback, headers={'User-Agent': 'armpi-frame-hub/1.0'})
@@ -324,7 +357,7 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 profile = load_core_profile()
                 page = 'sensor_console.html' if path in ('/sensor_console.html', '/ros2_console.html') or profile['ros_version'] == 2 else PAGE
-                body = open(page, 'rb').read()
+                body = (WEB_DIR / page).read_bytes()
                 self.send_response(200)
                 self.send_header('Content-Type', 'text/html; charset=utf-8')
                 self.send_header('Cache-Control', 'no-store')

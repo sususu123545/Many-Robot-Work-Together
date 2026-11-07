@@ -36,11 +36,18 @@ def generate_launch_description():
             'executable', default_value='async_slam_toolbox_node',
             description='slam_toolbox executable: async_slam_toolbox_node for '
                         'mapping, localization_slam_toolbox_node for a saved map'),
+        DeclareLaunchArgument(
+            'max_laser_range', default_value='8.0',
+            description='Clip /scan beyond this many metres.  Set 2.5-3.0 to '
+                        'map ONLY a small patch around the car instead of the '
+                        'whole corridor.  Anything past this never enters the '
+                        'occupancy grid.'),
         Node(
             package='slam_toolbox',
             executable=executable,
             name='slam_toolbox',
             output='screen',
-            parameters=[params_file],
+            parameters=[params_file,
+                        {'max_laser_range': LaunchConfiguration('max_laser_range')}],
         ),
     ])

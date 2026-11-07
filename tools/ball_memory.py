@@ -42,9 +42,21 @@ import math
 import os
 import time
 
-# A memory older than this is not worth acting on: the ball may have been moved,
-# and the odometry drift it has accumulated dominates any real displacement.
+# A memory older than this is not worth acting on -- but ONLY for odom-frame
+# sightings.  An odom pose is meaningless after a reboot (the wheel encoders
+# restart at 0), so a short window is correct there.
 STALE_AFTER_S = 1800.0
+
+# A map-frame sighting is anchored to a saved map that survives power cycles,
+# so it may legitimately be days old.  This is what makes "boot, say 'grab the
+# ball', go straight to where it was last seen" possible once nav2_amcl is up.
+# Kept as a separate table so the two lifetimes can never be confused.
+DEFAULT_FRAME = 'odom'
+STALE_AFTER_S_BY_FRAME = {'odom': STALE_AFTER_S, 'map': 7 * 24 * 3600.0}
+
+# A map sighting recorded BEFORE the last successful grasp is still useful
+# (the operator usually puts the ball back), but a fresh one should win.
+SPENT_CONFIDENCE_PENALTY = 0.6
 
 # Beyond this much driving since the sighting, the accumulated odometry error
 # (measured 38% linear) is larger than the area a search quadrant covers, so the
@@ -85,11 +97,19 @@ def save(path, entries, limit=HISTORY_LIMIT):
         json.dump(entries[-limit:], handle, indent=1)
 
 
-def record_sighting(entries, pose, bearing_deg, range_m, when=None, source='search'):
-    """Append one sighting.  ``pose`` is ``{'x','y','yaw'}`` in odom metres/degrees."""
+def record_sighting(entries, pose, bearing_deg, range_m, when=None,
+                    source='search', frame=DEFAULT_FRAME):
+    """Append one sighting.
+
+    ``pose`` is ``{'x','y','yaw'}`` in the frame named by ``frame``.  Use
+    ``frame='map'`` only when that pose really came from `map -> base_link`
+    (amcl), otherwise the cross-boot prediction will silently point the wrong
+    way.  Default 'odom' keeps every existing caller and history file valid.
+    """
     entries.append({
         't': _now() if when is None else float(when),
         'kind': 'sighting',
+        'frame': str(frame),
         'x': round(float(pose['x']), 4),
         'y': round(float(pose['y']), 4),
         'yaw': round(float(pose['yaw']), 2),
@@ -124,21 +144,38 @@ def _last(entries, kind):
 
 
 def _live_sightings(entries):
-    """Sightings that are still worth considering.
+    """Sightings still worth considering, tagged with whether a grasp spent them.
 
-    Two rules: anything before the last successful grasp is dead (the ball was
-    picked up), and old sightings decay out of the window.
+    Two different lifetimes share this one file:
+
+    * `odom` sightings are a SHORT-TERM hint for the current run.  A successful
+      grasp ends them: the ball is in the jaws, so pointing at the floor would
+      be actively misleading.
+    * `map` sightings are a CROSS-BOOT prior for where the ball tends to be.  A
+      successful grasp must NOT erase them -- the operator usually puts the ball
+      back -- or the first successful run would permanently burn the only record
+      that can help the next boot.  `predict` discounts them instead.
+
+    Records written before this change have no `frame` key; they are odom by
+    definition, so old history files keep their old behaviour exactly.
     """
     last_ok = None
     for index, entry in enumerate(entries):
         if entry.get('kind') == 'outcome' and entry.get('ok'):
             last_ok = index
-    # Start just after the successful grasp, or at the very beginning when there
-    # has never been one.  Writing this as `entries[(last_ok or 0) + 1:]` looks
-    # equivalent and silently drops the first sighting -- the self-test caught
-    # exactly that on the first run.
-    start = 0 if last_ok is None else last_ok + 1
-    return [entry for entry in entries[start:] if entry.get('kind') == 'sighting']
+    result = []
+    for index, entry in enumerate(entries):
+        if entry.get('kind') != 'sighting':
+            continue
+        frame = entry.get('frame', DEFAULT_FRAME)
+        spent = last_ok is not None and index < last_ok
+        if spent and frame == DEFAULT_FRAME:
+            continue
+        item = dict(entry)
+        item['frame'] = frame
+        item['_spent'] = spent
+        result.append(item)
+    return result
 
 
 def _to_car_frame(entry, pose_now):
@@ -168,26 +205,27 @@ def travelled_since(entry, pose_now):
     return math.hypot(pose_now['x'] - entry['x'], pose_now['y'] - entry['y'])
 
 
-def predict(entries, pose_now, now=None, stale_after_s=STALE_AFTER_S):
-    """Rank the remembered sightings as headings to check, best first.
+def predict(entries, pose_now, now=None, stale_after_s=None,
+            frame=DEFAULT_FRAME):
+    """Rank remembered sightings in one coordinate frame, best first.
 
-    Returns a list of dicts::
+    `pose_now` MUST be expressed in `frame`; mixing an odom pose with a map
+    sighting would produce a confidently wrong heading.  Callers that only have
+    wheel odometry should leave frame='odom' (the default), which also keeps
+    every old history file working.
 
-        {'bearing_deg': 34.0,      # CCW from the nose, ready for turn_to
-         'range_m': 0.7,
-         'age_s': 240.0,
-         'travelled_m': 0.4,
-         'confidence': 0.75,
-         'quadrant': 0}            # 0/90/180/270, matching the search sectors
-
-    The list is empty when nothing is remembered, when the ball was already
-    picked up, or when every sighting is too old or too far away to trust.
+    `stale_after_s` overrides the per-frame window; it exists for the self-test
+    and for callers that deliberately want a different expiry.
     """
     now = _now() if now is None else now
+    window = stale_after_s if stale_after_s is not None else \
+        STALE_AFTER_S_BY_FRAME.get(frame, STALE_AFTER_S)
     ranked = []
     for entry in _live_sightings(entries):
+        if entry['frame'] != frame:
+            continue
         age = now - entry['t']
-        if age < 0 or age > stale_after_s:
+        if age < 0 or age > window:
             continue
         travelled = travelled_since(entry, pose_now)
         if travelled > MAX_TRUSTED_TRAVEL_M:
@@ -203,15 +241,18 @@ def predict(entries, pose_now, now=None, stale_after_s=STALE_AFTER_S):
         # the whole confidence range was 0.57..0.90 and the staleness window did
         # nothing.  Age is the dominant term here -- only a human moves the ball.
         # The square root keeps a half-hour-old memory at 0.64 instead of 0.45.
-        age_factor = max(0.0, 1.0 - age / stale_after_s) ** 0.5
+        age_factor = max(0.0, 1.0 - age / window) ** 0.5
         drift_factor = 1.0 - DRIFT_PENALTY * min(1.0, travelled / MAX_TRUSTED_TRAVEL_M)
         confidence = CONFIDENCE_FRESH * age_factor * drift_factor
+        if entry.get('_spent'):
+            confidence *= SPENT_CONFIDENCE_PENALTY
         ranked.append({'bearing_deg': round(bearing, 1),
                        'range_m': round(distance, 3),
                        'age_s': round(age, 1),
                        'travelled_m': round(travelled, 3),
                        'confidence': round(confidence, 2),
-                       'quadrant': quadrant_of(bearing)})
+                       'quadrant': quadrant_of(bearing),
+                       'frame': frame})
     ranked.sort(key=lambda item: (-item['confidence'], item['age_s']))
     return ranked
 
@@ -233,15 +274,15 @@ def quadrant_of(bearing_deg):
     return 270
 
 
-def preferred_heading(entries, pose_now, min_confidence=0.5, now=None):
+def preferred_heading(entries, pose_now, min_confidence=0.5, now=None,
+                      frame=DEFAULT_FRAME):
     """The single heading worth checking first, or None.
 
-    Only the best candidate is returned, and only if it clears
-    ``min_confidence``.  A weak guess is worse than no guess: it costs a rotation
-    and an arm tuck to test, and the fallback four-quadrant sweep would have
-    found the ball anyway.
+    `frame` must match the coordinate system `pose_now` is expressed in.  With
+    amcl running, pass the map-frame pose and frame='map' to use cross-boot
+    memories; without it, the default 'odom' only uses this-run memories.
     """
-    ranked = predict(entries, pose_now, now=now)
+    ranked = predict(entries, pose_now, now=now, frame=frame)
     if not ranked or ranked[0]['confidence'] < min_confidence:
         return None
     return ranked[0]

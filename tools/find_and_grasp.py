@@ -115,7 +115,32 @@ def read_pose(bridge):
     return {'x': p['x'], 'y': p['y'], 'yaw': yaw}
 
 
-def sighting_from(output, pose_before):
+def read_map_pose():
+    """Car pose in the MAP frame, from nav2_amcl's /amcl_pose.
+
+    Uses its OWN rosbridge connection.  Subscribing to /odom and /amcl_pose on
+    one connection cannibalises messages on this car (measured 2026-11-06: a
+    shared connection delivered only 29% of /cmd_vel).  Returns None when amcl
+    is not up, so callers can fall back to odom without guessing.
+    """
+    bridge = Rosbridge('127.0.0.1', 19091, timeout=10)
+    try:
+        bridge.subscribe('/amcl_pose',
+                         'geometry_msgs/msg/PoseWithCovarianceStamped')
+        bridge.drain(0.5)
+        m = bridge.wait_for_topic('/amcl_pose', timeout=2)
+    finally:
+        bridge.close()
+    if m is None:
+        return None
+    p = m['pose']['pose']['position']
+    o = m['pose']['pose']['orientation']
+    yaw = math.degrees(math.atan2(2 * (o['w'] * o['z'] + o['x'] * o['y']),
+                                  1 - 2 * (o['y'] ** 2 + o['z'] ** 2)))
+    return {'x': p['x'], 'y': p['y'], 'yaw': yaw}
+
+
+def sighting_from(output, pose_before, frame='odom'):
     """Turn search_around's stdout into a memory entry, or None.
 
     The bearing recorded is 0 -- the ball is taken to be dead ahead of the
@@ -133,12 +158,24 @@ def sighting_from(output, pose_before):
     return {'pose': {'x': pose_before['x'], 'y': pose_before['y'],
                      'yaw': pose_before['yaw'] + float(bearing.group(1))},
             'bearing': 0.0,
+            'frame': frame,
             'range': float(distance.group(1)) if distance else 0.6}
 
 
-def run_search(bridge, quadrants, label):
-    """Run search_around for N quadrants; return (found, output, pose_before)."""
-    pose_before = read_pose(bridge)
+def run_search(bridge, quadrants, label, frame='odom'):
+    """Run search_around for N quadrants; return (found, output, pose_before).
+
+    In map mode a missing /amcl_pose returns pose_before=None instead of
+    falling back to an odom pose: stamping an odom pose as `frame='map'` would
+    create a confidently wrong cross-boot memory.  sighting_from() then skips
+    the memory write entirely, and the search itself is unaffected.
+    """
+    if frame == 'map':
+        pose_before = read_map_pose()
+        if pose_before is None:
+            log('  /amcl_pose unavailable -- sighting will not be remembered')
+    else:
+        pose_before = read_pose(bridge)
     ok, out = run_tool(
         ['tools/search_around.py', '--quadrants', str(quadrants), '--ensure-gate'],
         label)
@@ -337,22 +374,37 @@ def main():
     parser.add_argument('--max-rounds', type=int, default=6)
     parser.add_argument('--walk-m', type=float, default=0.5)
     parser.add_argument('--target', type=float, default=0.24)
+    parser.add_argument('--map-frame', action='store_true',
+                        help='use nav2_amcl /amcl_pose so ball memory survives '
+                             'a reboot (requires a saved map + amcl running)')
     args = parser.parse_args()
 
     bridge = Rosbridge('127.0.0.1', 19091, timeout=15)
     started = time.monotonic()
     history = ball_memory.load(str(HISTORY))
 
+    # Off by default: without amcl the only honest frame is odom, whose pose
+    # resets to zero on every boot.  With --map-frame and a working amcl the
+    # same code path stores a map-anchored sighting that survives a power cycle.
+    frame = 'odom'
+    if args.map_frame:
+        if read_map_pose() is not None:
+            frame = 'map'
+        else:
+            log('memory: --map-frame requested but /amcl_pose is unavailable '
+                '-- falling back to odom for this run')
+    log('memory: using %s frame' % frame)
+
     # Ask the memory before searching.  One remembered heading costs a single
     # rotation to test and, when it is right, saves three rotations plus three
     # returns to the boot pose.  When it is wrong the full sweep still runs, so
     # coverage is never reduced -- only the order changes.
     guess = None
-    pose0 = read_pose(bridge)
+    pose0 = read_map_pose() if frame == 'map' else read_pose(bridge)
     if pose0 is None:
-        log('memory: cannot read /odom -- searching without it')
+        log('memory: cannot read pose -- searching without it')
     else:
-        guess = ball_memory.preferred_heading(history, pose0)
+        guess = ball_memory.preferred_heading(history, pose0, frame=frame)
         if guess:
             log('memory: last seen %+.0f deg, %.2f m out, %.0f s ago '
                 '(drove %.2f m since, confidence %.2f)'
@@ -372,7 +424,7 @@ def main():
                 for line in ab.turn_to(bridge, turn)[-2:]:
                     log('  ' + line)
                 time.sleep(0.8)
-            found, out, pose_before = run_search(bridge, 1, 'ROUND 1: memory sweep')
+            found, out, pose_before = run_search(bridge, 1, 'ROUND 1: memory sweep', frame)
             append_history({'t': time.strftime('%H:%M:%S'), 'round': 1,
                             'event': 'search-memory', 'bearing': round(turn, 1),
                             'found': found})
@@ -382,16 +434,17 @@ def main():
         if not found:
             quadrants = '4' if round_index == 1 else '1'
             found, out, pose_before = run_search(
-                bridge, quadrants, 'ROUND %d: search' % round_index)
+                bridge, quadrants, 'ROUND %d: search' % round_index, frame)
             append_history({'t': time.strftime('%H:%M:%S'), 'round': round_index,
                             'event': 'search', 'found': found})
 
         if found:
-            sighting = sighting_from(out, pose_before)
+            sighting = sighting_from(out, pose_before, frame)
             if sighting is not None:
                 ball_memory.record_sighting(
                     history, sighting['pose'], sighting['bearing'],
-                    sighting['range'], source='search_around')
+                    sighting['range'], source='search_around',
+                    frame=sighting['frame'])
                 commit_memory(history)
                 log('  remembered: %.2f m ahead at heading %+.0f deg'
                     % (sighting['range'], sighting['pose']['yaw']))

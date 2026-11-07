@@ -1,0 +1,18 @@
+[Unit]
+Description=ArmPi Pro arm_base/rear_camera TF publisher (sidecar container)
+Documentation=file:///home/pi/arm_tf/run.sh
+After=armpi-ros2.service docker.service
+Wants=armpi-ros2.service
+# The container joins the core container's IPC namespace with
+# --ipc container:<id>, and that id is only valid while the core is up, so this
+# unit has to run after it and cannot be restarted independently after a reboot.
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh /home/pi/arm_tf/run.sh
+ExecStop=/usr/bin/docker rm -f arm_tf_publisher
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target

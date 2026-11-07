@@ -6,7 +6,14 @@
   "source": "Read-only servo bus probe (command 0x05 position) run inside the armpi-ros2 container, with /dev/rrc verified unoccupied (fuser -> BUSY_RC=1) immediately before and after. No move/stop/torque packet was sent at any point.",
   "supersedes": {
     "recorded_at": "2026-10-13T14:36:20+08:00",
-    "raw": {"joint1": 483, "joint2": 686, "joint3": 935, "joint4": 200, "joint5": 496, "r_joint": 100},
+    "raw": {
+      "joint1": 483,
+      "joint2": 686,
+      "joint3": 935,
+      "joint4": 200,
+      "joint5": 496,
+      "r_joint": 100
+    },
     "why_replaced": "joint3 935 was a cached value, not a re-verified one. The user required the startup pose to come from the arm's real current position and forbade reusing the old cache if joint3 still reported an abnormal value. joint3 was re-read on 2026-10-14 and reports 906-907, comfortably inside 0..1000, so the pose was re-frozen from measurement. joint1/joint2/joint5/r_joint are bit-identical to the 2026-10-13 record and joint4 differs by 1 tick (servo deadband), i.e. the arm has NOT been moved since -- only joint3's stored number was wrong."
   },
   "physical_precondition": "Recorded in the same physical pose the arm has held since 2026-10-13. joint3 reads a stable 906-907: two independent reads 60 s apart gave 907 then 906, and a 21-minute holding test on 2026-10-14 recorded 908 +/- 1 with zero drift, so the arm is being actively held, not sagging. Whether a rigid prop is still in place was NOT verified.",
@@ -21,7 +28,7 @@
   },
   "radians": {
     "joint1": -0.0712094,
-    "joint2": 0.7791150,
+    "joint2": 0.779115,
     "joint3": -1.7048376,
     "joint4": -1.2608259,
     "joint5": -0.0167552,
@@ -44,12 +51,30 @@
     "r_joint": 1
   },
   "hard_limits_raw": {
-    "joint1": [0, 1000],
-    "joint2": [125, 875],
-    "joint3": [0, 1000],
-    "joint4": [0, 1000],
-    "joint5": [0, 1000],
-    "r_joint": [0, 700]
+    "joint1": [
+      0,
+      1000
+    ],
+    "joint2": [
+      125,
+      875
+    ],
+    "joint3": [
+      0,
+      1000
+    ],
+    "joint4": [
+      0,
+      1000
+    ],
+    "joint5": [
+      0,
+      1000
+    ],
+    "r_joint": [
+      0,
+      700
+    ]
   },
   "ticks_per_radian": {
     "joint1": 238.732,
@@ -57,20 +82,50 @@
     "joint3": 238.732,
     "joint4": 238.732,
     "joint5": 238.732,
-    "r_joint": 318.310
+    "r_joint": 318.31
   },
   "enforced_step_limit_raw": 100,
   "read_only_probe": {
     "tool": "tools/probe_servo_state.py (PC wrapper) + tools/servo_bus_probe.py (in-container payload)",
     "commanded_nothing": true,
     "measured_2026_10_14T15_57_and_15_58": {
-      "joint1": {"servo": 6, "raw": 483, "temperature_c": 31, "in_range": true},
-      "joint2": {"servo": 5, "raw": 686, "temperature_c": 31, "in_range": true},
-      "joint3": {"servo": 4, "raw": 907, "temperature_c": 48, "in_range": true,
-                 "second_read": 906},
-      "joint4": {"servo": 3, "raw": 199, "temperature_c": 31, "in_range": true},
-      "joint5": {"servo": 2, "raw": 496, "temperature_c": 32, "in_range": true},
-      "r_joint": {"servo": 1, "raw": 100, "temperature_c": 30, "in_range": true}
+      "joint1": {
+        "servo": 6,
+        "raw": 483,
+        "temperature_c": 31,
+        "in_range": true
+      },
+      "joint2": {
+        "servo": 5,
+        "raw": 686,
+        "temperature_c": 31,
+        "in_range": true
+      },
+      "joint3": {
+        "servo": 4,
+        "raw": 907,
+        "temperature_c": 48,
+        "in_range": true,
+        "second_read": 906
+      },
+      "joint4": {
+        "servo": 3,
+        "raw": 199,
+        "temperature_c": 31,
+        "in_range": true
+      },
+      "joint5": {
+        "servo": 2,
+        "raw": 496,
+        "temperature_c": 32,
+        "in_range": true
+      },
+      "r_joint": {
+        "servo": 1,
+        "raw": 100,
+        "temperature_c": 30,
+        "in_range": true
+      }
     },
     "all_six_in_range": true,
     "temperature_note": "joint3 48 C is residual heat from the 2026-10-14 holding test, not a fault. The node aborts at temp_max 65 C. Every other servo sits at 30-32 C.",
@@ -89,8 +144,8 @@
     "fault_churn": "A temperature-read timeout (command 0x09) can latch the node; each latch costs about 10.5 s of recovery, which is why gate_tries is 6 rather than 1."
   },
   "startup": {
-    "enabled": true,
-    "decided_by_user": "2026-10-14 - re-frozen from the arm's measured position at 15:59:48; gripper still excluded",
+    "enabled": false,
+    "decided_by_user": "2026-10-14 recorded the pose; 2026-11-07 the flag is documented as FALSE to match the car. Measured on the car at 10:55 2026-11-07: config had startup.enabled=false, the unit logged 'startup pose disabled in config; nothing sent' and exited 0, and the arm had still moved. The boot pose is done by pose_restore.py instead, called from run_native_core.py BEFORE the core container starts, straight on the servo bus. Two mechanisms exist; only pose_restore.py is live. Enabling this one as well would give the arm two different boot targets.",
     "target_raw": {
       "joint1": 483,
       "joint2": 686,

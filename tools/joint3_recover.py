@@ -59,11 +59,22 @@ NAME = {v[0]: k for k, v in JOINTS.items()}.get(SERVO, 'servo%d' % SERVO)
 LOW, HIGH = {v[0]: (v[3], v[4]) for v in JOINTS.values()}[SERVO]
 
 
-def sample(board):
-    """Position + temperature for the single servo under control."""
-    raw = board.position(SERVO)
-    temp = board.temperature(SERVO)
-    return raw, temp
+def sample(board, retries=4):
+    """Position + temperature for the single servo under control.
+
+    A single missed serial reply used to abort the whole boot recovery and
+    leave the core stopped, so transient timeouts are retried here.
+    """
+    last = None
+    for _ in range(retries):
+        try:
+            raw = board.position(SERVO)
+            temp = board.temperature(SERVO)
+            return raw, temp
+        except (TimeoutError, OSError) as error:
+            last = error
+            time.sleep(.25)
+    raise last
 
 
 def next_target(current):

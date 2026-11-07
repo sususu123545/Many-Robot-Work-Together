@@ -81,6 +81,33 @@ def library_digest(path):
     return h.hexdigest()
 
 
+def prepare_pose(image, root=Path('/opt/armpi-ros2')):
+    """把机械臂恢复到记录的目标姿态；失败不阻塞启动，仅告警。"""
+    script = root / 'pose_restore.py'
+    if not script.exists():
+        print('pose_restore.py 不存在，跳过姿态恢复', flush=True)
+        return False
+    name = 'armpi_pose_restore_' + uuid.uuid4().hex[:8]
+    cmd = ['docker', 'run', '--rm', '--name', name, '--network', 'none',
+           '--device', '/dev/rrc:/dev/rrc',
+           '-v', str(script) + ':/opt/pose_restore.py:ro',
+           image, 'bash', '-lc',
+           'source /opt/armpi_ros2/install/setup.bash && python3 /opt/pose_restore.py']
+    try:
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=200)
+        if p.stdout:
+            print(p.stdout[-1500:], flush=True)
+        if p.returncode != 0:
+            print('姿态恢复返回码 %d: %s' % (p.returncode, p.stderr[-300:]), flush=True)
+            return False
+        print('姿态恢复完成', flush=True)
+        return True
+    except subprocess.TimeoutExpired:
+        print('姿态恢复超时', flush=True)
+        subprocess.run(['docker', 'rm', '-f', name], capture_output=True)
+        return False
+
+
 def main():
     assert (ROOT / 'active').is_file(), 'Native core profile is not active'
     cfg = json.loads((ROOT / 'core.json').read_text())
@@ -121,16 +148,19 @@ def main():
     assert not any(owners(required).values()), 'Bootstrap has not released hardware'
     from lidar_preflight import prepare_lidar
     prepare_lidar()
+    prepare_pose(cfg['image'])
     RUNTIME.mkdir(exist_ok=True)
     CALIBRATION.mkdir(parents=True, exist_ok=True)
     seed_file = RUNTIME / 'cutover-seed.json'
     seed = json.loads(seed_file.read_text())['old_odom_pose'] if seed_file.exists() else [0, 0, 0]
     launch = ('source /opt/armpi_ros2/install/setup.bash && exec ros2 launch armpi_ros2 base.launch.py '
-              'dry_run:=false enable_motion:=false enable_arm_motion:=false enable_gripper_motion:=false arm:=true lidar:=true imu:=true '
+              'dry_run:=false enable_motion:=true enable_arm_motion:=false enable_gripper_motion:=false arm:=true lidar:=true imu:=true '
               + launch_camera + ' '
               'video_server:=true rosbridge_port:=9091 ' + ' '.join(k + ':=' + str(v) for k, v in
               zip(('initial_x', 'initial_y', 'initial_yaw'), seed)))
-    name = 'armpi_ros2_native_' + uuid.uuid4().hex[:12]
+    # 固定容器名：启动前清掉同名残留，保证全局只有一个核心容器，不再堆积临时容器
+    name = 'armpi_ros2_native'
+    subprocess.run(['docker', 'rm', '-f', name], capture_output=True, text=True)
     args = ['docker', 'run', '-d', '--name', name, '--label', 'armpi.owner=ros2-native-core',
             '--network', 'host', '--stop-signal', 'SIGINT',
             # Fast DDS defaults to shared-memory transport for same-host peers,
@@ -167,6 +197,14 @@ def main():
     try:
         created = True  # A remote/docker operation can complete before its reply is lost.
         run(args)
+        try:
+            subprocess.run(['docker', 'exec', '-d', name, 'bash', '-c',
+                            'source /opt/ros/jazzy/setup.bash && nohup python3 /opt/armpi_ros2/ready_beep.py '
+                            '> /tmp/ready_beep.log 2>&1 &'],
+                           capture_output=True, timeout=20)
+            print('ready_beep 已启动', flush=True)
+        except Exception as error:
+            print('ready_beep 启动失败: %s' % error, flush=True)
         (RUNTIME / 'container.json').write_text(json.dumps({'name': name, 'image_id': cfg['image_id'],
             'devices': devices, 'motion_enabled': False, 'arm_motion_enabled': False,
             'gripper_motion_enabled': False}))

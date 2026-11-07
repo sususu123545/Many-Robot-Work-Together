@@ -10,7 +10,7 @@ from rclpy.executors import MultiThreadedExecutor, ExternalShutdownException
 from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
 from sensor_msgs.msg import JointState
 from trajectory_msgs.msg import JointTrajectory
-from std_msgs.msg import Bool, Empty, String
+from std_msgs.msg import Bool, Empty, Int32, String
 from std_srvs.srv import Trigger
 from rcl_interfaces.msg import ParameterDescriptor, SetParametersResult
 from rclpy.parameter import Parameter
@@ -89,6 +89,7 @@ class ArmNode(Node):
         self.create_subscription(JointTrajectory, '/arm_controller/command', self.on_command, 1, callback_group=commands)
         self.create_subscription(JointTrajectory, '/gripper_controller/command', self.on_gripper, 1, callback_group=commands)
         self.create_subscription(Empty, '/arm_controller/stop', self.on_stop, 1)
+        self.create_subscription(Int32, '/arm_controller/buzzer', self.on_buzzer, 10)
         self.create_subscription(Bool, '/safety/estop', self.on_estop, 1)
         self.create_service(Trigger, '/arm_controller/reset_estop', self.reset)
         self.create_timer(.5, self.poll, callback_group=polling)
@@ -228,6 +229,18 @@ class ArmNode(Node):
                     self.health.fail(error, time.monotonic(), 'stop_io')
                     self.get_logger().error('Stop write failed: ' + str(error))
             self.busy_until = 0.0
+
+    def on_buzzer(self, msg):
+        """请求响一声；串口由本节点独占，只能从这里发出。"""
+        if not self.board:
+            return
+        freq = int(msg.data) if msg.data else 2400
+        if not 1000 <= freq <= 5000:
+            freq = 2400
+        try:
+            self.board.buzzer(freq)
+        except (OSError, TimeoutError) as error:
+            self.get_logger().warning('Buzzer write failed: ' + str(error))
 
     def on_estop(self, msg):
         if msg.data:

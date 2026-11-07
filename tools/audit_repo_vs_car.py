@@ -66,9 +66,20 @@ DEPLOYED_LOCAL_DIRS = ('car_setup/ros2/',)
 
 
 def local_digest(path):
+    """sha256 of the LF-normalised bytes.
+
+    The car's files are LF.  This repo is edited on Windows, where anything
+    written by a text-mode Python write (or by an editor without
+    end-of-line handling) lands as CRLF on disk, so a byte-exact comparison
+    reports drift for a file whose committed blob is identical.  Measured
+    2026-11-07: car_setup/ros2/arm_startup_pose.json was rewritten by json.dump
+    and immediately flagged as drift even though the deployed copy matched the
+    intent exactly.  A line-ending-only difference is never the kind of drift
+    this tool exists to find.
+    """
     if not path.exists():
         return None
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    return hashlib.sha256(path.read_bytes().replace(b'\r\n', b'\n')).hexdigest()
 
 
 def sh(client, command, timeout=120):
@@ -302,7 +313,16 @@ def main():
                     if local_digest(local_abs) != digest:
                         diff += 1
                         image_drift.append(rel)
-                        print('  %-40s  *** DIFFERENT *** (runtime is behind local)' % rel)
+                        # The tool only knows the two differ, NOT which one is
+                        # newer.  This label used to say "runtime is behind
+                        # local", and on 2026-11-07 that was exactly backwards:
+                        # the image's arm_node.py and servo_protocol.py had a
+                        # /arm_controller/buzzer feature the repo had never
+                        # received, so "catching the image up" from the repo
+                        # would have DELETED working code.  Read the unified
+                        # diff above before deciding which side wins.
+                        print('  %-40s  *** DIFFERENT *** (direction unknown -- '
+                              'read the diff below)' % rel)
                 suffixes = ('.py', '.yaml', '.xml', '.cfg')
                 not_installed = 0
                 for path in sorted(local_root.rglob('*')):
@@ -351,7 +371,7 @@ def main():
                               or '  (no textual difference)')
                 for rel in image_drift:
                     problems.append(('ros2_ws/src/armpi_ros2/' + rel, tag,
-                                     'IMAGE-BEHIND-LOCAL'))
+                                     'IMAGE-DIFFERS'))
 
         print()
         if problems:

@@ -41,9 +41,14 @@ def crc8(data):
     return crc
 
 
-def packet(payload):
-    body = bytes((5, len(payload))) + bytes(payload)
+def frame(func, payload):
+    """通用帧: AA 55 | func | len | payload | crc8(func+len+payload)。"""
+    body = bytes((func, len(payload))) + bytes(payload)
     return b'\xaa\x55' + body + bytes((crc8(body),))
+
+
+def packet(payload):
+    return frame(5, payload)
 
 
 def to_raw(name, radians):
@@ -303,6 +308,13 @@ class ServoBoard:
         data = movement_payload(duration, targets)
         with self.lock:
             self._write(data)
+
+    def buzzer(self, freq=2400, on_time=0.15, off_time=0.1, repeat=1):
+        """RRC 板蜂鸣器（功能码 2）；与舵机共用串口，无需等待回复。"""
+        data = struct.pack('<HHHH', int(freq), int(on_time * 1000),
+                           int(off_time * 1000), int(repeat))
+        with self.lock:
+            self.port.write(frame(2, data))
 
     def stop(self, identifiers=None):
         # SDK stop request only: do NOT unload or enable torque. A successful

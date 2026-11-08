@@ -522,16 +522,19 @@ def main():
         start_map_pose_listener()
         time.sleep(0.5)
         if read_map_pose() is None:
-            # 45 deg, not 20: on a cold boot amcl has just been handed a broad
-            # global seed (sigma_xy 1.34 m, sigma_yaw pi), and 20 deg of turning
-            # is only 2-3 filter updates -- not enough for the yaw cloud to
-            # collapse.  A bigger nudge costs ~3 s and buys a far better pose,
-            # and the bearing is computed AFTER the nudge so it does not matter
-            # which way the car ends up facing.
+            # How much rotation does a cold start actually need?  Measured
+            # 2026-11-08 by re-publishing the boot seed and turning in 45 deg
+            # steps: 45 deg -> still no pose, 90 deg -> still no pose,
+            # 135 deg -> pose.  A fixed 45 deg nudge therefore never worked on
+            # the very first command after a power cycle.  Turn in steps and stop
+            # as soon as the filter has collapsed.
             log('memory: no fresh /amcl_pose (amcl only publishes on motion) '
-                '-- turning 45 deg to make it converge')
-            ab.turn_to(bridge, 45)
-            time.sleep(0.8)
+                '-- turning in steps until it converges (up to 180 deg)')
+            for _ in range(4):
+                ab.turn_to(bridge, 45)
+                time.sleep(1.0)
+                if read_map_pose() is not None:
+                    break
         if read_map_pose() is not None:
             frame = 'map'
         else:

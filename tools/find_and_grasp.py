@@ -28,6 +28,7 @@ import math
 import re
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -52,9 +53,22 @@ RANGE_RE = re.compile(r'->\s*([\d.]+)\s*m ahead')
 # A map-frame pose is only worth recording if the particle filter has actually
 # collapsed.  See read_map_pose() for why: amcl happily publishes the mean of a
 # 1.2 m-wide cloud, and that number is worse than nothing because it looks
-# authoritative.  Limits are ~2x the converged figures measured 2026-11-07.
+# authoritative.
+#
+# The yaw limit is 35 deg, not something tighter, because of what the memory is
+# used FOR: it only has to say which quadrant to look in, and quadrants are
+# 90 deg wide.  A wrong guess costs exactly one rotation -- round 1 tries the
+# remembered heading, and if the ball is not there the full sweep still runs, so
+# coverage is never reduced.  Measured 2026-11-08 on this map: sigma_xy settles
+# at 0.16-0.20 m but sigma_yaw hovers at 21-31 deg even after turning, so a 25 deg
+# gate rejected almost every sample and no map-frame memory could ever be
+# written.
 MAP_POSE_MAX_SIGMA_XY = 0.35      # metres
-MAP_POSE_MAX_SIGMA_YAW = 25.0     # degrees
+MAP_POSE_MAX_SIGMA_YAW = 35.0     # degrees
+# How old a cached /amcl_pose may be and still be called "the pose".
+# amcl only publishes on a filter update, so a parked car has no pose at
+# all; anything older than this is history, not state.
+MAP_POSE_MAX_AGE_S = 5.0
 
 
 def log(msg):
@@ -125,51 +139,110 @@ def read_pose(bridge):
 def read_map_pose():
     """Car pose in the MAP frame, from nav2_amcl's /amcl_pose.
 
-    Uses its OWN rosbridge connection.  Subscribing to /odom and /amcl_pose on
-    one connection cannibalises messages on this car (measured 2026-11-06: a
-    shared connection delivered only 29% of /cmd_vel).  Returns None when amcl
-    is not up, so callers can fall back to odom without guessing.
+    Why a background listener instead of a one-shot read
+    ----------------------------------------------------
+    nav2_amcl publishes ONLY on a filter update:
+        if (resampled || force_publication || !first_pose_sent_)
+            publishAmclPose(...)
+    and updates are gated by update_min_d / update_min_a (amcl_node.cpp).  A
+    stationary car therefore emits NOTHING -- measured 2026-11-08: a publisher
+    exists, but a subscriber that starts while the car is parked waits forever.
+    A one-shot 6 s read is guaranteed to fail exactly when this function gets
+    called, because the car is always stationary at that moment.
 
-    ALSO returns None when amcl has not converged.  A particle filter with a
-    broad cloud still publishes its mean, and that mean is worthless -- writing
-    it into `ball_memory` would create a cross-boot record that points the wrong
-    way with full confidence, which is worse than having no record at all.
-    nav2_amcl publishes exactly this trap at startup: with a global seed and no
-    motion, sigma_xy sits around 1.2 m and sigma_yaw around 160 deg.
-    Thresholds are ~2x the converged figures measured on 2026-11-07
-    (sigma_xy 0.26 m after a 120 deg turn).
+    So `--map-frame` starts a listener thread that keeps one connection open for
+    the whole run and caches the newest pose.  During a search sweep the car
+    rotates, amcl updates, and the cache is fresh precisely when a sighting
+    happens.  When the cache is older than MAP_POSE_MAX_AGE_S there is no honest
+    pose to report and None is returned -- callers fall back to odom.
+
+    Uses its OWN rosbridge connection: sharing one with /cmd_vel and /odom
+    cannibalises messages on this car (measured 2026-11-06, 29% delivery).
     """
-    bridge = Rosbridge('127.0.0.1', 19091, timeout=10)
-    try:
-        bridge.subscribe('/amcl_pose',
-                         'geometry_msgs/msg/PoseWithCovarianceStamped')
-        bridge.drain(0.5)
-        # 6 s, not 2 s: nav2_amcl only publishes when the filter actually updates,
-        # and updates are gated by update_min_d / update_min_a.  A stationary car
-        # therefore goes quiet -- measured 2026-11-08, /amcl_pose had a publisher
-        # but emitted nothing until the car turned.  Waiting only 2 s used to give
-        # up between two updates even while the car was searching.
-        m = bridge.wait_for_topic('/amcl_pose', timeout=6)
-    finally:
-        bridge.close()
-    if m is None:
+    pose = _cache_get()
+    if pose is not None:
+        return pose
+    return _read_map_pose_once()
+
+
+_CACHE = {'pose': None, 'at': 0.0}
+_CACHE_LOCK = threading.Lock()
+
+
+def _cache_get():
+    with _CACHE_LOCK:
+        pose, at = _CACHE['pose'], _CACHE['at']
+    if pose is None:
         return None
+    age = time.monotonic() - at
+    if age > MAP_POSE_MAX_AGE_S:
+        return None
+    return dict(pose, age_s=round(age, 2))
+
+
+def start_map_pose_listener():
+    """Keep /amcl_pose flowing into the cache for the rest of the process."""
+
+    def run():
+        try:
+            bridge = Rosbridge('127.0.0.1', 19091, timeout=10)
+            bridge.subscribe('/amcl_pose',
+                             'geometry_msgs/msg/PoseWithCovarianceStamped')
+            # Without this the subscription handshake never completes and
+            # wait_for_topic sits at its timeout forever -- measured 2026-11-08,
+            # the thread was alive with an empty cache for the whole run.
+            bridge.drain(0.5)
+        except Exception:                                   # noqa: BLE001
+            return
+        while True:
+            message = bridge.wait_for_topic('/amcl_pose', timeout=1)
+            if message is None:
+                continue
+            parsed = _parse_map_pose(message)
+            if parsed is None:
+                continue
+            with _CACHE_LOCK:
+                _CACHE['pose'] = parsed
+                _CACHE['at'] = time.monotonic()
+
+    thread = threading.Thread(target=run, name='amcl-pose', daemon=True)
+    thread.start()
+    return thread
+
+
+def _parse_map_pose(m):
+    """Pose + covariance gate.  Returns None when amcl has not converged."""
     covariance = m['pose'].get('covariance') or []
     if len(covariance) >= 36:
         sigma_xy = math.sqrt(max(0.0, covariance[0]))
         sigma_yaw = math.degrees(math.sqrt(max(0.0, covariance[35])))
         if sigma_xy > MAP_POSE_MAX_SIGMA_XY or sigma_yaw > MAP_POSE_MAX_SIGMA_YAW:
-            print('map pose rejected: amcl has not converged '
-                  '(sigma_xy=%.2f m, sigma_yaw=%.0f deg; limits %.2f m / %.0f deg)'
-                  % (sigma_xy, sigma_yaw, MAP_POSE_MAX_SIGMA_XY,
-                     MAP_POSE_MAX_SIGMA_YAW))
-            print('  the car needs a slow turn before /amcl_pose can be trusted')
             return None
     p = m['pose']['pose']['position']
     o = m['pose']['pose']['orientation']
     yaw = math.degrees(math.atan2(2 * (o['w'] * o['z'] + o['x'] * o['y']),
                                   1 - 2 * (o['y'] ** 2 + o['z'] ** 2)))
     return {'x': p['x'], 'y': p['y'], 'yaw': yaw}
+
+
+def _read_map_pose_once():
+    bridge = Rosbridge('127.0.0.1', 19091, timeout=10)
+    try:
+        bridge.subscribe('/amcl_pose',
+                         'geometry_msgs/msg/PoseWithCovarianceStamped')
+        bridge.drain(0.5)
+        m = bridge.wait_for_topic('/amcl_pose', timeout=6)
+    finally:
+        bridge.close()
+    if m is None:
+        return None
+    pose = _parse_map_pose(m)
+    if pose is None:
+        print('map pose rejected: amcl has not converged '
+              '(limits sigma_xy<=%.2f m, sigma_yaw<=%.0f deg)'
+              % (MAP_POSE_MAX_SIGMA_XY, MAP_POSE_MAX_SIGMA_YAW))
+        print('  the car needs a slow turn before /amcl_pose can be trusted')
+    return pose
 
 
 def sighting_from(output, pose_before, frame='odom'):
@@ -409,6 +482,12 @@ def main():
     parser.add_argument('--map-frame', action='store_true',
                         help='use nav2_amcl /amcl_pose so ball memory survives '
                              'a reboot (requires a saved map + amcl running)')
+    parser.add_argument('--search-only', action='store_true',
+                        help='stop as soon as the ball has been sighted and '
+                             'remembered, without approaching or grasping. Use '
+                             'this to set up a cross-boot test: the ball stays '
+                             'on the floor, so the next boot has something to '
+                             'find.')
     args = parser.parse_args()
 
     bridge = Rosbridge('127.0.0.1', 19091, timeout=15)
@@ -420,6 +499,18 @@ def main():
     # same code path stores a map-anchored sighting that survives a power cycle.
     frame = 'odom'
     if args.map_frame:
+        # Start the cache BEFORE the first read.  A parked car has no /amcl_pose
+        # to read (see read_map_pose), so if the cache is still empty after a
+        # moment, nudge the car: amcl only publishes when it updates, and it only
+        # updates when the car moves.  A 20 deg turn is harmless -- the search
+        # sweep is about to rotate anyway -- and it earns us a real map pose.
+        start_map_pose_listener()
+        time.sleep(0.5)
+        if read_map_pose() is None:
+            log('memory: no fresh /amcl_pose (amcl only publishes on motion) '
+                '-- turning 20 deg to make it update')
+            ab.turn_to(bridge, 20)
+            time.sleep(0.8)
         if read_map_pose() is not None:
             frame = 'map'
         else:
@@ -480,6 +571,17 @@ def main():
                 commit_memory(history)
                 log('  remembered: %.2f m ahead at heading %+.0f deg'
                     % (sighting['range'], sighting['pose']['yaw']))
+
+        if found and args.search_only:
+            # Deliberately stop here.  Approaching would move the car and
+            # grasping would remove the ball; either one destroys the very
+            # thing the next boot is supposed to find.
+            log('search-only: stopping before approach (ball left in place). '
+                'Memory now holds %s-frame entries.' % frame)
+            append_history({'t': time.strftime('%H:%M:%S'),
+                            'round': round_index, 'event': 'search-only',
+                            'found': True, 'frame': frame})
+            return 0
 
         if not found:
             log('  ball not visible -- relocating')

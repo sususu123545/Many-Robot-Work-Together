@@ -1,0 +1,217 @@
+[
+ {
+  "t": "09:02:24",
+  "round": 1,
+  "event": "search",
+  "found": true
+ },
+ {
+  "t": "09:02:54",
+  "round": 1,
+  "event": "approach",
+  "ok": true
+ },
+ {
+  "t": "09:16:42",
+  "round": 1,
+  "event": "grasp",
+  "ok": true
+ },
+ {
+  "t": "11:00:30",
+  "round": 1,
+  "event": "search",
+  "found": true
+ },
+ {
+  "t": "11:00:36",
+  "round": 1,
+  "event": "approach",
+  "ok": true
+ },
+ {
+  "t": "11:06:51",
+  "round": 1,
+  "event": "grasp",
+  "ok": true
+ },
+ {
+  "t": "11:14:16",
+  "round": 1,
+  "event": "search",
+  "found": false
+ },
+ {
+  "t": "11:14:17",
+  "round": 1,
+  "event": "relocate",
+  "sector": 15.0,
+  "clear_m": 0.94
+ },
+ {
+  "t": "11:16:03",
+  "round": 2,
+  "event": "search",
+  "found": false
+ },
+ {
+  "t": "11:18:57",
+  "round": 1,
+  "event": "search",
+  "found": false
+ },
+ {
+  "t": "11:18:58",
+  "round": 1,
+  "event": "no-corridor"
+ },
+ {
+  "t": "11:20:40",
+  "round": 2,
+  "event": "search",
+  "found": false
+ },
+ {
+  "t": "11:20:40",
+  "round": 2,
+  "event": "no-corridor"
+ },
+ {
+  "t": "11:22:00",
+  "round": 3,
+  "event": "search",
+  "found": false
+ },
+ {
+  "t": "11:22:00",
+  "round": 3,
+  "event": "no-corridor"
+ },
+ {
+  "t": "11:23:20",
+  "round": 4,
+  "event": "search",
+  "found": false
+ },
+ {
+  "t": "11:23:22",
+  "round": 4,
+  "event": "no-corridor"
+ },
+ {
+  "t": "11:24:42",
+  "round": 5,
+  "event": "search",
+  "found": false
+ },
+ {
+  "t": "11:24:43",
+  "round": 5,
+  "event": "no-corridor"
+ },
+ {
+  "t": "11:26:06",
+  "round": 6,
+  "event": "search",
+  "found": false
+ },
+ {
+  "t": "11:26:06",
+  "round": 6,
+  "event": "no-corridor"
+ },
+ {
+  "t": "18:29:14",
+  "round": 1,
+  "event": "search",
+  "found": false
+ },
+ {
+  "t": "18:29:14",
+  "round": 1,
+  "event": "relocate",
+  "sector": 45.0,
+  "half": "front",
+  "clear_m": 1.48
+ },
+ {
+  "t": "18:29:23",
+  "round": 1,
+  "event": "back-off",
+  "metres": 0.2
+ },
+ {
+  "t": "18:30:24",
+  "round": 2,
+  "event": "search",
+  "found": false
+ },
+ {
+  "t": "18:30:25",
+  "round": 2,
+  "event": "relocate",
+  "sector": 45.0,
+  "half": "front",
+  "clear_m": 1.65
+ },
+ {
+  "t": "18:30:33",
+  "round": 2,
+  "event": "back-off",
+  "metres": 0.2
+ },
+ {
+  "t": "18:31:24",
+  "round": 3,
+  "event": "search",
+  "found": false
+ },
+ {
+  "t": "18:31:25",
+  "round": 3,
+  "event": "relocate",
+  "sector": 75.0,
+  "half": "front",
+  "clear_m": 0.69
+ },
+ {
+  "t": "15:16:26",
+  "round": 1,
+  "event": "search",
+  "found": true
+ },
+ {
+  "t": 1794024768.7783465,
+  "kind": "sighting",
+  "x": 0.0,
+  "y": 0.0,
+  "yaw": 87.27,
+  "bearing": 0.0,
+  "range": 0.591,
+  "source": "search_around"
+ },
+ {
+  "t": 1794025052.7864842,
+  "kind": "outcome",
+  "ok": true,
+  "note": "round 1"
+ },
+ {
+  "t": 1794122186.7861283,
+  "kind": "sighting",
+  "frame": "map",
+  "x": -0.0241,
+  "y": 0.2581,
+  "yaw": 208.35,
+  "bearing": 0.0,
+  "range": 0.616,
+  "source": "search_around"
+ },
+ {
+  "t": "15:16:26",
+  "round": 1,
+  "event": "search-only",
+  "found": true,
+  "frame": "map"
+ }
+]

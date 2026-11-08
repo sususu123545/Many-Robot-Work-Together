@@ -279,6 +279,33 @@
   "found": true
  },
  {
+  "t": "15:33:04",
+  "round": 1,
+  "event": "search-only",
+  "found": true,
+  "frame": "map"
+ },
+ {
+  "t": "15:46:24",
+  "round": 1,
+  "event": "search",
+  "found": true
+ },
+ {
+  "t": "15:46:24",
+  "round": 1,
+  "event": "search-only",
+  "found": true,
+  "frame": "odom"
+ },
+ {
+  "t": "15:48:31",
+  "round": 1,
+  "event": "search-memory",
+  "bearing": 75.8,
+  "found": true
+ },
+ {
   "t": 1794024768.7783465,
   "kind": "sighting",
   "x": 0.0,
@@ -317,7 +344,29 @@
   "source": "search_around"
  },
  {
-  "t": "15:33:04",
+  "t": 1794123984.0158682,
+  "kind": "sighting",
+  "frame": "odom",
+  "x": -0.0002,
+  "y": -0.0002,
+  "yaw": 58.36,
+  "bearing": 0.0,
+  "range": 0.482,
+  "source": "search_around"
+ },
+ {
+  "t": 1794124111.1168568,
+  "kind": "sighting",
+  "frame": "map",
+  "x": -0.7288,
+  "y": -0.2994,
+  "yaw": 56.31,
+  "bearing": 0.0,
+  "range": 0.675,
+  "source": "search_around"
+ },
+ {
+  "t": "15:48:31",
   "round": 1,
   "event": "search-only",
   "found": true,

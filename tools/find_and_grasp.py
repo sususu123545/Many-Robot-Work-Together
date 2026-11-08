@@ -522,9 +522,15 @@ def main():
         start_map_pose_listener()
         time.sleep(0.5)
         if read_map_pose() is None:
+            # 45 deg, not 20: on a cold boot amcl has just been handed a broad
+            # global seed (sigma_xy 1.34 m, sigma_yaw pi), and 20 deg of turning
+            # is only 2-3 filter updates -- not enough for the yaw cloud to
+            # collapse.  A bigger nudge costs ~3 s and buys a far better pose,
+            # and the bearing is computed AFTER the nudge so it does not matter
+            # which way the car ends up facing.
             log('memory: no fresh /amcl_pose (amcl only publishes on motion) '
-                '-- turning 20 deg to make it update')
-            ab.turn_to(bridge, 20)
+                '-- turning 45 deg to make it converge')
+            ab.turn_to(bridge, 45)
             time.sleep(0.8)
         if read_map_pose() is not None:
             frame = 'map'

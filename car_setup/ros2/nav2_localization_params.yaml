@@ -37,11 +37,20 @@ amcl:
     # Mecanum base: it can strafe, and /odom reports a lateral velocity.
     # DifferentialMotionModel would throw that away and mispredict every strafe.
     robot_model_type: nav2_amcl::OmniMotionModel
-    alpha1: 0.3
-    alpha2: 0.3
-    alpha3: 0.3
-    alpha4: 0.3
-    alpha5: 0.3
+    # Not a blanket 0.3.  These are the odometry noise ratios the filter uses to
+    # spread particles between updates, and this chassis is asymmetric:
+    #   rotation is ACCURATE   (measured 90.3 / 90.6 / 90.5 deg for a 90 deg
+    #   command) -> alpha3 (rotation noise from rotation) can be small;
+    #   translation is POOR    (~38% linear error, mecanum slip on smooth floor)
+    #   -> alpha1/alpha2 stay generous.
+    # With a flat 0.3 the filter injected big yaw noise on every update and
+    # sigma_yaw sat at 37-45 deg even after a 90 deg turn; that error feeds
+    # straight into any map-frame bearing, so it must be small.
+    alpha1: 0.20
+    alpha2: 0.20
+    alpha3: 0.05
+    alpha4: 0.10
+    alpha5: 0.20
 
     # -- laser model --------------------------------------------------------
     # Ranges match slam_toolbox_mapping.yaml so the map and the live scan agree
@@ -50,16 +59,28 @@ amcl:
     laser_max_range: 6.0
     laser_model_type: likelihood_field
     lambda_short: 0.1
-    sigma_hit: 0.2
+    sigma_hit: 0.12
     z_hit: 0.5
     z_rand: 0.5
     z_max: 0.05
     z_short: 0.05
-    laser_likelihood_max_dist: 2.0
+    # 2.0 is the nav2 default and it is WRONG for a 4.45 x 5.60 m patch: the
+    # value is the distance over which the likelihood decays, so at 2.0 every
+    # cell within 2 m of a wall scores nearly the same -- and in a corridor that
+    # is almost the whole map.  Measured 2026-11-08: the likelihood surface went
+    # flat, sigma_yaw stayed at 79-149 deg and amcl's heading did not follow a
+    # 90 deg turn at all, while sigma_xy still converged (position is constrained
+    # by the wall distance, heading is not).  A sharp kernel restores the
+    # discrimination the yaw estimate needs.
+    laser_likelihood_max_dist: 0.5
 
     # 605 beams per scan is far more than the filter needs and the Pi 4 cannot
     # afford them; 60 well-spread beams is the usual compromise.
-    max_beams: 60
+    # 120 beams with 4000 particles saturated the Pi 4 (load average 3.8 on 4
+    # cores, amcl stopped completing updates entirely -- measured 2026-11-08).
+    # 90 is the compromise: more constraints than the original 60, still able to
+    # finish an update cycle.
+    max_beams: 90
     do_beamskip: false
     beam_skip_distance: 0.5
     beam_skip_threshold: 0.3

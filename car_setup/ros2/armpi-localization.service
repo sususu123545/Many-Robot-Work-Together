@@ -1,0 +1,24 @@
+[Unit]
+Description=ArmPi Pro occupancy-map localisation (map_server + amcl, inside the core container)
+Documentation=file:///home/pi/localization/run.sh
+After=armpi-ros2.service docker.service
+Wants=armpi-ros2.service
+# PartOf makes stop/restart of the core take this unit with it.  It does NOT
+# make `systemctl start armpi-ros2` start this one -- that is what the
+# armpi-ros2.service.d/sidecars.conf drop-in is for.  Both are needed; measured
+# 2026-11-07 that PartOf alone leaves sidecars dead after a stop/start cycle.
+PartOf=armpi-ros2.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh /home/pi/localization/run.sh
+# The nodes themselves are children of the core container, so recreating the
+# core (which happens on every restart) is enough to kill them.  The `|| true`
+# covers the normal case where the container is already gone by the time this
+# runs -- without it systemd records a spurious stop failure.
+ExecStop=/bin/sh /home/pi/localization/run.sh stop
+TimeoutStartSec=240
+
+[Install]
+WantedBy=multi-user.target

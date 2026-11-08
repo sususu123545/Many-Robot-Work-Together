@@ -49,6 +49,13 @@ HISTORY = Path(__file__).resolve().parent.parent / 'artifacts' / 'ball_history.j
 BEARING_RE = re.compile(r'FOUND at bearing\s+(-?\d+(?:\.\d+)?)\s+deg')
 RANGE_RE = re.compile(r'->\s*([\d.]+)\s*m ahead')
 
+# A map-frame pose is only worth recording if the particle filter has actually
+# collapsed.  See read_map_pose() for why: amcl happily publishes the mean of a
+# 1.2 m-wide cloud, and that number is worse than nothing because it looks
+# authoritative.  Limits are ~2x the converged figures measured 2026-11-07.
+MAP_POSE_MAX_SIGMA_XY = 0.35      # metres
+MAP_POSE_MAX_SIGMA_YAW = 25.0     # degrees
+
 
 def log(msg):
     print(msg, flush=True)
@@ -122,17 +129,42 @@ def read_map_pose():
     one connection cannibalises messages on this car (measured 2026-11-06: a
     shared connection delivered only 29% of /cmd_vel).  Returns None when amcl
     is not up, so callers can fall back to odom without guessing.
+
+    ALSO returns None when amcl has not converged.  A particle filter with a
+    broad cloud still publishes its mean, and that mean is worthless -- writing
+    it into `ball_memory` would create a cross-boot record that points the wrong
+    way with full confidence, which is worse than having no record at all.
+    nav2_amcl publishes exactly this trap at startup: with a global seed and no
+    motion, sigma_xy sits around 1.2 m and sigma_yaw around 160 deg.
+    Thresholds are ~2x the converged figures measured on 2026-11-07
+    (sigma_xy 0.26 m after a 120 deg turn).
     """
     bridge = Rosbridge('127.0.0.1', 19091, timeout=10)
     try:
         bridge.subscribe('/amcl_pose',
                          'geometry_msgs/msg/PoseWithCovarianceStamped')
         bridge.drain(0.5)
-        m = bridge.wait_for_topic('/amcl_pose', timeout=2)
+        # 6 s, not 2 s: nav2_amcl only publishes when the filter actually updates,
+        # and updates are gated by update_min_d / update_min_a.  A stationary car
+        # therefore goes quiet -- measured 2026-11-08, /amcl_pose had a publisher
+        # but emitted nothing until the car turned.  Waiting only 2 s used to give
+        # up between two updates even while the car was searching.
+        m = bridge.wait_for_topic('/amcl_pose', timeout=6)
     finally:
         bridge.close()
     if m is None:
         return None
+    covariance = m['pose'].get('covariance') or []
+    if len(covariance) >= 36:
+        sigma_xy = math.sqrt(max(0.0, covariance[0]))
+        sigma_yaw = math.degrees(math.sqrt(max(0.0, covariance[35])))
+        if sigma_xy > MAP_POSE_MAX_SIGMA_XY or sigma_yaw > MAP_POSE_MAX_SIGMA_YAW:
+            print('map pose rejected: amcl has not converged '
+                  '(sigma_xy=%.2f m, sigma_yaw=%.0f deg; limits %.2f m / %.0f deg)'
+                  % (sigma_xy, sigma_yaw, MAP_POSE_MAX_SIGMA_XY,
+                     MAP_POSE_MAX_SIGMA_YAW))
+            print('  the car needs a slow turn before /amcl_pose can be trusted')
+            return None
     p = m['pose']['pose']['position']
     o = m['pose']['pose']['orientation']
     yaw = math.degrees(math.atan2(2 * (o['w'] * o['z'] + o['x'] * o['y']),

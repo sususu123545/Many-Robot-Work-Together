@@ -181,6 +181,104 @@
   "found": true
  },
  {
+  "t": "15:16:26",
+  "round": 1,
+  "event": "search-only",
+  "found": true,
+  "frame": "map"
+ },
+ {
+  "t": "15:26:17",
+  "round": 1,
+  "event": "search",
+  "found": false
+ },
+ {
+  "t": "15:26:17",
+  "round": 1,
+  "event": "relocate",
+  "sector": 45.0,
+  "half": "front",
+  "clear_m": 1.77
+ },
+ {
+  "t": "15:26:56",
+  "round": 2,
+  "event": "search",
+  "found": false
+ },
+ {
+  "t": "15:26:56",
+  "round": 2,
+  "event": "relocate",
+  "sector": 75.0,
+  "half": "front",
+  "clear_m": 1.41
+ },
+ {
+  "t": "15:27:33",
+  "round": 3,
+  "event": "search",
+  "found": false
+ },
+ {
+  "t": "15:27:33",
+  "round": 3,
+  "event": "relocate",
+  "sector": 45.0,
+  "half": "front",
+  "clear_m": 5.42
+ },
+ {
+  "t": "15:28:03",
+  "round": 4,
+  "event": "search",
+  "found": false
+ },
+ {
+  "t": "15:28:03",
+  "round": 4,
+  "event": "relocate",
+  "sector": 75.0,
+  "half": "front",
+  "clear_m": 2.3
+ },
+ {
+  "t": "15:28:37",
+  "round": 5,
+  "event": "search",
+  "found": false
+ },
+ {
+  "t": "15:28:37",
+  "round": 5,
+  "event": "relocate",
+  "sector": 45.0,
+  "half": "front",
+  "clear_m": 3.29
+ },
+ {
+  "t": "15:29:07",
+  "round": 6,
+  "event": "search",
+  "found": false
+ },
+ {
+  "t": "15:29:07",
+  "round": 6,
+  "event": "relocate",
+  "sector": 45.0,
+  "half": "front",
+  "clear_m": 1.69
+ },
+ {
+  "t": "15:33:04",
+  "round": 1,
+  "event": "search-memory",
+  "bearing": -13.1,
+  "found": true
+ },
+ {
   "t": 1794024768.7783465,
   "kind": "sighting",
   "x": 0.0,
@@ -208,7 +306,18 @@
   "source": "search_around"
  },
  {
-  "t": "15:16:26",
+  "t": 1794123184.3485894,
+  "kind": "sighting",
+  "frame": "map",
+  "x": 0.2104,
+  "y": 0.8664,
+  "yaw": -128.22,
+  "bearing": 0.0,
+  "range": 0.628,
+  "source": "search_around"
+ },
+ {
+  "t": "15:33:04",
   "round": 1,
   "event": "search-only",
   "found": true,

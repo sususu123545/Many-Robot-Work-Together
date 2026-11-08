@@ -274,6 +274,13 @@ def run_search(bridge, quadrants, label, frame='odom'):
     falling back to an odom pose: stamping an odom pose as `frame='map'` would
     create a confidently wrong cross-boot memory.  sighting_from() then skips
     the memory write entirely, and the search itself is unaffected.
+
+    A search that CRASHED is not a search that found nothing.  Measured
+    2026-11-08: the video tunnel was down, `grab_frame()` raised inside
+    search_around, the subprocess died, and this function reported "not found"
+    -- so the car walked six relocation rounds hunting a ball it could never
+    have seen, and the operator got no hint that the camera was the problem.
+    Anything that is not a clean exit aborts the whole run instead.
     """
     if frame == 'map':
         pose_before = read_map_pose()
@@ -284,6 +291,14 @@ def run_search(bridge, quadrants, label, frame='odom'):
     ok, out = run_tool(
         ['tools/search_around.py', '--quadrants', str(quadrants), '--ensure-gate'],
         label)
+    if not ok and 'FOUND' not in out:
+        # SystemExit, not a return value: there is nothing sensible to do next,
+        # and continuing turns a broken tool into a fake "searched everywhere".
+        raise SystemExit(
+            'ABORT: search_around exited with an error and never reported a '
+            'sighting.\n  This is NOT "no ball": a broken camera, a dead video '
+            'tunnel or a stuck arm all look exactly like this.\n  Fix the tool '
+            'and re-run; the round-by-round output above says which one it was.')
     return ('FOUND' in out), out, pose_before
 
 
@@ -544,8 +559,12 @@ def main():
             turn = turn if turn <= 180 else turn - 360
             log('=== ROUND 1: memory heading %+.0f deg ===' % turn)
             if abs(turn) > 8:
+                # str(), not the raw item: turn_to() returns dicts for its notes
+                # ("overshot by 13.1 deg") and strings for its progress lines, so
+                # concatenating the item directly raises TypeError exactly when
+                # a turn overshoots -- i.e. on most real turns.
                 for line in ab.turn_to(bridge, turn)[-2:]:
-                    log('  ' + line)
+                    log('  ' + str(line))
                 time.sleep(0.8)
             found, out, pose_before = run_search(bridge, 1, 'ROUND 1: memory sweep', frame)
             append_history({'t': time.strftime('%H:%M:%S'), 'round': 1,

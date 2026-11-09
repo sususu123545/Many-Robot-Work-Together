@@ -117,7 +117,7 @@ esac
 # seeds itself and refuses to publish any pose until it has been given one.
 seed_rc=0
 docker exec "$CORE" bash -lc \
-    "source /opt/ros/jazzy/setup.bash && python3 $CFG/amcl_global_seed.py --wait 20" \
+    "source /opt/ros/jazzy/setup.bash && python3 /opt/armpi-maps/amcl_global_seed.py --wait 20" \
     >"$SEEDLOG" 2>&1 || seed_rc=$?
 tail -6 "$SEEDLOG" || true
 

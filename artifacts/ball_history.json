@@ -306,64 +306,10 @@
   "found": true
  },
  {
-  "t": 1794024768.7783465,
-  "kind": "sighting",
-  "x": 0.0,
-  "y": 0.0,
-  "yaw": 87.27,
-  "bearing": 0.0,
-  "range": 0.591,
-  "source": "search_around"
- },
- {
   "t": 1794025052.7864842,
   "kind": "outcome",
   "ok": true,
   "note": "round 1"
- },
- {
-  "t": 1794122186.7861283,
-  "kind": "sighting",
-  "frame": "map",
-  "x": -0.0241,
-  "y": 0.2581,
-  "yaw": 208.35,
-  "bearing": 0.0,
-  "range": 0.616,
-  "source": "search_around"
- },
- {
-  "t": 1794123184.3485894,
-  "kind": "sighting",
-  "frame": "map",
-  "x": 0.2104,
-  "y": 0.8664,
-  "yaw": -128.22,
-  "bearing": 0.0,
-  "range": 0.628,
-  "source": "search_around"
- },
- {
-  "t": 1794123984.0158682,
-  "kind": "sighting",
-  "frame": "odom",
-  "x": -0.0002,
-  "y": -0.0002,
-  "yaw": 58.36,
-  "bearing": 0.0,
-  "range": 0.482,
-  "source": "search_around"
- },
- {
-  "t": 1794124111.1168568,
-  "kind": "sighting",
-  "frame": "map",
-  "x": -0.7288,
-  "y": -0.2994,
-  "yaw": 56.31,
-  "bearing": 0.0,
-  "range": 0.675,
-  "source": "search_around"
  },
  {
   "t": "15:48:31",

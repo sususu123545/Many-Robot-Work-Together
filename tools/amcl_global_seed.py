@@ -33,11 +33,13 @@ Run inside the core container, with map_server + amcl already active:
 import argparse
 import math
 import sys
+import time
 
 import rclpy
 from geometry_msgs.msg import PoseWithCovarianceStamped
+from nav_msgs.msg import OccupancyGrid
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, ReliabilityPolicy
+from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 
 try:                                   # only present in the car's container
     from nav2_msgs.msg import ParticleCloud
@@ -101,10 +103,55 @@ def spin_for(node, seconds):
         rclpy.spin_once(node, timeout_sec=0.1)
 
 
+def map_centroid(node, timeout=12.0):
+    """Centroid of the free cells of whatever map is loaded right now.
+
+    The seed used to be a hardcoded pair remembered from the first room.  After
+    that room was abandoned the default sat 0.4 m away from the truth in the new
+    one, and amcl stayed split between two hypotheses (2026-11-09: sigma_yaw
+    147 deg after 60 deg of rotation, yaw flipping by 172 deg between reads).
+    Asking map_server removes the whole class of "the seed belongs to a map that
+    no longer exists" mistakes.
+    """
+    box = {}
+
+    def remember(message):
+        box['map'] = message
+
+    node.create_subscription(
+        OccupancyGrid, '/map', remember,
+        QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL,
+                   reliability=ReliabilityPolicy.RELIABLE))
+    end = time.monotonic() + timeout
+    while time.monotonic() < end and 'map' not in box:
+        rclpy.spin_once(node, timeout_sec=0.2)
+
+    grid = box.get('map')
+    if grid is None:
+        return None
+    width = grid.info.width
+    resolution = grid.info.resolution
+    origin = grid.info.origin.position
+    count = 0
+    sum_x = 0.0
+    sum_y = 0.0
+    for index, value in enumerate(grid.data):
+        if 0 <= value < 50:                      # free cell
+            sum_x += origin.x + (index % width + 0.5) * resolution
+            sum_y += origin.y + (index // width + 0.5) * resolution
+            count += 1
+    if not count:
+        return None
+    return sum_x / count, sum_y / count
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument('--x', type=float, default=DEFAULT_X)
-    parser.add_argument('--y', type=float, default=DEFAULT_Y)
+    parser.add_argument('--x', type=float, default=None,
+                        help='seed x in the map frame; default = centroid of '
+                             'the free cells of the map that is loaded')
+    parser.add_argument('--y', type=float, default=None,
+                        help='seed y in the map frame; default = same centroid')
     parser.add_argument('--yaw', type=float, default=0.0,
                         help='seed yaw, radians (0 = +x, map frame)')
     parser.add_argument('--wait', type=float, default=20.0,
@@ -120,6 +167,21 @@ def main():
 
     rclpy.init()
     node = Seeder(args.sigma_xy ** 2, args.sigma_yaw ** 2)
+    if args.x is None or args.y is None:
+        centre = map_centroid(node)
+        if centre is None:
+            args.x = DEFAULT_X if args.x is None else args.x
+            args.y = DEFAULT_Y if args.y is None else args.y
+            print('WARNING: no /map on the wire -- falling back to the built-in '
+                  'seed (%+.3f, %+.3f); pass --x/--y if that is the wrong room'
+                  % (args.x, args.y), flush=True)
+        else:
+            print('seed centre from /map free-cell centroid: (%+.3f, %+.3f)'
+                  % centre, flush=True)
+            if args.x is None:
+                args.x = centre[0]
+            if args.y is None:
+                args.y = centre[1]
     spin_for(node, 1.0)          # let the publisher discover subscribers
     if node.publisher.get_subscription_count() == 0:
         print('WARNING: nothing is subscribed to /initialpose -- '

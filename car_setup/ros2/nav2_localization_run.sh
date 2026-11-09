@@ -41,7 +41,7 @@ mkdir -p "$RUNDIR"
 # a reliable source of silently-misparsed ExecStop lines.
 cleanup_nodes() {
     docker exec "$CORE" bash -c \
-        'pkill -9 -x amcl; pkill -9 -x map_server; pkill -9 -x lifecycle_manag; pkill -9 -f "[n]av2_localization.launch.py"' >/dev/null 2>&1 || true
+        'pkill -9 -x amcl; pkill -9 -x map_server; pkill -9 -x lifecycle_manag; pkill -9 -f "[n]av2_localization.launch.py"; pkill -9 -f "[a]mcl_pose_keeper"' >/dev/null 2>&1 || true
 }
 
 if [ "${1:-start}" = "stop" ]; then
@@ -136,6 +136,15 @@ if [ "$converged" != "true" ]; then
     echo "WARNING: localisation has NOT converged. /amcl_pose is not trustworthy" >&2
     echo "         until the car moves (a slow 360 deg turn usually fixes it)." >&2
 fi
+
+# Remember the pose while it is good, so the next boot can start warm instead of
+# gambling on a broad search.  Measured 2026-11-09: broad seeding converged one
+# time out of three in a cluttered room; a tight seed at the remembered pose
+# converged immediately.  Only poses whose covariance is tight get written, so a
+# half-converged filter cannot poison the next boot.
+docker exec -d "$CORE" bash -lc \
+    "source /opt/ros/jazzy/setup.bash && exec python3 /opt/armpi-maps/amcl_pose_keeper.py" \
+    >/dev/null 2>&1 || echo "WARNING: could not start amcl_pose_keeper" >&2
 
 docker ps --filter "name=$CORE" --format '{{.Names}} {{.Status}}'
 exit 0

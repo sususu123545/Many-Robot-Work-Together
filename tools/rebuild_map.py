@@ -528,6 +528,8 @@ def main():
     if not topics:
         die('the tunnels did not come back; start them by hand (see above)')
     log('tunnels back, %d topics visible' % len(topics))
+    log('note: those tunnel processes belong to this shell -- if you close it, '
+        'restart them with tools/ssh_tunnel.py (both ports)')
     if not install_ok:
         log('finished, but the NEW MAP WAS NOT INSTALLED -- see the warning above')
         return 2

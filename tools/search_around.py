@@ -456,9 +456,13 @@ def main():
                 return 0
 
         log('')
-        log('not found in %.0f degrees of sweep' % (360.0 if turns > 1 else 0.0))
+        log('not found at this heading (%.0f quadrants requested)'
+            % args.quadrants)
         log('either it left the floor or it is outside this camera\'s usable range')
-        return 2
+        # 3 = "searched this heading, saw no ball".  That is a normal business
+        # result and the caller must keep going.  Exit 2 stays reserved for real
+        # failures (lost joint feedback, camera dead), which must stop the run.
+        return 3
     finally:
         bridge.close()
 

@@ -76,13 +76,18 @@ def log(msg):
 
 
 def run_tool(args, label):
-    """Run a sibling CLI tool, stream its tail, return (ok, output)."""
+    """Run a sibling CLI tool, stream its tail, return (ok, output, exit code).
+
+    The exit code matters: a non-zero status can mean "the answer is no" (for
+    search_around, 3 = swept this heading and saw nothing) or "the tool broke".
+    Callers must be able to tell those apart, so the raw code comes back too.
+    """
     log('=== %s: %s ===' % (label, ' '.join(args)))
     result = subprocess.run(
         [sys.executable] + args, capture_output=True, text=True, timeout=900)
     for line in result.stdout.strip().splitlines()[-10:]:
         log('  | ' + line)
-    return result.returncode == 0, result.stdout
+    return result.returncode == 0, result.stdout, result.returncode
 
 
 def append_history(entry):
@@ -288,18 +293,23 @@ def run_search(bridge, quadrants, label, frame='odom'):
             log('  /amcl_pose unavailable -- sighting will not be remembered')
     else:
         pose_before = read_pose(bridge)
-    ok, out = run_tool(
+    ok, out, code = run_tool(
         ['tools/search_around.py', '--quadrants', str(quadrants), '--ensure-gate'],
         label)
-    if not ok and 'FOUND' not in out:
-        # SystemExit, not a return value: there is nothing sensible to do next,
-        # and continuing turns a broken tool into a fake "searched everywhere".
+    found = 'FOUND' in out
+    # Exit codes from search_around: 0 = found, 3 = searched this heading and saw
+    # nothing (a normal answer -- keep going), anything else = the tool itself
+    # broke.  Treating 3 as a crash is what aborted a healthy run on 2026-11-10:
+    # memory pointed at a heading the ball had already left, and the whole
+    # retrieval stopped instead of searching elsewhere.
+    if not ok and not found and code != 3:
         raise SystemExit(
-            'ABORT: search_around exited with an error and never reported a '
+            'ABORT: search_around exited with code %s and never reported a '
             'sighting.\n  This is NOT "no ball": a broken camera, a dead video '
             'tunnel or a stuck arm all look exactly like this.\n  Fix the tool '
-            'and re-run; the round-by-round output above says which one it was.')
-    return ('FOUND' in out), out, pose_before
+            'and re-run; the round-by-round output above says which one it was.'
+            % code)
+    return found, out, pose_before
 
 
 def read_scan(bridge):
@@ -655,7 +665,7 @@ def main():
             continue
 
         # Ball found -- approach.
-        ok, out = run_tool(
+        ok, out, code = run_tool(
             ['tools/approach_ball.py', '--target', str(args.target),
              '--margin', '0.03', '--max-steps', '24'],
             'ROUND %d: approach' % round_index)
@@ -666,7 +676,7 @@ def main():
             continue
 
         # In the grasp band -- grasp.
-        ok, out = run_tool(['tools/grasp_sequence.py', '--vision', 'ground'],
+        ok, out, code = run_tool(['tools/grasp_sequence.py', '--vision', 'ground'],
                            'ROUND %d: grasp' % round_index)
         success = '"ok": true' in out
         append_history({'t': time.strftime('%H:%M:%S'), 'round': round_index,

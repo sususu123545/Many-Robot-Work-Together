@@ -306,16 +306,106 @@
   "found": true
  },
  {
+  "t": "15:48:31",
+  "round": 1,
+  "event": "search-only",
+  "found": true,
+  "frame": "map"
+ },
+ {
+  "t": "19:33:34",
+  "round": 1,
+  "event": "search",
+  "found": true
+ },
+ {
+  "t": "19:33:36",
+  "round": 1,
+  "event": "approach",
+  "ok": false
+ },
+ {
+  "t": "19:33:48",
+  "round": 2,
+  "event": "search",
+  "found": true
+ },
+ {
+  "t": "19:34:34",
+  "round": 2,
+  "event": "approach",
+  "ok": false
+ },
+ {
+  "t": "19:34:50",
+  "round": 3,
+  "event": "search",
+  "found": true
+ },
+ {
+  "t": "19:35:06",
+  "round": 3,
+  "event": "approach",
+  "ok": true
+ },
+ {
+  "t": "19:39:17",
+  "round": 3,
+  "event": "grasp",
+  "ok": false
+ },
+ {
+  "t": "19:52:47",
+  "round": 1,
+  "event": "search-memory",
+  "bearing": -64.8,
+  "found": false
+ },
+ {
+  "t": "19:58:08",
+  "round": 1,
+  "event": "search",
+  "found": true
+ },
+ {
+  "t": "19:58:11",
+  "round": 1,
+  "event": "approach",
+  "ok": true
+ },
+ {
+  "t": "20:03:27",
+  "round": 1,
+  "event": "grasp",
+  "ok": false
+ },
+ {
   "t": 1794025052.7864842,
   "kind": "outcome",
   "ok": true,
   "note": "round 1"
  },
  {
-  "t": "15:48:31",
-  "round": 1,
-  "event": "search-only",
-  "found": true,
-  "frame": "map"
+  "t": 1794310414.9405932,
+  "kind": "sighting",
+  "frame": "map",
+  "x": 0.0288,
+  "y": -0.0352,
+  "yaw": 96.62,
+  "bearing": 0.0,
+  "range": 0.54,
+  "source": "search_around"
+ },
+ {
+  "t": 1794310757.1687799,
+  "kind": "outcome",
+  "ok": false,
+  "note": "round 3"
+ },
+ {
+  "t": 1794312207.6844308,
+  "kind": "outcome",
+  "ok": false,
+  "note": "round 1"
  }
 ]

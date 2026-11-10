@@ -1,0 +1,7 @@
+# icSpring UVC camera: give the capture node a stable name.
+# index 0 is the video capture function; index 1 is the metadata node.
+# 2026-11-10: the camera re-enumerated as /dev/video1|2 after a USB hiccup, the
+# core mapped a device path that no longer existed, and the whole grasp pipeline
+# ran blind.  run_native_core.py maps this symlink to /dev/video0 inside the
+# container so the launch file never has to know the host's minor numbers.
+SUBSYSTEM=="video4linux", ATTRS{idVendor}=="32e6", ATTRS{idProduct}=="9005", ATTR{index}=="0", SYMLINK+="armpi_cam"

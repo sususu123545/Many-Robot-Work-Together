@@ -143,7 +143,13 @@ def main():
     # also excluded from the owner check below on purpose: a second holder of
     # /dev/video0 (a stale ROS 1 usb_cam, a manual v4l2 tool) should cost the video
     # feed, not the whole-car core.
-    camera = '/dev/video0'
+    # The UVC camera re-enumerates as /dev/video1|2 when its USB link hiccups,
+    # and then /dev/video0 simply does not exist any more (measured 2026-11-10:
+    # disconnect at 21 min of use, and again 85 s into a boot).  The core came up
+    # with camera:=false and the whole grasp pipeline lost its eyes.  A udev rule
+    # pins the capture node to /dev/armpi_cam; falling back to /dev/video0 keeps
+    # a machine without that rule working exactly as before.
+    camera = '/dev/armpi_cam' if Path('/dev/armpi_cam').exists() else '/dev/video0'
     camera_present = Path(camera).exists()
     devices = required + ([camera] if camera_present else [])
     launch_camera = 'camera:=true' if camera_present else 'camera:=false'
@@ -191,7 +197,12 @@ def main():
             '-v', str(MAPS) + ':/opt/armpi-maps',
             '-v', cfg['bmi_library'] + ':/opt/bmi270_py:ro']
     for d in devices:
-        args.extend(['--device', d + ':' + d])
+        # The camera is mapped under its historical name INSIDE the container:
+        # the launch file and every tool expect /dev/video0, while the host node
+        # may be video1/video2 after a USB re-enumeration.  Keeping the inside
+        # path fixed is the whole point of the udev symlink.
+        inside = '/dev/video0' if d == '/dev/armpi_cam' else d
+        args.extend(['--device', d + ':' + inside])
     args.extend([cfg['image'], 'bash', '-lc', launch])
     created = False
     stopping = False

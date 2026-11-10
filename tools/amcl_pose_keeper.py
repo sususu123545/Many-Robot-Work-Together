@@ -30,14 +30,29 @@ import time
 
 import rclpy
 from geometry_msgs.msg import PoseWithCovarianceStamped
+from nav_msgs.msg import OccupancyGrid
 from rclpy.node import Node
-from rclpy.qos import QoSProfile, ReliabilityPolicy
+from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
 
 PATH = '/opt/armpi-maps/last_pose.json'
 MAX_SIGMA_XY = 0.30          # metres; amcl's own result, not the seed
 MAX_SIGMA_YAW = math.radians(20.0)
 MAX_AGE_S = 5.0              # a pose older than this is not "current"
 WRITE_EVERY_S = 3.0
+
+
+def map_id(grid):
+    """A short fingerprint of the geometry a pose is expressed in.
+
+    A pose is only meaningful in the coordinate frame of one specific map.  On
+    2026-11-10 the map was rebuilt after the furniture moved; the stored pose
+    then pointed into empty space in the new frame.  Recording the geometry and
+    refusing a mismatch makes "the map changed under the pose" impossible to
+    ignore.
+    """
+    origin = grid.info.origin.position
+    return '%dx%d@%.3f,%.3f' % (grid.info.width, grid.info.height,
+                                origin.x, origin.y)
 
 
 class Keeper(Node):
@@ -47,12 +62,20 @@ class Keeper(Node):
         qos.reliability = ReliabilityPolicy.BEST_EFFORT
         self.pose = None
         self.received_at = 0.0
+        self.map_token = None
         self.create_subscription(
             PoseWithCovarianceStamped, '/amcl_pose', self.on_pose, qos)
+        self.create_subscription(
+            OccupancyGrid, '/map', self.on_map,
+            QoSProfile(depth=1, durability=DurabilityPolicy.TRANSIENT_LOCAL,
+                       reliability=ReliabilityPolicy.RELIABLE))
         self.last_written = 0.0
         self.writes = 0
         self.create_timer(WRITE_EVERY_S, self.maybe_write)
         self.get_logger().info('keeper up, writing to %s' % PATH)
+
+    def on_map(self, message):
+        self.map_token = map_id(message)
 
     def on_pose(self, message):
         self.pose = message
@@ -60,6 +83,8 @@ class Keeper(Node):
 
     def maybe_write(self):
         if self.pose is None:
+            return
+        if self.map_token is None:          # a pose without a frame is useless
             return
         if time.monotonic() - self.received_at > MAX_AGE_S:
             return
@@ -81,6 +106,7 @@ class Keeper(Node):
             'yaw': yaw,
             'sigma_xy': sigma_xy,
             'sigma_yaw_deg': math.degrees(sigma_yaw),
+            'map': self.map_token,
             'saved_at': time.strftime('%Y-%m-%dT%H:%M:%S'),
         }
         temporary = PATH + '.tmp'

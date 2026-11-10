@@ -150,6 +150,24 @@ def wait_for_subscribers(node, timeout=15.0):
     return 0
 
 
+def wait_for_scan(node, timeout=12.0):
+    """Wait until at least one usable /scan has arrived.
+
+    Discovery of a BEST_EFFORT topic is not instant.  2026-11-10: the first run
+    captured the scan before any had arrived, so every "scan fit" was computed
+    over zero beams and read `inf / 0 beams` at *every* pose -- including the
+    correct one.  Never verify against an empty scan.
+    """
+    end = time.monotonic() + timeout
+    while time.monotonic() < end:
+        if node.scan is not None:
+            count = len(scan_points(node.scan))
+            if count > 20:
+                return count
+        rclpy.spin_once(node, timeout_sec=0.2)
+    return 0
+
+
 def fetch_map(node, timeout=12.0):
     box = {}
 
@@ -296,17 +314,40 @@ def fit_error(grid, field, points, x, y, yaw, near=0.15):
     return total / used, hits / used, used
 
 
-def read_last_pose(path):
+def map_id(grid):
+    """Short fingerprint of the map geometry a pose is expressed in.
+
+    A stored pose is only meaningful in the frame of the map it was recorded in.
+    2026-11-10: the map was rebuilt because furniture had moved; the old pose
+    then pointed into empty space in the new frame.  With this token the seed is
+    rejected as "recorded in a map that no longer exists" instead of being
+    silently misused.
+    """
+    origin = grid.info.origin.position
+    return '%dx%d@%.3f,%.3f' % (grid.info.width, grid.info.height,
+                                origin.x, origin.y)
+
+
+def read_last_pose(path, token=None):
     try:
         with open(path) as handle:
             data = json.load(handle)
-        return float(data['x']), float(data['y']), float(data['yaw']), data
+        recorded = data.get('map')
+        if token is not None and recorded != token:
+            return None, 'recorded in a different map (%s vs %s)' % (
+                recorded, token)
+        return (float(data['x']), float(data['y']), float(data['yaw']), data), None
     except (OSError, ValueError, KeyError):
-        return None
+        return None, None
 
 
-def report(node, grid, field, points, label):
-    """Print AMCL's own numbers plus an independent scan-to-map check."""
+def report(node, grid, field, label):
+    """Print AMCL's own numbers plus an independent scan-to-map check.
+
+    The scan is taken fresh here, not passed in: a scan captured at start-up may
+    be older than the seed, and an empty one silently makes every pose look
+    wrong (all beams "unusable").
+    """
     pose = node.pose.pose.pose
     covariance = node.pose.pose.covariance
     sigma_x = math.sqrt(max(0.0, covariance[0]))
@@ -314,18 +355,25 @@ def report(node, grid, field, points, label):
     sigma_yaw = math.sqrt(max(0.0, covariance[35]))
     yaw = math.atan2(2.0 * (pose.orientation.w * pose.orientation.z),
                      1.0 - 2.0 * pose.orientation.z ** 2)
-    mean, hit, used = fit_error(grid, field, points,
-                                pose.position.x, pose.position.y, yaw)
+    points = scan_points(node.scan) if node.scan is not None else []
     print('--- %s' % label)
     print('pose        : x=%+.3f  y=%+.3f  yaw=%+.1f deg'
           % (pose.position.x, pose.position.y, math.degrees(yaw)))
     print('sigma       : x=%.3f m  y=%.3f m  yaw=%.1f deg  (particles=%s)'
           % (sigma_x, sigma_y, math.degrees(sigma_yaw),
              node.particles if node.particles is not None else 'n/a'))
-    print('scan fit    : %.3f m mean to nearest obstacle, %.2f of beams within '
-          '0.15 m (%d beams)' % (mean, hit, used), flush=True)
     tight = (sigma_x < OK_SIGMA_XY and sigma_y < OK_SIGMA_XY
              and sigma_yaw < OK_SIGMA_YAW)
+    if not points:
+        print('scan fit    : SKIPPED -- no usable /scan, cannot verify this pose',
+              flush=True)
+        print('verdict     : %s (unverified)'
+              % ('CONVERGED' if tight else 'NOT converged'), flush=True)
+        return tight                       # never claim a verified convergence
+    mean, hit, used = fit_error(grid, field, points,
+                                pose.position.x, pose.position.y, yaw)
+    print('scan fit    : %.3f m mean to nearest obstacle, %.2f of beams within '
+          '0.15 m (%d beams)' % (mean, hit, used), flush=True)
     agrees = mean <= OK_FIT and hit >= OK_HIT
     if tight and agrees:
         print('verdict     : CONVERGED', flush=True)
@@ -382,11 +430,19 @@ def main():
     else:
         print('WARNING: nobody subscribed to /initialpose after 15 s -- is amcl '
               'really active?', flush=True)
-    points = scan_points(node.scan) if node.scan is not None else []
-    print('live scan   : %d usable beams' % len(points), flush=True)
+    beams = wait_for_scan(node)
+    print('live scan   : %d usable beams' % beams, flush=True)
+    if not beams:
+        print('WARNING: no /scan arrived in 12 s -- poses will be reported as '
+              'unverified, not as converged', flush=True)
 
     explicit = args.x is not None or args.y is not None
-    warm = None if (args.no_warm or explicit) else read_last_pose(args.last_pose)
+    token = map_id(grid) if grid is not None else None
+    warm = None
+    if not (args.no_warm or explicit):
+        warm, rejected = read_last_pose(args.last_pose, token)
+        if warm is None and rejected:
+            print('warm start  : ignored -- %s' % rejected, flush=True)
 
     # ---- 1. warm start -------------------------------------------------
     if warm is not None:
@@ -401,7 +457,7 @@ def main():
             moved = math.hypot(node.pose.pose.pose.position.x - warm_x,
                                node.pose.pose.pose.position.y - warm_y)
             if moved <= WARM_MAX_DISPLACEMENT and grid is not None:
-                if report(node, grid, field, points, 'warm'):
+                if report(node, grid, field, 'warm'):
                     rclpy.shutdown()
                     return 0
             else:
@@ -440,7 +496,7 @@ def main():
                 rclpy.shutdown()
                 return 0
             continue
-        if report(node, grid, field, points, 'attempt %d' % attempt):
+        if report(node, grid, field, 'attempt %d' % attempt):
             rclpy.shutdown()
             return 0
 

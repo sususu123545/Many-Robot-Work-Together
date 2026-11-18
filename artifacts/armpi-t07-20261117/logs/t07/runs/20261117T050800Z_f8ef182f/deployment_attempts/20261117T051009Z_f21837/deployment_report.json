@@ -1,0 +1,41 @@
+{
+  "passed": false,
+  "motion_commands_sent": 0,
+  "torque_writes": 0,
+  "stack_stopped": false,
+  "stack_restarted": false,
+  "paths": {
+    "arm": "/opt/armpi_ros2/install/armpi_ros2/lib/python3.12/site-packages/armpi_ros2/arm_node.py",
+    "helper": "/opt/armpi_ros2/install/armpi_ros2/lib/python3.12/site-packages/armpi_ros2/gripper_diag.py",
+    "launch": "/opt/armpi_ros2/install/armpi_ros2/share/armpi_ros2/launch/base.launch.py",
+    "marker": "/opt/armpi_ros2/install/armpi_ros2/share/armpi_ros2/config/t07_readonly_lock.flag",
+    "arm_sha256": "ed561cd6e80b4e8c4db09ca4e2320a5e01805bb80fc96fc868c03230e0362e4c",
+    "launch_sha256": "8e17be19a170adafe068d63ccf6ad52e574a0a0083854ee79e8dd51b19be5d41",
+    "helper_exists": true
+  },
+  "pre_restart_stop": {
+    "passed": true,
+    "chassis": {
+      "dry_run": false,
+      "enable_motion": false,
+      "estop": true,
+      "hardware_fault": false,
+      "wheel_command": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "arm_stop": {
+      "estop": true,
+      "enable_arm_motion": false,
+      "enable_gripper_motion": false
+    },
+    "movement_commands_sent": 0,
+    "estop_true_published": true,
+    "reset_called": false,
+    "note": "Chassis enable_motion is a startup flag; runtime parameter change does not update driver attribute. Actual lock is verified latched chassis estop; do not reset chassis."
+  },
+  "error": "RuntimeError('Unexpected helper existence; no deployment')"
+}

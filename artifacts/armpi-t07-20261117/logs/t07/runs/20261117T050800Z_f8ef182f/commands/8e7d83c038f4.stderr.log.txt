@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "WORKSPACE/Documents\New project\scripts\t07_prepare_arm_stage.py", line 86, in <module>
+    if __name__=='__main__':main()
+                            ^^^^^^
+  File "WORKSPACE/Documents\New project\scripts\t07_prepare_arm_stage.py", line 72, in main
+    if not 125<=command['joint2']<=875 or any(not 0<=v<=1000 for v in command.values()) or max(abs(command[k]-previous[k]) for k in names)>35:raise ValueError('No bounded stage')
+                                                                                                                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: No bounded stage

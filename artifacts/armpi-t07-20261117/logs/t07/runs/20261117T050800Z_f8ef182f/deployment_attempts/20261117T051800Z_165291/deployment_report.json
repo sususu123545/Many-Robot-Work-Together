@@ -1,0 +1,80 @@
+{
+  "passed": false,
+  "motion_commands_sent": 0,
+  "torque_writes": 0,
+  "stack_stopped": true,
+  "stack_restarted": true,
+  "paths": {
+    "arm": "/opt/armpi_ros2/install/armpi_ros2/lib/python3.12/site-packages/armpi_ros2/arm_node.py",
+    "helper": "/opt/armpi_ros2/install/armpi_ros2/lib/python3.12/site-packages/armpi_ros2/gripper_restore.py",
+    "launch": "/opt/armpi_ros2/install/armpi_ros2/share/armpi_ros2/launch/base.launch.py",
+    "marker": "/opt/armpi_ros2/install/armpi_ros2/share/armpi_ros2/config/t07_readonly_lock.flag",
+    "arm_sha256": "e09e3d8932dbbf4c971f9db8cf9897450da7e95847212dc159bb6634279e678d",
+    "launch_sha256": "8e17be19a170adafe068d63ccf6ad52e574a0a0083854ee79e8dd51b19be5d41",
+    "helper_exists": false
+  },
+  "pre_restart_stop": {
+    "passed": true,
+    "chassis": {
+      "dry_run": false,
+      "enable_motion": false,
+      "estop": true,
+      "hardware_fault": false,
+      "wheel_command": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "arm_stop": {
+      "estop": true,
+      "enable_arm_motion": false,
+      "enable_gripper_motion": false
+    },
+    "movement_commands_sent": 0,
+    "estop_true_published": true,
+    "reset_called": false,
+    "note": "Chassis enable_motion is a startup flag; runtime parameter change does not update driver attribute. Actual lock is verified latched chassis estop; do not reset chassis."
+  },
+  "installed_hashes": {
+    "arm": "7b26ceb7929e5337a442c66f1f97d8aea4310fc36c63684360bf5f2c411deea0",
+    "helper": "c2aac1a9da0a8bf6257e603b449953c1414a4a8eaecc975601028eb2634fa2ac",
+    "launch": "8e17be19a170adafe068d63ccf6ad52e574a0a0083854ee79e8dd51b19be5d41",
+    "marker": "d55f51a75b839e0d1f3c145fd7394a01b4dfbb91a8f9d4a94d097e6226cad3fa"
+  },
+  "diagnostics": {
+    "gates_verified_off": true,
+    "motion_commands_sent": 0,
+    "torque_writes": 0,
+    "diagnostic_response": {
+      "success": true,
+      "message": "{\"joint_measurements\": {\"joint1\": {\"servo_id\": 6, \"position_raw\": 478, \"position_raw_read_monotonic\": 3150.238961058, \"torque_enabled\": true, \"torque_enabled_read_monotonic\": 3150.258450422, \"voltage_mv\": 7434, \"voltage_mv_read_monotonic\": 3150.282889919, \"temperature_C\": 29, \"temperature_C_read_monotonic\": 3150.301052992}, \"joint2\": {\"servo_id\": 5, \"position_raw\": 432, \"position_raw_read_monotonic\": 3150.322679146, \"torque_enabled\": true, \"torque_enabled_read_monotonic\": 3150.341266513, \"voltage_mv\": 7432, \"voltage_mv_read_monotonic\": 3150.362313891, \"temperature_C\": 28, \"temperature_C_read_monotonic\": 3150.382661809}, \"joint3\": {\"servo_id\": 4, \"position_raw\": 919, \"position_raw_read_monotonic\": 3150.403161003, \"torque_enabled\": true, \"torque_enabled_read_monotonic\": 3150.422215036, \"voltage_mv\": 7430, \"voltage_mv_read_monotonic\": 3150.445871332, \"temperature_C\": 28, \"temperature_C_read_monotonic\": 3150.463270777}, \"joint4\": {\"servo_id\": 3, \"position_raw\": 350, \"position_raw_read_monotonic\": 3150.483323399, \"torque_enabled\": true, \"torque_enabled_read_monotonic\": 3150.503300169, \"voltage_mv\": 7443, \"voltage_mv_read_monotonic\": 3150.523345588, \"temperature_C\": 28, \"temperature_C_read_monotonic\": 3150.543405284}, \"joint5\": {\"servo_id\": 2, \"position_raw\": 495, \"position_raw_read_monotonic\": 3150.56356472, \"torque_enabled\": true, \"torque_enabled_read_monotonic\": 3150.584415525, \"voltage_mv\": 7405, \"voltage_mv_read_monotonic\": 3150.604420536, \"temperature_C\": 28, \"temperature_C_read_monotonic\": 3150.626246597}, \"r_joint\": {\"servo_id\": 1, \"position_raw\": 155, \"position_raw_read_monotonic\": 3150.644451558, \"torque_enabled\": false, \"torque_enabled_read_monotonic\": 3150.664214366, \"voltage_mv\": 7407, \"voltage_mv_read_monotonic\": 3150.685304188, \"temperature_C\": 28, \"temperature_C_read_monotonic\": 3150.705220144}}, \"serial_owner_reused\": true, \"motion_commands\": 0, \"torque_writes\": 0, \"transport\": {\"last_control_tx\": {\"stop\": {\"monotonic_time\": 3149.699783146, \"frame_hex\": \"aa55050803060102030405064b\"}}, \"counters\": {\"requests\": 103, \"tx\": 111, \"read_attempt\": 103, \"rx_bytes\": 1465, \"function_5_frames\": 103, \"rx_servo\": 103, \"read_success\": 103, \"function_0_frames\": 41}, \"last_query\": {\"query_id\": 103, \"servo_id\": 1, \"command\": 9, \"started\": 3150.685353059, \"result\": \"OK\", \"attempts\": 1, \"elapsed_ms\": 19.851}, \"last_failed_query\": null, \"last_failure_events\": [], \"recent_events\": [{\"event\": \"tx\", \"monotonic_time\": 3150.561235672, \"frame_hex\": \"aa55050205028d\"}, {\"event\": \"read_attempt\", \"monotonic_time\": 3150.561254598, \"query_id\": 96, \"servo_id\": 2, \"command\": 5, \"attempt\": 1}, {\"event\": \"rx_servo\", \"monotonic_time\": 3150.563439443, \"payload_hex\": \"020500ef01\"}, {\"event\": \"read_success\", \"monotonic_time\": 3150.563545609, \"query_id\": 96, \"attempt\": 1, \"reply_ms\": 2.325}, {\"event\": \"tx\", \"monotonic_time\": 3150.581562608, \"frame_hex\": \"aa5505020d02fb\"}, {\"event\": \"read_attempt\", \"monotonic_time\": 3150.581598367, \"query_id\": 97, \"servo_id\": 2, \"command\": 13, \"attempt\": 1}, {\"event\": \"rx_servo\", \"monotonic_time\": 3150.584223081, \"payload_hex\": \"020d0001\"}, {\"event\": \"read_success\", \"monotonic_time\": 3150.584390321, \"query_id\": 97, \"attempt\": 1, \"reply_ms\": 2.785}, {\"event\": \"tx\", \"monotonic_time\": 3150.601705118, \"frame_hex\": \"aa55050207021c\"}, {\"event\": \"read_attempt\", \"monotonic_time\": 3150.601724285, \"query_id\": 98, \"servo_id\": 2, \"command\": 7, \"attempt\": 1}, {\"event\": \"rx_servo\", \"monotonic_time\": 3150.604279666, \"payload_hex\": \"020700ed1c\"}, {\"event\": \"read_success\", \"monotonic_time\": 3150.604398851, \"query_id\": 98, \"attempt\": 1, \"reply_ms\": 2.698}, {\"event\": \"tx\", \"monotonic_time\": 3150.62187887, \"frame_hex\": \"aa5505020902c0\"}, {\"event\": \"read_attempt\", \"monotonic_time\": 3150.621897703, \"query_id\": 99, \"servo_id\": 2, \"command\": 9, \"attempt\": 1}, {\"event\": \"rx_servo\", \"monotonic_time\": 3150.625299877, \"payload_hex\": \"0209001c\"}, {\"event\": \"read_success\", \"monotonic_time\": 3150.626218078, \"query_id\": 99, \"attempt\": 1, \"reply_ms\": 3.568}, {\"event\": \"tx\", \"monotonic_time\": 3150.642156269, \"frame_hex\": \"aa55050205016f\"}, {\"event\": \"read_attempt\", \"monotonic_time\": 3150.642174398, \"query_id\": 100, \"servo_id\": 1, \"command\": 5, \"attempt\": 1}, {\"event\": \"rx_servo\", \"monotonic_time\": 3150.644252484, \"payload_hex\": \"0105009b00\"}, {\"event\": \"read_success\", \"monotonic_time\": 3150.644427947, \"query_id\": 100, \"attempt\": 1, \"reply_ms\": 2.236}, {\"event\": \"tx\", \"monotonic_time\": 3150.662286909, \"frame_hex\": \"aa5505020d0119\"}, {\"event\": \"read_attempt\", \"monotonic_time\": 3150.662306298, \"query_id\": 101, \"servo_id\": 1, \"command\": 13, \"attempt\": 1}, {\"event\": \"rx_servo\", \"monotonic_time\": 3150.664063459, \"payload_hex\": \"010d0000\"}, {\"event\": \"read_success\", \"monotonic_time\": 3150.664192273, \"query_id\": 101, \"attempt\": 1, \"reply_ms\": 1.9}, {\"event\": \"tx\", \"monotonic_time\": 3150.682406642, \"frame_hex\": \"aa5505020701fe\"}, {\"event\": \"read_attempt\", \"monotonic_time\": 3150.682425642, \"query_id\": 102, \"servo_id\": 1, \"command\": 7, \"attempt\": 1}, {\"event\": \"rx_servo\", \"monotonic_time\": 3150.685191466, \"payload_hex\": \"010700ef1c\"}, {\"event\": \"read_success\", \"monotonic_time\": 3150.685282707, \"query_id\": 102, \"attempt\": 1, \"reply_ms\": 2.901}, {\"event\": \"tx\", \"monotonic_time\": 3150.702616023, \"frame_hex\": \"aa550502090122\"}, {\"event\": \"read_attempt\", \"monotonic_time\": 3150.702636597, \"query_id\": 103, \"servo_id\": 1, \"command\": 9, \"attempt\": 1}, {\"event\": \"rx_servo\", \"monotonic_time\": 3150.705108774, \"payload_hex\": \"0109001c\"}, {\"event\": \"read_success\", \"monotonic_time\": 3150.705200422, \"query_id\": 103, \"attempt\": 1, \"reply_ms\": 2.635}], \"receiver_error\": null}}"
+    },
+    "arm": {
+      "estop": true,
+      "enable_arm_motion": false,
+      "enable_gripper_motion": false
+    },
+    "base": {
+      "dry_run": false,
+      "enable_motion": false,
+      "estop": true,
+      "hardware_fault": false,
+      "wheel_command": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  },
+  "torque_restore": {
+    "ready": true,
+    "service_called": true,
+    "trajectory_publishers": 0,
+    "success": false,
+    "message": "{\"passed\": false, \"error\": \"No physical reply from servo 1, command 9 after 3 reads\", \"servo_id\": 1, \"torque_writes\": 0, \"holding_target_commands\": 0}"
+  },
+  "holding_target_commands": 0
+}

@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "WORKSPACE/Documents\New project\scripts\t07_prepare_arm_stage.py", line 87, in <module>
+    if __name__=='__main__':main()
+                            ^^^^^^
+  File "WORKSPACE/Documents\New project\scripts\t07_prepare_arm_stage.py", line 74, in main
+    if math.dist(fk,xyz)>.002:raise ValueError('IK/FK residual')
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: IK/FK residual

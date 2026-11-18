@@ -1,0 +1,1539 @@
+{
+  "ticket": "T07",
+  "status": "simulation_accepted_physical_demonstration_pending",
+  "run_id": "20261114T102127Z_312dac95",
+  "simulation_frames": 710,
+  "simulation_episodes": 2,
+  "fps": 10,
+  "simulation_loader_verified": true,
+  "simulation_replay_verified": true,
+  "physical_readonly_capture_verified": true,
+  "physical_images": 452,
+  "physical_joint_messages": 41,
+  "physical_action_labels_verified": false,
+  "physical_training_loader_verified": false,
+  "physical_training_export_enabled": false,
+  "real_robot_commands": 22,
+  "trained_policy_verified": false,
+  "tests_passed": 18,
+  "evidence": "logs/t07/runs/20261114T102127Z_312dac95/lerobot_sim_v2_replay_report.json",
+  "progress": "docs/t07_progress.md",
+  "remaining": [
+    "Verify camera-to-base transform and current extrinsic calibration applicability",
+    "Validate target stability and IK/path against physical workspace before motion",
+    "Capture one full real red-ball episode with six ACK-confirmed targets, language and bound start/end/outcome evidence",
+    "Accept physical timing pairing, conversion, source replay and actual training loader"
+  ],
+  "next": "Simulation T08 small-data fit can proceed; do not mark T07 overall complete.",
+  "latest_physical_demo_attempt": {
+    "run_id": "20261115T064248Z_09773f64",
+    "status": "torque_on_verified_small_step_arrival_failed",
+    "gateway": "[私网地址已脱敏]",
+    "robot": "[私网地址已脱敏]",
+    "host_identities_verified": true,
+    "readonly_patch_reinstalled": true,
+    "reversion_cause": "unknown; old helpers and startup lock absent, original source hashes matched",
+    "sent_gripper_trajectories": 1,
+    "accepted_gripper_trajectories": 1,
+    "verified_target_arrivals": 0,
+    "expected_raw": 127,
+    "target_raw": 137,
+    "duration_seconds": 1,
+    "feedback_raw_range": [
+      124,
+      127
+    ],
+    "explicit_torque_writes": 0,
+    "current_diagnostics": {
+      "position_raw": 127,
+      "torque_enabled": true,
+      "voltage_mv": 7674,
+      "hardware_limits": [
+        0,
+        700
+      ],
+      "offset": 115,
+      "temperature_C": 28
+    },
+    "torque_became_enabled_after_position_command": true,
+    "full_arm_trajectories": 0,
+    "chassis_resets": 0,
+    "all_motion_gates_false": true,
+    "estops_latched": true,
+    "operator_observed_movement": false,
+    "operator_reported_abnormal_noise": false,
+    "opening_mm_new_measurement": null,
+    "valid_new_opening_mapping_points": 0,
+    "preflight_failures_without_motion": 2,
+    "automatic_retry_after_dispatch": false,
+    "physical_training_export_enabled": false,
+    "remaining": [
+      "Gripper torque ON does not prove target tracking or mechanical function",
+      "Diagnose deadband, linkage and command/feedback mapping without widening motion without authorization",
+      "Determine why runtime patch reverted and preserve it across container recreation",
+      "T05 opening/workspace calibration and successful real pick/place recording"
+    ],
+    "evidence": {
+      "motion": "native_calibrate_af7b907d/stdout.log",
+      "postcheck": "native_diagnostics_9b23adbc/stdout.log",
+      "runtime_audit": "native_audit_69479b27/stdout.log",
+      "deployment": "deployment_attempts/20261115T064604Z_a0e5f7/deployment_report.json"
+    }
+  },
+  "latest_restore_attempt": {
+    "run_id": "20261114T150655Z_54a446a5",
+    "recorded_utc": "2026-11-15T06:36:02.784707+00:00",
+    "status": "current_state_unverified_ssh_unavailable",
+    "operator_onsite_and_clear_reconfirmed": true,
+    "authorization": "servo 1 only torque restore and one <=10 ticks / 1 second calibration; base and five arm joints disabled; no offset or limit writes",
+    "restore_result": {
+      "passed": false,
+      "error": "Unexpected torque activation while preloading hold target",
+      "servo_id": 1,
+      "torque_writes": 0,
+      "holding_target_commands": 1,
+      "initial_raw": 127,
+      "voltage_mv": 7813,
+      "initial_torque": false
+    },
+    "interpretation": "Position preload auto-enabled torque in the recorded attempt; guard aborted before explicit enable and before the pending step. Current live torque/position remain unknown.",
+    "serial_holding_target_commands": 1,
+    "explicit_torque_enable_writes": 0,
+    "new_small_step_trajectories": 0,
+    "verified_new_arrivals": 0,
+    "current_session_connection_attempts": 2,
+    "connection_failure": "ycw [私网地址已脱敏]:22 resets before SSH protocol banner/key exchange; no new robot command sent",
+    "ycw_sync": "pending_connection_restoration",
+    "next": "Read-only fresh torque, raw position and effective gates first. Do not replay consumed restore permit. Only then consider the single authorized <=10 tick step with onsite conditions current."
+  },
+  "latest_physical_postcheck": {
+    "run_id": "20261115T064248Z_09773f64",
+    "status": "torque_on_verified_small_step_arrival_failed",
+    "gateway": "[私网地址已脱敏]",
+    "robot": "[私网地址已脱敏]",
+    "host_identities_verified": true,
+    "readonly_patch_reinstalled": true,
+    "reversion_cause": "unknown; old helpers and startup lock absent, original source hashes matched",
+    "sent_gripper_trajectories": 1,
+    "accepted_gripper_trajectories": 1,
+    "verified_target_arrivals": 0,
+    "expected_raw": 127,
+    "target_raw": 137,
+    "duration_seconds": 1,
+    "feedback_raw_range": [
+      124,
+      127
+    ],
+    "explicit_torque_writes": 0,
+    "current_diagnostics": {
+      "position_raw": 127,
+      "torque_enabled": true,
+      "voltage_mv": 7674,
+      "hardware_limits": [
+        0,
+        700
+      ],
+      "offset": 115,
+      "temperature_C": 28
+    },
+    "torque_became_enabled_after_position_command": true,
+    "full_arm_trajectories": 0,
+    "chassis_resets": 0,
+    "all_motion_gates_false": true,
+    "estops_latched": true,
+    "operator_observed_movement": false,
+    "operator_reported_abnormal_noise": false,
+    "opening_mm_new_measurement": null,
+    "valid_new_opening_mapping_points": 0,
+    "preflight_failures_without_motion": 2,
+    "automatic_retry_after_dispatch": false,
+    "physical_training_export_enabled": false,
+    "remaining": [
+      "Gripper torque ON does not prove target tracking or mechanical function",
+      "Diagnose deadband, linkage and command/feedback mapping without widening motion without authorization",
+      "Determine why runtime patch reverted and preserve it across container recreation",
+      "T05 opening/workspace calibration and successful real pick/place recording"
+    ],
+    "evidence": {
+      "motion": "native_calibrate_af7b907d/stdout.log",
+      "postcheck": "native_diagnostics_9b23adbc/stdout.log",
+      "runtime_audit": "native_audit_69479b27/stdout.log",
+      "deployment": "deployment_attempts/20261115T064604Z_a0e5f7/deployment_report.json"
+    }
+  },
+  "real_robot_commands_scope": "Accepted archived ROS trajectories:19 gripper+3 arm tests; prior serial hold and external sessions excluded",
+  "previous_restore_serial_hold_targets": 1,
+  "latest_gripper_forensics": {
+    "run_id": "20261115T065936Z_ce9d648f",
+    "status": "readonly_diagnosis_complete_additional_probe_pending_authorization",
+    "new_motion_commands": 0,
+    "torque_writes": 0,
+    "operator_history": {
+      "last_normal_open_close": "three days before operator reply, approximately 2026-11-12",
+      "reported_model": "HXS-16L",
+      "exact_model_verified": false,
+      "official_near_match": "HTS-16L; do not silently substitute"
+    },
+    "latest_measurements": {
+      "position_raw": 127,
+      "torque_enabled": true,
+      "voltage_mv": 7585,
+      "hardware_limits": [
+        0,
+        700
+      ],
+      "offset": 115,
+      "temperature_C": 28
+    },
+    "all_motion_gates_off_verified": true,
+    "serial_owners": [
+      {
+        "pid": 79,
+        "fds": [
+          "22"
+        ],
+        "executable": "/usr/bin/python3",
+        "entrypoint": "/opt/armpi_ros2/install/armpi_ros2/lib/armpi_ros2/arm"
+      }
+    ],
+    "command_publishers": {
+      "/arm_controller/command": 0,
+      "/gripper_controller/command": 0,
+      "/safety/estop": 0,
+      "/arm_controller/stop": 0
+    },
+    "protocol_encoder_matches_official": true,
+    "installed_protocol_matches_compared_source": true,
+    "previous_motion_window": {
+      "samples": 10,
+      "all_estop_false": true,
+      "all_gripper_gate_true": true,
+      "all_fault_none": true,
+      "scope": "Sampled state and filtered runtime logs; not a complete serial wire capture"
+    },
+    "container_created_utc": "2026-11-15T06:30:29.089075166Z",
+    "runtime_patch_persisted_in_bind_mount": false,
+    "independent_temperature_read_timeout_issue": "present on other arm servos before/after the motion window; not established as cause of the failed step",
+    "remaining_hypotheses": [
+      "First position command after torque OFF may only enable; unproven",
+      "Physical deadband or mechanical constraint",
+      "Servo operating mode, internal protection or hardware issue not exposed by present read-only service"
+    ],
+    "root_cause_confirmed": false,
+    "prepared_probe": "enabled_probe_proposal.json",
+    "additional_probe_executed": false,
+    "sources": [
+      "https://raw.githubusercontent.com/Hiwonder/TonyPi/main/HiwonderSDK/hiwonder/ros_robot_controller_sdk.py",
+      "https://www.hiwonder.com/products/hts-16l",
+      "https://www.hiwonder.com/products/armpi-pro"
+    ]
+  },
+  "latest_enabled_gripper_probe": {
+    "run_id": "20261115T070552Z_795a9b40",
+    "status": "already_enabled_gripper_step_failed",
+    "operator_confirmed_model": "HTS-16L",
+    "operator_observed_movement": false,
+    "operator_reported_abnormal_noise": false,
+    "torque_verified_on_before_dispatch": true,
+    "before": {
+      "position_raw": 127,
+      "torque_enabled": true,
+      "voltage_mv": 7518,
+      "hardware_limits": [
+        0,
+        700
+      ],
+      "offset": 115,
+      "temperature_C": 28
+    },
+    "after": {
+      "position_raw": 127,
+      "torque_enabled": true,
+      "voltage_mv": 7518,
+      "hardware_limits": [
+        0,
+        700
+      ],
+      "offset": 115,
+      "temperature_C": 28
+    },
+    "motion_trajectories": 1,
+    "accepted": true,
+    "raw_start": 127,
+    "target_raw": 137,
+    "duration_seconds": 1,
+    "target_arrival_verified": false,
+    "measured_raw_during_wait": [
+      126,
+      127
+    ],
+    "motion_window_no_estop_or_gate_loss": true,
+    "all_gates_off_after": true,
+    "full_arm_or_base_trajectories": 0,
+    "explicit_torque_offset_limit_writes": 0,
+    "automatic_retry_after_dispatch": false,
+    "conclusion": "Torque already ON did not resolve lack of +10tick tracking; first command enabling torque alone cannot explain the observed failure",
+    "not_established": [
+      "Servo hardware failure",
+      "Mechanical one-sided end stop",
+      "Deadband or internal operating/protection mode"
+    ],
+    "next": "A single reverse -10tick probe is prepared but not authorized/executed; all previous motion targets increased raw position. Do not enlarge amplitude or remove protections.",
+    "evidence": {
+      "motion": "native_enabledprobe_bd48a53e/stdout.log",
+      "diagnostic": "native_diagnostics_4666ba9a/stdout.log",
+      "reverse_proposal": "reverse_probe_proposal.json"
+    }
+  },
+  "latest_reverse_gripper_probe": {
+    "run_id": "20261115T071028Z_197f28a6",
+    "status": "reverse_gripper_arrival_failed",
+    "model": "HTS-16L",
+    "operator_observation": "No visible gripper/output-shaft movement and no abnormal noise",
+    "preflight_failures_without_motion": 1,
+    "preflight_failure_reason": "Native arm reset denied; no motion sent",
+    "motion_trajectories": 1,
+    "accepted_gripper_trajectories": 1,
+    "target_arrivals_verified": 0,
+    "expected_raw": 127,
+    "target_raw": 117,
+    "relative_ticks": -10,
+    "duration_seconds": 1,
+    "torque_before": {
+      "position_raw": 126,
+      "torque_enabled": true,
+      "voltage_mv": 7425,
+      "hardware_limits": [
+        0,
+        700
+      ],
+      "offset": 115,
+      "temperature_C": 28
+    },
+    "postcheck": {
+      "position_raw": 127,
+      "torque_enabled": true,
+      "voltage_mv": 7474,
+      "hardware_limits": [
+        0,
+        700
+      ],
+      "offset": 115,
+      "temperature_C": 29
+    },
+    "feedback_window_samples": 10,
+    "raw_window_range": [
+      127,
+      127
+    ],
+    "window_estop_false_gate_on_fault_none": true,
+    "all_motion_gates_off": true,
+    "estops_latched": true,
+    "base_wheel_command": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "full_arm_and_base_trajectories": 0,
+    "explicit_torque_offset_limit_writes": 0,
+    "automatic_return_or_retry_after_dispatch": false,
+    "conclusion": "No measured tracking for either +10 or -10 tick targets while torque ON. A one-direction mechanical end stop or torque-OFF alone cannot sufficiently explain the observations.",
+    "hardware_damage_confirmed": false,
+    "unresolved": [
+      "Servo operating mode/internal protection not exposed by current read-only service",
+      "Internal motor/gear/encoder or mechanical linkage problem",
+      "Small-step deadband and controller/firmware execution behavior"
+    ],
+    "next": "Stop accumulating motion attempts. Verify servo operating mode/protection via supported manufacturer diagnostics and inspect external linkage with appropriate power isolation; do not guess unsupported RRC query bytes or bypass existing serial owner.",
+    "acceptance": "T05/T07 remain pending; no new opening calibration point or pick/place demonstration",
+    "evidence": {
+      "motion": "native_reverseprobe_23e48dc2/stdout.log",
+      "zero_motion_preflight": "native_reverseprobe_b3bd0bff/stdout.log",
+      "postcheck": "native_diagnostics_04e165cb/stdout.log"
+    },
+    "operator_observation_addendum": "logs/t07/runs/20261115T071028Z_197f28a6/operator_addendum/observation.json"
+  },
+  "latest_gripper_endpoint_observation": {
+    "run_id": "20261115T072034Z_fad13669",
+    "source": "operator report",
+    "gripper_current_state": "fully_open_at_maximum",
+    "independently_verified": false,
+    "new_motion_commands": 0,
+    "new_torque_writes": 0,
+    "opening_mm_new_measurement": null,
+    "interpretation": "Prioritize physical endpoint/linkage and installation offset or internal protection. Both +/-10tick failures do not exclude endpoint-related effects; mapping/direction and physical geometry remain uncalibrated. Do not label hardware damaged.",
+    "prior_raw_diagnostics": "127 ticks, torque ON; measured in prior run, not a fresh reading",
+    "next": "Establish opening-direction and physical endpoint correspondence from official configuration and appropriate onsite inspection before any additional separately authorized motion."
+  },
+  "legacy_gripper_source_mapping": {
+    "run_id": "20261115T073245Z_f7818c47",
+    "status": "legacy_source_mapping_read_verified_physical_mapping_pending",
+    "motion_commands": 0,
+    "parameter_writes": 0,
+    "old_container_started": false,
+    "source_container": "armpi_pro (stopped)",
+    "source_root": "/home/ubuntu/armpi_pro/src",
+    "direction_from_legacy_code": "larger ticks closes, smaller ticks opens",
+    "examples": {
+      "intelligent_grasp": {
+        "open": 120,
+        "release": 150,
+        "close": 450,
+        "source_lines": [
+          133,
+          141,
+          155
+        ]
+      },
+      "face_detect": {
+        "open": 200,
+        "close": 500,
+        "source_lines": [
+          100,
+          103
+        ]
+      }
+    },
+    "servo_id": 1,
+    "legacy_controller_reference": 700,
+    "legacy_yaml_generic_limits": [
+      0,
+      1000
+    ],
+    "last_measured_firmware_limits": [
+      0,
+      700
+    ],
+    "limits_not_changed": true,
+    "legacy_gripper_radian_scale_degrees": 180,
+    "direct_raw_position_passthrough_verified": true,
+    "source_provenance": "Device-retained Hiwonder lesson/ROS1 source; not authenticated factory release, not execution history",
+    "action_groups": "/home/ubuntu/ActionGroups absent in stopped container; no successful action replay history recovered",
+    "interpretation": "Current historical raw127 plus operator maximum-open observation is consistent with legacy open region120..200. +10 was in documented closing direction; -10 toward opening. Small-step failures still unresolved; do not label hardware failed or jump to450/500.",
+    "physical_direction_revalidated": false,
+    "next": "Use verified documented closing direction for a separately planned/authorized controlled test, or supported manufacturer mode/protection diagnostics; no new motion in this task."
+  },
+  "latest_protection_limit_diagnostics": {
+    "run_id": "20261115T074057Z_73800fdc",
+    "status": "extended_readonly_diagnostics_passed_history_read_pending_network",
+    "measurements": {
+      "position_raw": 127,
+      "torque_enabled": true,
+      "voltage_mv": 7252,
+      "hardware_limits": [
+        0,
+        700
+      ],
+      "offset": 115,
+      "temperature_C": 28,
+      "voltage_limits_mv": [
+        4500,
+        14000
+      ],
+      "temperature_limit_C": 85
+    },
+    "voltage_within_configured_limits": true,
+    "temperature_below_configured_limit": true,
+    "meaning": "No measured threshold violation at this stopped-state snapshot; does not exclude transient supply drop, latched/internal protection or stall",
+    "device_legacy_torque_query_matches_native": true,
+    "supported_legacy_queries": [
+      "position",
+      "torque",
+      "voltage",
+      "temperature",
+      "angle limits",
+      "offset",
+      "voltage limits",
+      "temperature limit"
+    ],
+    "unsupported_in_current_sdk": [
+      "servo operating mode read",
+      "stall/protection-latch status read",
+      "motor current read"
+    ],
+    "operator_history": "User reports current ROS2 program last opened/closed gripper normally three days ago",
+    "new_motion_commands": 0,
+    "explicit_torque_offset_limit_writes": 0,
+    "all_motion_gates_off_verified": true,
+    "estops_latched_verified": true,
+    "stack_restart": "Read-only update under previous authorization; source hashes verified, original helper backed up",
+    "extended_helper_sha256": "1e6382a9eafefc40dd7b9a3c6916b2a3c4204a2a12942a14890429b3d8d8e50c",
+    "temporary_read_whitelist": "0x36 <BBbHH and 0x3A <BBbB, from device SDK; only while stopped and owning feedback lock; restored on success/failure",
+    "offline_tests_passed": 3,
+    "network_failures": [
+      "Robot SSH No existing session before history script dispatch",
+      "ycw tunnel to robot timeout opening channel",
+      "One ping from ycw received no reply; cached ARP entry present"
+    ],
+    "history_directory_pending": "/home/pi/gripper-bias-build; script prepared but not executed because of network failure",
+    "root_cause_confirmed": false,
+    "next": "Restore robot SSH and inspect retained gripper bias build/history before considering any separately authorized movement",
+    "evidence": {
+      "deployment": "deployment_attempts/20261115T074427Z_d25bd8/deployment_report.json",
+      "legacy_sdk": "legacy_sources/ros_robot_controller/src/ros_robot_controller/ros_robot_controller_sdk.py"
+    }
+  },
+  "latest_gripper_history_analysis": {
+    "run_id": "20261115T074806Z_2b6e76a3",
+    "status": "history_bias_read_no_safe_software_fix_established",
+    "network": "ycw-to-robot tunnel failed, direct PC-to-robot SSH succeeded with original trusted host key",
+    "new_motion_commands": 0,
+    "parameter_writes": 0,
+    "history_read_completed": true,
+    "historical_bias": {
+      "source": "/home/pi/gripper-bias-build/src/armpi_ros2/armpi_ros2/arm_node.py:291",
+      "feedback_bias": 500,
+      "coordinate_limits": [
+        0,
+        340
+      ],
+      "applies_to": "feedback only; position command packet path retains raw target",
+      "last_measured_hardware_raw": 127,
+      "hypothetical_corrected_raw": 627,
+      "would_fit_historical_control_limits": false,
+      "deployment_or_usage_history_verified": false
+    },
+    "decision": "Do not apply old bias or deploy historical build: 127+500=627 outside historical0..340. Directory name and retained code are not proof of the version used three days ago or present root cause.",
+    "historical_pose_record": {
+      "path": "/opt/armpi-ros2/arm_startup_pose.json",
+      "claims_open_raw": 100,
+      "claims_closed_raw": 482,
+      "independently_revalidated": false
+    },
+    "latest_protection_snapshot_run": "20261115T074057Z_73800fdc",
+    "root_cause_confirmed": false,
+    "hardware_damage_confirmed": false,
+    "next": "Need supported manufacturer mode/protection diagnostics or onsite mechanical inspection; current RRC SDK does not expose mode, current or stall-latch status. No additional motion authorized or attempted."
+  },
+  "latest_gripper_visual_inspection": {
+    "run_id": "20261115T075625Z_cb47a3a7",
+    "inspection": "operator-supplied static front/side photos",
+    "images": [
+      {
+        "image": "images/front.jpg",
+        "sha256": "1d8f65ec31759de23430537eb31f728920f8b2123c9b580188c29f6e0c4810dc",
+        "bytes": 154003
+      },
+      {
+        "image": "images/side.jpg",
+        "sha256": "32feaf79c7551ec540b3e1382680e8ec9f4d6a854023ab16074747a71eeac5c2",
+        "bytes": 126517
+      }
+    ],
+    "motion_commands": 0,
+    "parameter_changes": 0,
+    "observations": [
+      "Both fingers are open, with visible servo horn and connecting links",
+      "Visible links and pivot fasteners appear present; no clear detached link or large break identified in the supplied views",
+      "Side view shows spacing at linkage pivots; cannot determine looseness or binding from static image",
+      "No externally exposed gear mesh is clearly available for inspection in these views"
+    ],
+    "cannot_determine": [
+      "Whether central horn spline/screw is secure",
+      "Whether pivot spacing is intended clearance or looseness",
+      "Whether moving links rub base/support through the travel",
+      "Internal motor, gearbox, feedback or protection condition",
+      "Maximum opening and actual dimensions from photo alone"
+    ],
+    "conclusion": "No confirmed visual mechanical failure; photograph does not prove free movement. Do not label rough surface as fracture or pivot spacing as loose without physical verification.",
+    "next": "With arm securely supported and servo power disconnected, inspect central horn fastening, pivot play and visible obstructions without forcing the jaws or removing horn/altering offset. No new powered motion authorized."
+  },
+  "latest_gripper_close_trial": {
+    "run_id": "20261115T075900Z_93a9bd92",
+    "status": "partial_encoder_response_strict_target_not_reached",
+    "motion_trajectories": 1,
+    "accepted_trajectories": 1,
+    "expected_raw": 127,
+    "target_raw": 157,
+    "command_duration_seconds": 1.5,
+    "postcheck": {
+      "position_raw": 145,
+      "torque_enabled": true,
+      "voltage_mv": 7230,
+      "hardware_limits": [
+        0,
+        700
+      ],
+      "offset": 115,
+      "temperature_C": 29,
+      "voltage_limits_mv": [
+        4500,
+        14000
+      ],
+      "temperature_limit_C": 85
+    },
+    "encoder_changed_ticks": 18,
+    "final_target_error_ticks": 12,
+    "strict_arrival_tolerance_ticks": 3,
+    "strict_arrival_passed": false,
+    "trace": [
+      {
+        "seconds_after_dispatch": 0.504,
+        "raw": 127,
+        "temperature_C": 28
+      },
+      {
+        "seconds_after_dispatch": 1.001,
+        "raw": 134,
+        "temperature_C": 28
+      },
+      {
+        "seconds_after_dispatch": 1.504,
+        "raw": 145,
+        "temperature_C": 28
+      },
+      {
+        "seconds_after_dispatch": 1.999,
+        "raw": 145,
+        "temperature_C": 28
+      },
+      {
+        "seconds_after_dispatch": 2.5,
+        "raw": 145,
+        "temperature_C": 29
+      },
+      {
+        "seconds_after_dispatch": 3.001,
+        "raw": 145,
+        "temperature_C": 29
+      },
+      {
+        "seconds_after_dispatch": 3.5,
+        "raw": 145,
+        "temperature_C": 29
+      },
+      {
+        "seconds_after_dispatch": 4.0,
+        "raw": 145,
+        "temperature_C": 29
+      },
+      {
+        "seconds_after_dispatch": 4.501,
+        "raw": 145,
+        "temperature_C": 30
+      },
+      {
+        "seconds_after_dispatch": 4.998,
+        "raw": 145,
+        "temperature_C": 30
+      },
+      {
+        "seconds_after_dispatch": 5.499,
+        "raw": 145,
+        "temperature_C": 30
+      },
+      {
+        "seconds_after_dispatch": 5.999,
+        "raw": 145,
+        "temperature_C": 30
+      }
+    ],
+    "operator_observation": "Operator confirms visible small closing movement; noise, jitter and new opening measurement not provided",
+    "operator_opening_mm": null,
+    "all_gates_off_verified": true,
+    "estops_latched": true,
+    "full_arm_base_trajectories": 0,
+    "explicit_torque_offset_limit_writes": 0,
+    "automatic_return_or_retry": false,
+    "conclusion": "Positive encoder response to +30tick close target; initial 10tick non-response cannot establish total motor failure. Servo settled12ticks short; deadband/static friction/load/internal control behavior remain hypotheses, not confirmed cause.",
+    "limits": "This is not full closing, not successful grasp, not a complete opening map. Do not widen arrival tolerance retroactively or apply500tick bias.",
+    "next": "Correlate actual jaw opening with145ticks and operator observation; plan separate controlled calibration before further motion."
+  },
+  "latest_gripper_capabilities": {
+    "run_id": "20261115T080624Z_25d80d86",
+    "status": "partial_capability_verification_no_grasp_acceptance",
+    "motion_commands": 6,
+    "actual_cycles": {
+      "first_targets": [
+        175,
+        135
+      ],
+      "first_cycles": 1,
+      "same_target_comparison": [
+        170,
+        140
+      ],
+      "same_target_cycles": 2,
+      "original_three_identical_cycles_completed": false
+    },
+    "bidirectional_encoder_response_verified": true,
+    "same_target_repeatability": {
+      "upper_endpoints": [
+        162,
+        162
+      ],
+      "lower_endpoints": [
+        150,
+        151
+      ],
+      "upper_spread": 0,
+      "lower_spread": 1,
+      "engineering_spread_limit_ticks": 3
+    },
+    "same_target_repeatability_passed": true,
+    "repeatability_sample_size": 2,
+    "strict_target_accuracy_passed": false,
+    "same_target_errors_ticks": [
+      -8,
+      10,
+      -8,
+      11
+    ],
+    "active10s_hold_test_completed": false,
+    "hold_interruption": "Declared conservative6C rise guard tripped at34C from28C, not85C hardware overtemperature",
+    "static_stability": {
+      "sample_count": 30,
+      "duration_seconds": 14.19277348200012,
+      "raw_min": 150,
+      "raw_max": 151,
+      "range_ticks": 1,
+      "temperature_min_C": 29,
+      "temperature_max_C": 29,
+      "motion_gates_off": true,
+      "torque_on_postcheck": true,
+      "scope": "Unloaded static position stability while gatesOFF/estopON; not active10s hold test or grip-force validation"
+    },
+    "static_stability_passed": true,
+    "postcheck": {
+      "position_raw": 151,
+      "torque_enabled": true,
+      "voltage_mv": 7068,
+      "hardware_limits": [
+        0,
+        700
+      ],
+      "offset": 115,
+      "temperature_C": 29,
+      "voltage_limits_mv": [
+        4500,
+        14000
+      ],
+      "temperature_limit_C": 85
+    },
+    "opening_before": {
+      "raw": 145,
+      "reported_mm": 51,
+      "measurement_resolution_unknown": true
+    },
+    "opening_after": {
+      "raw_neighborhood": [
+        150,
+        151
+      ],
+      "reported_mm": 50,
+      "measurement_resolution_unknown": true,
+      "manual_addendum": "logs/t05/runs/20261115T082521Z_4534ef32/opening_observation.json"
+    },
+    "opening_mapping_accepted": false,
+    "loaded_grip_test_performed": false,
+    "full_arm_base_trajectories": 0,
+    "explicit_torque_offset_limit_writes": 0,
+    "operator_saw_latest_cycles": false,
+    "operator_preference": "Future measurement trials close only and remain at position; no automatic opening/return. Confirm next action after manual measurement.",
+    "pending": [
+      "More repeated endpoint samples before claiming robust repeatability",
+      "Absolute position tracking/deadband/friction cause",
+      "Opening mapping with measurement uncertainty",
+      "Supported object placement and controlled loaded gripping/holding test"
+    ],
+    "attempts": [
+      {
+        "path": "openssh_repeatability_25d5cc0f",
+        "status": "stopped",
+        "commands": 0,
+        "error": "RuntimeError('Native reset refused; no motion')",
+        "phases": [],
+        "final_arm": {
+          "estop": true,
+          "enable_arm_motion": false,
+          "enable_gripper_motion": false
+        },
+        "final_base": {
+          "dry_run": false,
+          "enable_motion": false,
+          "estop": true,
+          "hardware_fault": false,
+          "wheel_command": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "cleanup_error": null
+      },
+      {
+        "path": "openssh_repeatability_4bee4718",
+        "status": "stopped",
+        "commands": 2,
+        "error": "RuntimeError('Next target exceeds30tick measured-relative bound')",
+        "phases": [
+          {
+            "index": 0,
+            "target_raw": 175,
+            "initial_raw": 145,
+            "final_raw": 161,
+            "directional_response_ticks": 16,
+            "settled_samples": [
+              161,
+              160,
+              161
+            ],
+            "stable": true,
+            "strict_arrival_within3": false,
+            "target_error_ticks": -14,
+            "trace": [
+              {
+                "seconds": 0.5326695870007825,
+                "raw": 145,
+                "temperature": 28
+              },
+              {
+                "seconds": 1.0158219070008272,
+                "raw": 148,
+                "temperature": 28
+              },
+              {
+                "seconds": 1.52060616900053,
+                "raw": 160,
+                "temperature": 28
+              },
+              {
+                "seconds": 2.061015960000077,
+                "raw": 162,
+                "temperature": 28
+              },
+              {
+                "seconds": 2.59105700300006,
+                "raw": 161,
+                "temperature": 29
+              },
+              {
+                "seconds": 3.058225613000104,
+                "raw": 160,
+                "temperature": 29
+              },
+              {
+                "seconds": 3.495718498000315,
+                "raw": 161,
+                "temperature": 29
+              }
+            ]
+          },
+          {
+            "index": 1,
+            "target_raw": 135,
+            "initial_raw": 161,
+            "final_raw": 143,
+            "directional_response_ticks": 18,
+            "settled_samples": [
+              145,
+              144,
+              143
+            ],
+            "stable": true,
+            "strict_arrival_within3": false,
+            "target_error_ticks": 8,
+            "trace": [
+              {
+                "seconds": 0.46113262600010785,
+                "raw": 161,
+                "temperature": 29
+              },
+              {
+                "seconds": 0.9612779359995329,
+                "raw": 161,
+                "temperature": 30
+              },
+              {
+                "seconds": 1.4617315659997985,
+                "raw": 150,
+                "temperature": 30
+              },
+              {
+                "seconds": 1.9633782629998677,
+                "raw": 145,
+                "temperature": 30
+              },
+              {
+                "seconds": 2.4618045419992995,
+                "raw": 145,
+                "temperature": 30
+              },
+              {
+                "seconds": 2.9631177040000694,
+                "raw": 144,
+                "temperature": 31
+              },
+              {
+                "seconds": 3.4648642180000024,
+                "raw": 143,
+                "temperature": 31
+              }
+            ]
+          }
+        ],
+        "final_arm": {
+          "estop": true,
+          "enable_arm_motion": false,
+          "enable_gripper_motion": false
+        },
+        "final_base": {
+          "dry_run": false,
+          "enable_motion": false,
+          "estop": true,
+          "hardware_fault": false,
+          "wheel_command": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "cleanup_error": null
+      },
+      {
+        "path": "openssh_repeatability_4d29d418",
+        "status": "stopped",
+        "commands": 4,
+        "error": "RuntimeError('Conservative test temperature guard')",
+        "phases": [
+          {
+            "index": 0,
+            "target_raw": 170,
+            "initial_raw": 145,
+            "final_raw": 162,
+            "directional_response_ticks": 17,
+            "settled_samples": [
+              162,
+              162,
+              162
+            ],
+            "stable": true,
+            "strict_arrival_within3": false,
+            "target_error_ticks": -8,
+            "trace": [
+              {
+                "seconds": 0.5009013660001074,
+                "raw": 145,
+                "temperature": 28
+              },
+              {
+                "seconds": 0.9999437220003529,
+                "raw": 145,
+                "temperature": 28
+              },
+              {
+                "seconds": 1.4996277700001883,
+                "raw": 155,
+                "temperature": 28
+              },
+              {
+                "seconds": 2.0047877010001685,
+                "raw": 162,
+                "temperature": 29
+              },
+              {
+                "seconds": 2.500946328000282,
+                "raw": 162,
+                "temperature": 29
+              },
+              {
+                "seconds": 3.001853888000369,
+                "raw": 162,
+                "temperature": 29
+              },
+              {
+                "seconds": 3.499496588000511,
+                "raw": 162,
+                "temperature": 30
+              }
+            ]
+          },
+          {
+            "index": 1,
+            "target_raw": 140,
+            "initial_raw": 162,
+            "final_raw": 150,
+            "directional_response_ticks": 12,
+            "settled_samples": [
+              150,
+              150,
+              150
+            ],
+            "stable": true,
+            "strict_arrival_within3": false,
+            "target_error_ticks": 10,
+            "trace": [
+              {
+                "seconds": 0.4699626539995734,
+                "raw": 162,
+                "temperature": 30
+              },
+              {
+                "seconds": 0.974696299000243,
+                "raw": 161,
+                "temperature": 30
+              },
+              {
+                "seconds": 1.4716082899994944,
+                "raw": 153,
+                "temperature": 30
+              },
+              {
+                "seconds": 1.972229043999505,
+                "raw": 150,
+                "temperature": 30
+              },
+              {
+                "seconds": 2.472805213999891,
+                "raw": 150,
+                "temperature": 30
+              },
+              {
+                "seconds": 2.9747076559997367,
+                "raw": 150,
+                "temperature": 31
+              },
+              {
+                "seconds": 3.4711122310000064,
+                "raw": 150,
+                "temperature": 31
+              }
+            ]
+          },
+          {
+            "index": 2,
+            "target_raw": 170,
+            "initial_raw": 150,
+            "final_raw": 162,
+            "directional_response_ticks": 12,
+            "settled_samples": [
+              162,
+              162,
+              162
+            ],
+            "stable": true,
+            "strict_arrival_within3": false,
+            "target_error_ticks": -8,
+            "trace": [
+              {
+                "seconds": 0.46900625600028434,
+                "raw": 150,
+                "temperature": 31
+              },
+              {
+                "seconds": 1.371918963999633,
+                "raw": 150,
+                "temperature": 32
+              },
+              {
+                "seconds": 1.614280936999421,
+                "raw": 162,
+                "temperature": 32
+              },
+              {
+                "seconds": 1.9736627399997815,
+                "raw": 162,
+                "temperature": 32
+              },
+              {
+                "seconds": 2.4696113629997853,
+                "raw": 162,
+                "temperature": 32
+              },
+              {
+                "seconds": 2.9728990180001347,
+                "raw": 162,
+                "temperature": 32
+              },
+              {
+                "seconds": 3.4726698730000862,
+                "raw": 162,
+                "temperature": 32
+              }
+            ]
+          },
+          {
+            "index": 3,
+            "target_raw": 140,
+            "initial_raw": 162,
+            "final_raw": 151,
+            "directional_response_ticks": 11,
+            "settled_samples": [
+              150,
+              150,
+              151
+            ],
+            "stable": true,
+            "strict_arrival_within3": false,
+            "target_error_ticks": 11,
+            "trace": [
+              {
+                "seconds": 0.4645719330001157,
+                "raw": 162,
+                "temperature": 32
+              },
+              {
+                "seconds": 0.9674618290000581,
+                "raw": 162,
+                "temperature": 32
+              },
+              {
+                "seconds": 1.4657988030003253,
+                "raw": 154,
+                "temperature": 32
+              },
+              {
+                "seconds": 1.9632236659999762,
+                "raw": 151,
+                "temperature": 33
+              },
+              {
+                "seconds": 2.464973397999529,
+                "raw": 150,
+                "temperature": 33
+              },
+              {
+                "seconds": 2.965039756999431,
+                "raw": 150,
+                "temperature": 33
+              },
+              {
+                "seconds": 3.467660815000272,
+                "raw": 151,
+                "temperature": 33
+              }
+            ]
+          }
+        ],
+        "final_arm": {
+          "estop": true,
+          "enable_arm_motion": false,
+          "enable_gripper_motion": false
+        },
+        "final_base": {
+          "dry_run": false,
+          "enable_motion": false,
+          "estop": true,
+          "hardware_fault": false,
+          "wheel_command": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "cleanup_error": null
+      },
+      {
+        "path": "openssh_repeatability_514f43f0",
+        "status": "no_robot_output",
+        "commands": 0
+      },
+      {
+        "path": "openssh_repeatability_e013f3c4",
+        "status": "stopped",
+        "commands": 0,
+        "error": "RuntimeError('Native reset refused; no motion')",
+        "phases": [],
+        "final_arm": {
+          "estop": true,
+          "enable_arm_motion": false,
+          "enable_gripper_motion": false
+        },
+        "final_base": {
+          "dry_run": false,
+          "enable_motion": false,
+          "estop": true,
+          "hardware_fault": false,
+          "wheel_command": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "cleanup_error": null
+      },
+      {
+        "path": "openssh_repeatability_f78fa947",
+        "status": "stopped",
+        "commands": 0,
+        "error": "RuntimeError('Native reset refused; no motion')",
+        "phases": [],
+        "final_arm": {
+          "estop": true,
+          "enable_arm_motion": false,
+          "enable_gripper_motion": false
+        },
+        "final_base": {
+          "dry_run": false,
+          "enable_motion": false,
+          "estop": true,
+          "hardware_fault": false,
+          "wheel_command": [
+            0,
+            0,
+            0,
+            0
+          ]
+        },
+        "cleanup_error": null
+      }
+    ]
+  },
+  "gripper_measurement_motion_preference": "close_only_then_wait_for_manual_measurement_no_automatic_opening",
+  "latest_manual_opening_observation": {
+    "run_id": "20261115T082521Z_4534ef32",
+    "source": "operator measurement reply after T07 stopped posture",
+    "opening_mm": 50,
+    "last_measured_raw_neighborhood": [
+      150,
+      151
+    ],
+    "raw_reference": 151,
+    "feedback_evidence": "logs/t07/runs/20261115T080624Z_25d80d86/openssh_read_4eb36c25/stdout.log",
+    "feedback_duration_seconds": 14.192773482,
+    "provisional": true,
+    "measurement_tool_type": null,
+    "measurement_uncertainty_mm": null,
+    "exact_measurement_timestamp_and_fresh_feedback_pairing_verified": false,
+    "new_motion_commands": 0,
+    "live_read_performed_this_update": false,
+    "prior_observation": {
+      "raw": 145,
+      "opening_mm": 51
+    },
+    "conclusion": "Opening reduction consistent with closing direction; two manual observations do not establish calibrated linear mapping, deadband, full stroke or loaded grip capability.",
+    "future_motion_preference": "close only then stop and wait for manual measurement; no automatic reopening"
+  },
+  "close40_progress": {
+    "run_id": "20261115T082655Z_67174156",
+    "goal_mm": 40,
+    "last_step": {
+      "source_step": "openssh_close-measure_8c23ee4a",
+      "motion_commands": 1,
+      "expected_raw": 188,
+      "target_raw": 270,
+      "measured_raw_before_cleanup": 256,
+      "latest_observed_raw": 256,
+      "latest_temperature_C": 31,
+      "measurement_step_complete": true,
+      "strict_target_arrival_passed": false,
+      "target_error_ticks": -14,
+      "manual_opening_mm": 40.0,
+      "operator_cleared_after_measurement": false,
+      "opening_goal_mm": 40,
+      "goal_verified": true,
+      "error": "Strict target not reached; stop for manual opening measurement, no retry",
+      "final_arm": {
+        "estop": true,
+        "enable_arm_motion": false,
+        "enable_gripper_motion": false
+      },
+      "final_base": {
+        "dry_run": false,
+        "enable_motion": false,
+        "estop": true,
+        "hardware_fault": false,
+        "wheel_command": [
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "cleanup_error": null,
+      "no_automatic_reopening": true
+    },
+    "status": "operator_reported40mm",
+    "no_automatic_opening": true,
+    "motion_authorized_by_file": false
+  },
+  "loaded_grip_verification": {
+    "run_id": "20261115T084216Z_e9b39298",
+    "status": "supported_contact_attempt_completed_no_confirmed_grasp_released",
+    "object": {
+      "material": "PETG",
+      "diameter_mm": 39,
+      "height_mm": 34,
+      "mass_g": null
+    },
+    "contact": {
+      "initial_raw": 256,
+      "target_raw": 285,
+      "latest_raw": 272,
+      "last_temperature_C": 31,
+      "error": "RuntimeError('Conservative temperature rise guard')",
+      "strict_target_arrival": false,
+      "motion_commands": 1,
+      "initial_torque_enabled": false,
+      "operator_observation": "Looks not grasped; no confirmed object grip",
+      "support_retained": true
+    },
+    "hold": {
+      "support_withdrawn": false,
+      "unsupported_hold_performed": false,
+      "hold_duration_verified_seconds": null,
+      "result": "not_tested",
+      "no_force_or_capacity_value": true
+    },
+    "release": {
+      "authorized_by_user": true,
+      "support_retained": true,
+      "initial_raw": 272,
+      "target_raw": 230,
+      "measured_final_raw": 242,
+      "latest_raw": 241,
+      "strict_target_arrival": false,
+      "motion_commands": 1,
+      "operator_confirms_open_and_object_supported_not_stuck": true
+    },
+    "final_read": {
+      "arm_samples": 30,
+      "raw_range": [
+        242,
+        242
+      ],
+      "temperature_range_C": [
+        28,
+        29
+      ],
+      "all_motion_gates_off": true,
+      "estops_latched": true,
+      "diagnostic_response": {
+        "success": false,
+        "message": "{\"error\": \"No physical reply from servo 1, command 50 after 3 reads\", \"partial_measurements\": {\"position_raw\": 242, \"torque_enabled\": true, \"voltage_mv\": 7589}, \"movement_commands\": 0, \"torque_writes\": 0}"
+      },
+      "partial_diagnostic_measurements": {
+        "position_raw": 242,
+        "torque_enabled": true,
+        "voltage_mv": 7589
+      },
+      "limitation": "Final limit query0x32 timed out after3 reads; do not label complete diagnostics passed"
+    },
+    "new_gripper_motion_commands": 2,
+    "full_arm_base_trajectories": 0,
+    "explicit_torque_offset_limit_writes": 0,
+    "camera_limitation": "Contact image shows floor and only partial object/jaw edges, insufficient to verify complete contact geometry",
+    "position_accuracy_baseline": "position_accuracy_report.json:15 prior commands, MAE10.53/max14ticks, not accepted at project3tick criterion; loaded contact not pooled into this audit",
+    "conclusion": "No confirmed grasp and no unsupported load trial; cannot claim grip success, load capacity or hardware damage. Support kept throughout; controlled release operator-confirmed.",
+    "next": "Need front close-up including entire cylinder, both gripping faces and support, plus height/centering verification, before proposing another contact attempt. Do not blindly tighten.",
+    "evidence": {
+      "contact": "openssh_grip-contact_568932ac/stdout.log",
+      "release": "openssh_grip-release_a00e49af/stdout.log",
+      "final_read": "openssh_read_23e1206c/stdout.log"
+    },
+    "operator_no_grasp_confirmation_addendum": "logs/t05/runs/20261115T124422Z_f46978b1/photo_review.json"
+  },
+  "latest_grip_geometry_review": {
+    "run_id": "20261115T124422Z_f46978b1",
+    "prior_trial": "20261115T084216Z_e9b39298",
+    "operator_confirmation": "Prior gripping attempt did not grip the cylinder",
+    "prior_grasp_success": false,
+    "unsupported_load_hold_test_performed": false,
+    "new_motion_commands": 0,
+    "parameter_changes": 0,
+    "photos": [
+      {
+        "path": "images/front_close.jpg",
+        "sha256": "510f6bf95fe5e73ce17efb2955c1e188a4f4d334d22add9cf42787f8c07fc86f",
+        "bytes": 202708
+      },
+      {
+        "path": "images/front_full.jpg",
+        "sha256": "0684ccfae6319199cadb95d0f125aa266169e63a6f13b7ce659cd32a8ccff17a",
+        "bytes": 319610
+      }
+    ],
+    "photo_capture_phase": "after controlled opening/release, confirmed by operator",
+    "visible_observations": [
+      "Cylinder remains supported on platform",
+      "In front views much of visible cylinder body is below the finger tips, while the top rim sits near lower finger regions",
+      "Photos do not demonstrate bilateral compressive sidewall contact; cannot derive grip force or retention"
+    ],
+    "hypotheses_not_confirmed": [
+      "Insufficient overlap between finger gripping faces and cylinder sidewall at intended height",
+      "Opening measured at different height/plane from actual intended cylinder contact",
+      "Insufficient closure/contact despite positive encoder movement"
+    ],
+    "limitations": [
+      "Do not use post-release gaps as evidence of gaps during closed phase",
+      "Front views alone do not establish depth alignment or exact physical height",
+      "No pixel-based millimeter measurement or calibrated force result"
+    ],
+    "next": "Clarify photo phase. Align supported cylinder sidewall with inner gripping faces rather than only top-edge/tip contact; verify actual opening at the intended contact plane before proposing another bounded action. Keep all motion stopped.",
+    "phase_confirmation_addendum": "logs/t05/runs/20261115T124422Z_f46978b1/phase_confirmation/addendum.json"
+  },
+  "latest_static_retention_trial": {
+    "run_id": "20261115T124903Z_24dec022",
+    "status": "one_qualitative_static_retention_trial_passed_and_released",
+    "object": {
+      "material": "PETG",
+      "diameter_mm": 39,
+      "height_mm": 34,
+      "mass_g": null
+    },
+    "simulation_reference": "tightening_proposal.json:39mm object but uncalibrated parallel collision pads; simulated -0.35rad numerically about589ticks not transferred to hardware",
+    "contact_close": {
+      "initial_raw": 242,
+      "target_raw": 300,
+      "command_duration_seconds": 4,
+      "last_raw": 282,
+      "last_temperature_C": 31,
+      "command_error": "RuntimeError('Conservative temperature rise guard')",
+      "strict_target_arrival": false,
+      "operator_confirms_bilateral_contact_no_abnormality": true,
+      "commands": 1
+    },
+    "pre_hold_read": {
+      "position_raw": 282,
+      "torque_enabled": true,
+      "voltage_mv": 7407,
+      "hardware_limits": [
+        0,
+        700
+      ],
+      "offset": 115,
+      "temperature_C": 28,
+      "voltage_limits_mv": [
+        4500,
+        14000
+      ],
+      "temperature_limit_C": 85
+    },
+    "controller_during_hold": "motion gatesOFF, estopON, gripper torque readON; static retention, no arm/base motion",
+    "hold": {
+      "result": "passed_operator_observed_qualitative_trial",
+      "count": 1,
+      "operator_reports_object_fully_unsupported": true,
+      "operator_phone_timed_seconds": 10,
+      "operator_reports_no_drop": true,
+      "slip_distance_mm": null,
+      "video_or_sensor_object_retention_verified": false,
+      "timing_synchronized_to_joint_stream": false,
+      "support_catch_gap_max_mm_operator_confirmed": 5,
+      "support_restored_and_hands_clear_before_release": true,
+      "no_extra_weights": true
+    },
+    "release": {
+      "user_authorized": true,
+      "initial_raw": 283,
+      "target_raw": 230,
+      "measured_final_raw": 242,
+      "last_raw": 242,
+      "last_temperature_C": 32,
+      "strict_target_arrival": false,
+      "commands": 1,
+      "operator_confirms_open_object_supported_not_stuck": true
+    },
+    "all_motion_gates_off_verified_after": true,
+    "estops_latched_after": true,
+    "full_arm_base_trajectories": 0,
+    "explicit_torque_offset_limit_writes": 0,
+    "position_accuracy": "Prior15command unloaded/diagnostic audit remains MAE10.53/max14ticks and fails project3tick tracking criterion. Loaded contact endpoint is not pooled into unloaded accuracy.",
+    "scope_limits": [
+      "One unknown-mass object only, not rated payload or calibrated grip force",
+      "No lifting or transport tested",
+      "No multi-trial grip success rate established",
+      "No independent object-motion video/sensor proof; retention result comes from operator report",
+      "Grip success does not qualify absolute position tracking or full gripper health",
+      "Loaded cylinder diameter is not an unloaded aperture calibration point"
+    ],
+    "evidence": {
+      "close": "openssh_grip-contact_26f9b143/stdout.log",
+      "pre_hold_read": "openssh_read_bc6cfbab/stdout.log",
+      "release": "openssh_grip-release_2f7fe3b0/stdout.log",
+      "operator_hold_result": "events.jsonl and conversation confirmations"
+    }
+  },
+  "completion_audit": {
+    "run_id": "20261115T132154Z_35cd02e8",
+    "complete": false,
+    "decision": "simulation_accepted_physical_demonstration_pending",
+    "pairing_tests_rerun_passed": 8,
+    "simulation_loader_rechecked": true,
+    "historical_manifest_exact_match": false,
+    "difference": "one appended runtime log; original prefix unchanged; all other 4669 files match",
+    "evidence": "logs/t07/runs/20261115T132154Z_35cd02e8/completion_audit.json",
+    "report": "logs/t07/runs/20261115T132154Z_35cd02e8/completion_audit.md",
+    "robot_commands": 0
+  },
+  "latest_physical_pipeline_run": {
+    "ticket": "T07",
+    "run_id": "20261115T133939Z_b3adfe09",
+    "updated_utc": "2026-11-15T13:53:42.416804+00:00",
+    "status": "physical_capture_tools_and_sim_export_regression_passed_demonstration_pending",
+    "complete": false,
+    "new_physical_capture": {
+      "duration_target_seconds": 25,
+      "images": 471,
+      "joint_states": 48,
+      "statuses": 50,
+      "archive_sha256_verified": true,
+      "raw_observation_precheck": true,
+      "training_sample_accepted": false
+    },
+    "tests_rerun_passed": 18,
+    "new_tests": 10,
+    "historical_sim_export_regression": {
+      "passed": true,
+      "frames": 710,
+      "episodes": 2,
+      "new_demonstrations": false
+    },
+    "position_response_completion_skew_max_seconds": 0.6041281489997345,
+    "joint1_response_completion_age_max_seconds": 0.9497260889993413,
+    "robot_commands": 0,
+    "control_services_called": 0,
+    "simulation_started": false,
+    "training_performed": false,
+    "pending": [
+      "physical_export_disabled_by_frozen_protocol",
+      "no_ACK_confirmed_complete_six_axis_target",
+      "no_operator_episode_begin",
+      "no_successful_episode_end",
+      "physical_exposure_and_per_joint_timing_contract_not_accepted",
+      "full_view_of_both_fingers_object_and_targets",
+      "physical_operator_marker_to_validated_episode_integration"
+    ],
+    "operator_question": "Asked whether operator can adjust camera/work area without moving arm; no answer yet, no onsite change assumed",
+    "software_scope": "raw markers and precheck prepared; physical task orchestration and training path not accepted",
+    "source_report": "physical_precheck.json",
+    "regression_report": "export_regression.json",
+    "evidence": "logs/t07/runs/20261115T133939Z_b3adfe09/progress_result.json",
+    "guide": "docs/t07_physical_capture.md"
+  },
+  "active_physical_task_id": "AR-RED-BALL-GRASP-01",
+  "active_physical_task_config": "configs/t07_red_ball_task.json",
+  "latest_t07_test_count": 32,
+  "latest_red_ball_progress": {
+    "run_id": "20261116T092847Z_8844851d",
+    "evidence": "logs/t07/runs/20261116T092847Z_8844851d/progress_result.json",
+    "complete": false
+  },
+  "latest_red_ball_grasp_test": {
+    "run_id": "20261116T095719Z_14d4bc04",
+    "phase": "physical_response_observed_position_arrival_failed_grasp_not_executed",
+    "accepted_arm_trajectories": 2,
+    "gripper_commands": 0,
+    "chassis_commands": 0,
+    "grasp_executed": false,
+    "operator_observed_upward_motion_without_abnormality": true,
+    "evidence": "logs/t07/runs/20261116T095719Z_14d4bc04/grasp_test_result.json",
+    "next": "Verify joint tracking/holding and TCP/path before complete grasp"
+  },
+  "latest_red_ball_goal_progress": {
+    "run_id": "20261117T044329Z_32e1672d",
+    "goal_status": "active",
+    "grasp_verified": false,
+    "arm_dispatches": 9,
+    "measured_waypoints_passed": 8,
+    "gripper_commands": 0,
+    "chassis_commands": 0,
+    "evidence": "logs/t07/runs/20261117T044329Z_32e1672d/progress_result.json",
+    "next": "Test real temperature retention with original timestamp and unchanged age limit; then continuous approach, verify holding/grasp geometry and gripper enable, close/lift/hold"
+  }
+}

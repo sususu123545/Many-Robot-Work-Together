@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "WORKSPACE/Documents\New project\scripts\t07_prepare_arm_stage.py", line 82, in <module>
+    if __name__=='__main__':main()
+                            ^^^^^^
+  File "WORKSPACE/Documents\New project\scripts\t07_prepare_arm_stage.py", line 60, in main
+    if d.get('live_offline_distance_m',1)>.005 or d.get('camera_point_count',0)<5 or d.get('target_complete_sphere_verified') is not True or not 0<=d.get('target_age_seconds',999)<=.5:raise ValueError('Fresh complete-sphere geometry required')
+                                                                                                                                                                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: Fresh complete-sphere geometry required

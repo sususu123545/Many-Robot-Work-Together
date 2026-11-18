@@ -1,0 +1,10 @@
+{
+  "operator_approval_for_restart": "approved_existing_session_readonly_restart; continue authorized feedback repair, all startup gates OFF",
+  "latch_stop_before_restart": true,
+  "module_filename": "gripper_diag.py",
+  "baseline_arm_source_sha256": "7b26ceb7929e5337a442c66f1f97d8aea4310fc36c63684360bf5f2c411deea0",
+  "baseline_launch_sha256": "8e17be19a170adafe068d63ccf6ad52e574a0a0083854ee79e8dd51b19be5d41",
+  "baseline_helper_source_sha256": "26325813d1cacea43ecfffe436d1fd7f4693cbe13b727982ba5ed488d0f728c9",
+  "scope": "Publish each new actual temperature with original timestamp immediately; no added sensor query or motion; health samples, complete-cycle command admission, age limits and65C stop unchanged",
+  "restore_stage": false
+}

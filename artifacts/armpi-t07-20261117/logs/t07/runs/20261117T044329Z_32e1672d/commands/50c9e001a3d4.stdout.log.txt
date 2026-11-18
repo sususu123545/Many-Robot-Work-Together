@@ -1,0 +1,1 @@
+{"waypoints": 4, "distance_m": 0.04044285180908429, "candidate_span_m": 0.049999999999999996, "output": "scripts/t07_redball_pregrasp_stage.py"}

@@ -1,0 +1,7 @@
+{
+  "stage": "SSH handshake",
+  "error": "SSHException: Error reading SSH protocol banner; WinError10054",
+  "robot_ip": "[私网地址已脱敏]",
+  "robot_motion_commands_sent": 0,
+  "current_live_state": "unverified while disconnected"
+}

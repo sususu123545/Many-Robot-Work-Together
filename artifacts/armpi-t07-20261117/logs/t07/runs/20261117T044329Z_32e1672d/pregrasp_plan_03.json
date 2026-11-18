@@ -1,0 +1,68 @@
+{
+  "expected_raw": {
+    "joint1": 484,
+    "joint2": 532,
+    "joint3": 955,
+    "joint4": 318,
+    "joint5": 495,
+    "r_joint": 155
+  },
+  "source_robot_ros_ns": 1794891557443469187,
+  "target_ball_base_xyz": [
+    0.04882807972220624,
+    0.28797599990782213,
+    -0.06851678516398982
+  ],
+  "pregrasp_target": [
+    0.04882807972220624,
+    0.28797599990782213,
+    -0.018516785163989816
+  ],
+  "floor_estimate_m": -0.08751678516398982,
+  "waypoints": [
+    {
+      "desired_raw": {
+        "joint1": 479,
+        "joint2": 510,
+        "joint3": 943,
+        "joint4": 330
+      },
+      "command_raw": {
+        "joint1": 479,
+        "joint2": 510,
+        "joint3": 935,
+        "joint4": 333
+      },
+      "desired_tcp": [
+        0.015993154436889395,
+        0.1813443558688559,
+        0.00889544823719321
+      ]
+    },
+    {
+      "desired_raw": {
+        "joint1": 479,
+        "joint2": 488,
+        "joint3": 928,
+        "joint4": 339
+      },
+      "command_raw": {
+        "joint1": 479,
+        "joint2": 488,
+        "joint3": 920,
+        "joint4": 342
+      },
+      "desired_tcp": [
+        0.016841994370104363,
+        0.19096924453807143,
+        0.006966125385768157
+      ]
+    }
+  ],
+  "scope": "pregrasp only; no contact/closure",
+  "local_elbow_compensation": -8,
+  "compensation_validation": "local single-joint result; every new waypoint measured independently",
+  "temperature_guards": "absolute40C and rise6C over max5-waypoint stage; native guards unchanged",
+  "source_report": "logs\\t07\\runs\\20261117T044329Z_32e1672d\\native_houghplan_0db6e8e5\\stdout.log",
+  "kinematics_sha256": "b13ea9e2bd7f3c0cb11584184e37f98d07f1bec8bec46803958020da5f42a178"
+}

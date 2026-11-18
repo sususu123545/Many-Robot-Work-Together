@@ -1,0 +1,19 @@
+{
+  "observations": [
+    {
+      "target": 264,
+      "actual": 286,
+      "initial": 329
+    },
+    {
+      "target": 226,
+      "actual": 246,
+      "initial": 286
+    }
+  ],
+  "decision": "Opening only: actual movement in requested direction >=8 ticks and residual <=25 ticks; arm arrival remains14; no precision or universal deadband claim",
+  "opening_exit_actual_max": 185,
+  "ball_diameter_m": 0.038,
+  "grasp_verified_requires_operator": true,
+  "source_sha256": "a8df89cb73120fcec0f549f945168b904f763da1d5e95a376c761b6ba983e590"
+}

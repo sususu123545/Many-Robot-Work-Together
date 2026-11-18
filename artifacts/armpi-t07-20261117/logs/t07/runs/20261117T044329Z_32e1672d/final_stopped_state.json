@@ -1,0 +1,47 @@
+{
+  "arm_estop": true,
+  "arm_gate": false,
+  "gripper_gate": false,
+  "base_estop": true,
+  "base_gate": false,
+  "wheels": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "feedback_complete": true,
+  "joint_temperatures": {
+    "joint1": 29,
+    "joint2": 29,
+    "joint3": 32,
+    "joint4": 28,
+    "joint5": 29,
+    "r_joint": 28
+  },
+  "joints_raw": {
+    "joint1": 478,
+    "joint2": 431,
+    "joint3": 919,
+    "joint4": 350,
+    "joint5": 495,
+    "r_joint": 155
+  },
+  "command_publishers": {
+    "/arm_controller/command": 0,
+    "/gripper_controller/command": 0,
+    "/safety/estop": 0,
+    "/arm_controller/stop": 0
+  },
+  "serial_owners": [
+    {
+      "pid": 83,
+      "fds": [
+        "22"
+      ],
+      "executable": "/usr/bin/python3",
+      "entrypoint": "/opt/armpi_ros2/install/armpi_ros2/lib/armpi_ros2/arm"
+    }
+  ],
+  "motion_finished": true
+}

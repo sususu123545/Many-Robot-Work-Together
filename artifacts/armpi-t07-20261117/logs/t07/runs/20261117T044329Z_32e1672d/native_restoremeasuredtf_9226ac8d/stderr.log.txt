@@ -1,0 +1,3 @@
+Traceback (most recent call last):
+  File "<string>", line 17, in <module>
+NameError: name 'EXPECTED_SOURCE_SHA256' is not defined

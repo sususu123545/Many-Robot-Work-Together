@@ -1,0 +1,49 @@
+{
+  "expected_raw": {
+    "joint1": 487,
+    "joint2": 624,
+    "joint3": 934,
+    "joint4": 277,
+    "joint5": 496,
+    "r_joint": 155
+  },
+  "source_robot_ros_ns": 1794890360933815712,
+  "target_ball_base_xyz": [
+    0.041582919374730805,
+    0.28290909902149664,
+    -0.06290726051090731
+  ],
+  "pregrasp_target": [
+    0.041582919374730805,
+    0.28290909902149664,
+    -0.012907260510907306
+  ],
+  "floor_estimate_m": -0.08190726051090731,
+  "waypoints": [
+    {
+      "desired_raw": {
+        "joint1": 483,
+        "joint2": 604,
+        "joint3": 935,
+        "joint4": 294
+      },
+      "command_raw": {
+        "joint1": 483,
+        "joint2": 604,
+        "joint3": 927,
+        "joint4": 297
+      },
+      "desired_tcp": [
+        0.012653147388331057,
+        0.17738875896074344,
+        0.07054992347455005
+      ]
+    }
+  ],
+  "scope": "pregrasp only; no contact/closure",
+  "local_elbow_compensation": -8,
+  "compensation_validation": "local single-joint result; every new waypoint measured independently",
+  "temperature_guards": "absolute40C and rise6C over max5-waypoint stage; native guards unchanged",
+  "source_report": "logs\\t07\\runs\\20261117T042848Z_6a8f5806\\native_houghplan_a7d77c6a\\stdout.log",
+  "kinematics_sha256": "b13ea9e2bd7f3c0cb11584184e37f98d07f1bec8bec46803958020da5f42a178"
+}

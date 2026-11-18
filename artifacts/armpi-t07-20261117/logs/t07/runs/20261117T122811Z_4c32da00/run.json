@@ -1,0 +1,9 @@
+{
+  "ticket": "T07",
+  "run_id": "20261117T122811Z_4c32da00",
+  "started_utc": "2026-11-17T12:28:11.189715+00:00",
+  "note": "Continue red-ball attempt: user observed no finger contact with ground/objects and no abnormal noise. Inspect gripper command/feedback mapping before further movement.",
+  "status": "awaiting_network",
+  "updated_utc": "2026-11-17T12:33:11.267056+00:00",
+  "outcome": "One gripper-only response proved40 ticks opening with20 ticks residual. Full grasp did not launch because SSH was inactive; reconnect banner reset. Last confirmed estop/gates locked; current live state unverified pending network confirmation."
+}

@@ -1,0 +1,13 @@
+{
+  "action": "audit",
+  "argv": [
+    "docker",
+    "exec",
+    "armpi_ros2_native",
+    "bash",
+    "-c",
+    "source /opt/ros/jazzy/setup.bash\nsource /opt/armpi_ros2/install/setup.bash\nexec python3 -u -c '\"\"\"Read deployed files and process arguments; no ROS or serial writes.\"\"\"\nfrom pathlib import Path\nimport hashlib\nimport json\nimport time\n\nbase=Path('\"'\"'/opt/armpi_ros2/install/armpi_ros2'\"'\"')\nfiles={}\nfor relative in ['\"'\"'lib/python3.12/site-packages/armpi_ros2/arm_node.py'\"'\"',\n                 '\"'\"'lib/python3.12/site-packages/armpi_ros2/gripper_diag.py'\"'\"',\n                 '\"'\"'lib/python3.12/site-packages/armpi_ros2/gripper_restore.py'\"'\"',\n                 '\"'\"'share/armpi_ros2/launch/base.launch.py'\"'\"',\n                 '\"'\"'share/armpi_ros2/config/t07_readonly_lock.flag'\"'\"',\n                 '\"'\"'share/armpi_ros2/config/t07_gripper_restore_once.flag'\"'\"']:\n    path=base/relative\n    files[relative]={'\"'\"'exists'\"'\"':path.is_file()}\n    if path.is_file():\n        raw=path.read_bytes()\n        files[relative].update(sha256=hashlib.sha256(raw).hexdigest(),text=raw.decode(errors='\"'\"'replace'\"'\"'))\nprocesses=[]\nfor path in Path('\"'\"'/proc'\"'\"').iterdir():\n    if not path.name.isdigit():continue\n    try:\n        args=(path/'\"'\"'cmdline'\"'\"').read_bytes().replace(b'\"'\"'\\0'\"'\"',b'\"'\"' '\"'\"').decode(errors='\"'\"'replace'\"'\"')\n        if any(value in args for value in ['\"'\"'ros2 launch'\"'\"','\"'\"'/armpi_ros2/arm'\"'\"','\"'\"'/armpi_ros2/chassis'\"'\"']):\n            if not any(value in args.lower() for value in ['\"'\"'password'\"'\"','\"'\"'secret'\"'\"','\"'\"'token'\"'\"']):\n                processes.append({'\"'\"'pid'\"'\"':int(path.name),'\"'\"'argv'\"'\"':args[:2000]})\n    except (OSError,ProcessLookupError):pass\nprint(json.dumps({'\"'\"'files'\"'\"':files,'\"'\"'processes'\"'\"':processes,'\"'\"'uptime_seconds'\"'\"':float(Path('\"'\"'/proc/uptime'\"'\"').read_text().split()[0]),'\"'\"'wall_time'\"'\"':time.time(),'\"'\"'motion_commands'\"'\"':0,'\"'\"'serial_calls'\"'\"':0}))\n'"
+  ],
+  "source_sha256": "3e22f8094d43a76b5d6f5bfa34228250d2679b0dce427765069d64307c183fb3",
+  "returncode": 0
+}

@@ -1,0 +1,39 @@
+class RaiseTrial(Trial):
+ def guard(self,active=False):
+  super().guard(False)
+  if active and (self.status.get('estop') or self.status.get('enable_arm_motion') is not True or self.status.get('enable_gripper_motion') is not False):raise RuntimeError('Arm-only recovery permissions')
+ def clearance(self,raw):
+  if not hasattr(self,'recovery_minimum_z'):return
+  if fk(raw)[2]<self.recovery_minimum_z or math.hypot(*fk(raw)[:2])>.35:raise RuntimeError('Recovery moved below its measured starting envelope')
+def raise_main():
+ rclpy.init();n=RaiseTrial();changed=False;signal.signal(signal.SIGALRM,lambda *_:(_ for _ in ()).throw(RuntimeError('Recovery deadline')));signal.alarm(35)
+ try:
+  n.wait(lambda:bool(n.status) and bool(n.base),6);n.guard();changed=True;n.mode='recovery_reset';n.gates(False,False)
+  if n.count_publishers('/arm_controller/command')!=1 or n.count_publishers('/gripper_controller/command')!=0 or n.count_publishers('/cmd_vel')!=0:raise RuntimeError('Other motion source')
+  if not n.reset.wait_for_service(timeout_sec=3):raise RuntimeError('Reset unavailable')
+  REPORT['reset_attempts']=[]
+  for _ in range(3):
+   n.wait(lambda:n.status.get('reset_eligible') and not n.status.get('poll_pending'),12);a=n.future(n.reset.call_async(Trigger.Request()));REPORT['reset_attempts'].append({'success':a.success,'message':a.message})
+   if a.success:break
+   n.spin_for(.35)
+  if not a.success:raise RuntimeError('Reset refused')
+  n.gates(True,False);n.wait(lambda:n.status.get('enable_arm_motion') and not n.status.get('enable_gripper_motion') and not n.status.get('estop'),3)
+  before=n.raw();z0=fk(before)[2];n.recovery_minimum_z=z0-.002;REPORT.update(initial_raw=before,initial_tcp=fk(before),reason='Operator confirmed fingers touching floor; withdraw upward only, no grasp')
+  for index in range(3):
+   current=n.raw();z_before=fk(current)[2];target=current['joint2']+20
+   if not 125<=target<=875:raise RuntimeError('Shoulder native bounds')
+   predicted=dict(current);predicted['joint2']=target
+   if not .005<=fk(predicted)[2]-z_before<=.025:raise RuntimeError('Recovery direction/height')
+   n.mode='floor_withdraw_'+str(index+1);n.send({'joint2':target},duration=3,tries=1)
+   if fk(n.raw())[2]-z_before<.005:raise RuntimeError('Measured upward recovery insufficient')
+  actual=n.raw();REPORT.update(final_before_stop_raw=actual,measured_height_change_m=fk(actual)[2]-z0,passed=fk(actual)[2]-z0>=.020)
+ except Exception as e:REPORT.update(error=repr(e),failure_status=json.loads(json.dumps(n.status)))
+ finally:
+  signal.alarm(0)
+  if changed:
+   n.stop.publish(Empty())
+   try:n.gates(False,False)
+   except Exception as e:REPORT['cleanup_error']=repr(e)
+   n.estop.publish(Bool(data=True));n.spin_for(1);REPORT['cleanup_confirmed']=n.status.get('estop') is True and not n.status.get('enable_arm_motion') and not n.status.get('enable_gripper_motion') and n.base.get('estop') is True
+  REPORT.update(events=RUN_EVENTS,images=n.images,final_status=n.status,final_base=n.base);n.destroy_node();rclpy.shutdown();print(json.dumps(REPORT))
+raise_main()

@@ -1,0 +1,1 @@
+{"waypoints": 1, "distance_m": 0.05, "output": "scripts/t07_redball_pregrasp_stage.py"}

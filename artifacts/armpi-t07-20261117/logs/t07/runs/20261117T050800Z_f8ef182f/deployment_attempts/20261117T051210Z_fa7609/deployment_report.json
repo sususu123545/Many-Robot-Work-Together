@@ -1,0 +1,74 @@
+{
+  "passed": true,
+  "motion_commands_sent": 0,
+  "torque_writes": 0,
+  "stack_stopped": true,
+  "stack_restarted": true,
+  "paths": {
+    "arm": "/opt/armpi_ros2/install/armpi_ros2/lib/python3.12/site-packages/armpi_ros2/arm_node.py",
+    "helper": "/opt/armpi_ros2/install/armpi_ros2/lib/python3.12/site-packages/armpi_ros2/gripper_diag.py",
+    "launch": "/opt/armpi_ros2/install/armpi_ros2/share/armpi_ros2/launch/base.launch.py",
+    "marker": "/opt/armpi_ros2/install/armpi_ros2/share/armpi_ros2/config/t07_readonly_lock.flag",
+    "arm_sha256": "ed561cd6e80b4e8c4db09ca4e2320a5e01805bb80fc96fc868c03230e0362e4c",
+    "launch_sha256": "8e17be19a170adafe068d63ccf6ad52e574a0a0083854ee79e8dd51b19be5d41",
+    "helper_exists": true,
+    "protocol": "/opt/armpi_ros2/install/armpi_ros2/lib/python3.12/site-packages/armpi_ros2/servo_protocol.py"
+  },
+  "pre_restart_stop": {
+    "passed": true,
+    "chassis": {
+      "dry_run": false,
+      "enable_motion": false,
+      "estop": true,
+      "hardware_fault": false,
+      "wheel_command": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "arm_stop": {
+      "estop": true,
+      "enable_arm_motion": false,
+      "enable_gripper_motion": false
+    },
+    "movement_commands_sent": 0,
+    "estop_true_published": true,
+    "reset_called": false,
+    "note": "Chassis enable_motion is a startup flag; runtime parameter change does not update driver attribute. Actual lock is verified latched chassis estop; do not reset chassis."
+  },
+  "installed_hashes": {
+    "arm": "e09e3d8932dbbf4c971f9db8cf9897450da7e95847212dc159bb6634279e678d",
+    "helper": "26325813d1cacea43ecfffe436d1fd7f4693cbe13b727982ba5ed488d0f728c9",
+    "launch": "8e17be19a170adafe068d63ccf6ad52e574a0a0083854ee79e8dd51b19be5d41",
+    "marker": "d55f51a75b839e0d1f3c145fd7394a01b4dfbb91a8f9d4a94d097e6226cad3fa",
+    "protocol": "6c467a063fc7b7e107f0d84592c551cfede4e1cc52bd2c4981e08d0d0102e147"
+  },
+  "diagnostics": {
+    "gates_verified_off": true,
+    "motion_commands_sent": 0,
+    "torque_writes": 0,
+    "diagnostic_response": {
+      "success": true,
+      "message": "{\"joint_measurements\": {\"joint1\": {\"servo_id\": 6, \"position_raw\": 478, \"position_raw_read_monotonic\": 2802.345812789, \"torque_enabled\": true, \"torque_enabled_read_monotonic\": 2802.370838173, \"voltage_mv\": 7518, \"voltage_mv_read_monotonic\": 2802.390375649, \"temperature_C\": 29, \"temperature_C_read_monotonic\": 2802.411189935}, \"joint2\": {\"servo_id\": 5, \"position_raw\": 431, \"position_raw_read_monotonic\": 2802.432194683, \"torque_enabled\": true, \"torque_enabled_read_monotonic\": 2802.448423132, \"voltage_mv\": 7518, \"voltage_mv_read_monotonic\": 2802.469963453, \"temperature_C\": 28, \"temperature_C_read_monotonic\": 2802.498349827}, \"joint3\": {\"servo_id\": 4, \"position_raw\": 919, \"position_raw_read_monotonic\": 2802.514065574, \"torque_enabled\": true, \"torque_enabled_read_monotonic\": 2802.534458102, \"voltage_mv\": 7472, \"voltage_mv_read_monotonic\": 2802.557172104, \"temperature_C\": 29, \"temperature_C_read_monotonic\": 2802.576736006}, \"joint4\": {\"servo_id\": 3, \"position_raw\": 350, \"position_raw_read_monotonic\": 2802.598683992, \"torque_enabled\": true, \"torque_enabled_read_monotonic\": 2802.616540991, \"voltage_mv\": 7496, \"voltage_mv_read_monotonic\": 2802.637833702, \"temperature_C\": 28, \"temperature_C_read_monotonic\": 2802.657536529}, \"joint5\": {\"servo_id\": 2, \"position_raw\": 495, \"position_raw_read_monotonic\": 2802.678388556, \"torque_enabled\": true, \"torque_enabled_read_monotonic\": 2802.697659662, \"voltage_mv\": 7430, \"voltage_mv_read_monotonic\": 2802.719213909, \"temperature_C\": 28, \"temperature_C_read_monotonic\": 2802.738777736}, \"r_joint\": {\"servo_id\": 1, \"position_raw\": 156, \"position_raw_read_monotonic\": 2802.758665118, \"torque_enabled\": false, \"torque_enabled_read_monotonic\": 2802.778404037, \"voltage_mv\": 7454, \"voltage_mv_read_monotonic\": 2802.798626362, \"temperature_C\": 28, \"temperature_C_read_monotonic\": 2802.827642845}}, \"serial_owner_reused\": true, \"motion_commands\": 0, \"torque_writes\": 0, \"transport\": {\"last_control_tx\": {\"stop\": {\"monotonic_time\": 2802.309274293, \"frame_hex\": \"aa55050803060102030405064b\"}}, \"counters\": {\"requests\": 67, \"tx\": 68, \"read_attempt\": 67, \"rx_bytes\": 979, \"function_5_frames\": 67, \"rx_servo\": 67, \"read_success\": 67, \"function_0_frames\": 29}, \"last_query\": {\"query_id\": 67, \"servo_id\": 1, \"command\": 9, \"started\": 2802.79865201, \"result\": \"OK\", \"attempts\": 1, \"elapsed_ms\": 27.939}, \"last_failed_query\": null, \"last_failure_events\": [], \"recent_events\": [{\"event\": \"tx\", \"monotonic_time\": 2802.675138399, \"frame_hex\": \"aa55050205028d\"}, {\"event\": \"read_attempt\", \"monotonic_time\": 2802.675161436, \"query_id\": 60, \"servo_id\": 2, \"command\": 5, \"attempt\": 1}, {\"event\": \"rx_servo\", \"monotonic_time\": 2802.678045501, \"payload_hex\": \"020500ef01\"}, {\"event\": \"read_success\", \"monotonic_time\": 2802.678364741, \"query_id\": 60, \"attempt\": 1, \"reply_ms\": 3.254}, {\"event\": \"tx\", \"monotonic_time\": 2802.695309947, \"frame_hex\": \"aa5505020d02fb\"}, {\"event\": \"read_attempt\", \"monotonic_time\": 2802.695333225, \"query_id\": 61, \"servo_id\": 2, \"command\": 13, \"attempt\": 1}, {\"event\": \"rx_servo\", \"monotonic_time\": 2802.697312607, \"payload_hex\": \"020d0001\"}, {\"event\": \"read_success\", \"monotonic_time\": 2802.697632847, \"query_id\": 61, \"attempt\": 1, \"reply_ms\": 2.168}, {\"event\": \"tx\", \"monotonic_time\": 2802.715481698, \"frame_hex\": \"aa55050207021c\"}, {\"event\": \"read_attempt\", \"monotonic_time\": 2802.715505013, \"query_id\": 62, \"servo_id\": 2, \"command\": 7, \"attempt\": 1}, {\"event\": \"rx_servo\", \"monotonic_time\": 2802.719060631, \"payload_hex\": \"020700061d\"}, {\"event\": \"read_success\", \"monotonic_time\": 2802.719189816, \"query_id\": 62, \"attempt\": 1, \"reply_ms\": 3.76}, {\"event\": \"tx\", \"monotonic_time\": 2802.735597079, \"frame_hex\": \"aa5505020902c0\"}, {\"event\": \"read_attempt\", \"monotonic_time\": 2802.735617153, \"query_id\": 63, \"servo_id\": 2, \"command\": 9, \"attempt\": 1}, {\"event\": \"rx_servo\", \"monotonic_time\": 2802.738613829, \"payload_hex\": \"0209001c\"}, {\"event\": \"read_success\", \"monotonic_time\": 2802.73875281, \"query_id\": 63, \"attempt\": 1, \"reply_ms\": 3.15}, {\"event\": \"tx\", \"monotonic_time\": 2802.755747442, \"frame_hex\": \"aa55050205016f\"}, {\"event\": \"read_attempt\", \"monotonic_time\": 2802.75576883, \"query_id\": 64, \"servo_id\": 1, \"command\": 5, \"attempt\": 1}, {\"event\": \"rx_servo\", \"monotonic_time\": 2802.758540525, \"payload_hex\": \"0105009c00\"}, {\"event\": \"read_success\", \"monotonic_time\": 2802.758644803, \"query_id\": 64, \"attempt\": 1, \"reply_ms\": 2.92}, {\"event\": \"tx\", \"monotonic_time\": 2802.775927322, \"frame_hex\": \"aa5505020d0119\"}, {\"event\": \"read_attempt\", \"monotonic_time\": 2802.775949508, \"query_id\": 65, \"servo_id\": 1, \"command\": 13, \"attempt\": 1}, {\"event\": \"rx_servo\", \"monotonic_time\": 2802.778285463, \"payload_hex\": \"010d0000\"}, {\"event\": \"read_success\", \"monotonic_time\": 2802.778381111, \"query_id\": 65, \"attempt\": 1, \"reply_ms\": 2.507}, {\"event\": \"tx\", \"monotonic_time\": 2802.79618324, \"frame_hex\": \"aa5505020701fe\"}, {\"event\": \"read_attempt\", \"monotonic_time\": 2802.796204573, \"query_id\": 66, \"servo_id\": 1, \"command\": 7, \"attempt\": 1}, {\"event\": \"rx_servo\", \"monotonic_time\": 2802.798419159, \"payload_hex\": \"0107001e1d\"}, {\"event\": \"read_success\", \"monotonic_time\": 2802.798578233, \"query_id\": 66, \"attempt\": 1, \"reply_ms\": 2.441}, {\"event\": \"tx\", \"monotonic_time\": 2802.820666756, \"frame_hex\": \"aa550502090122\"}, {\"event\": \"read_attempt\", \"monotonic_time\": 2802.820732144, \"query_id\": 67, \"servo_id\": 1, \"command\": 9, \"attempt\": 1}, {\"event\": \"rx_servo\", \"monotonic_time\": 2802.826067035, \"payload_hex\": \"0109001c\"}, {\"event\": \"read_success\", \"monotonic_time\": 2802.826578663, \"query_id\": 67, \"attempt\": 1, \"reply_ms\": 9.242}], \"receiver_error\": null}}"
+    },
+    "arm": {
+      "estop": true,
+      "enable_arm_motion": false,
+      "enable_gripper_motion": false
+    },
+    "base": {
+      "dry_run": false,
+      "enable_motion": false,
+      "estop": true,
+      "hardware_fault": false,
+      "wheel_command": [
+        0,
+        0,
+        0,
+        0
+      ]
+    }
+  }
+}

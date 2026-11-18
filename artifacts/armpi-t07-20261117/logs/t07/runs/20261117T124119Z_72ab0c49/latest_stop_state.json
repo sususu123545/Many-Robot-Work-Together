@@ -1,0 +1,35 @@
+{
+  "arm_estop": true,
+  "arm_motion_enabled": false,
+  "gripper_motion_enabled": false,
+  "base_estop": true,
+  "wheel_command": [
+    0,
+    0,
+    0,
+    0
+  ],
+  "raw": {
+    "joint1": 558,
+    "joint2": 209,
+    "joint3": 695,
+    "joint4": 334,
+    "joint5": 495,
+    "r_joint": 156
+  },
+  "temperature_C": {
+    "joint1": 29,
+    "joint2": 29,
+    "joint3": 30,
+    "joint4": 28,
+    "joint5": 28,
+    "r_joint": 28
+  },
+  "feedback_complete": true,
+  "fault": null,
+  "motion_publishers": {
+    "/arm_controller/command": 0,
+    "/gripper_controller/command": 0,
+    "/cmd_vel": 0
+  }
+}

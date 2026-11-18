@@ -1,0 +1,44 @@
+{
+  "source_sha256": "ee58ed91da5147d30fcb1bb675a16ade09f8922fd9f0857be356b8f16483f111",
+  "offline_monotonic_tcp_checks": [
+    {
+      "start_raw": {
+        "joint1": 558,
+        "joint2": 222,
+        "joint3": 718,
+        "joint4": 334,
+        "joint5": 495,
+        "r_joint": 156
+      },
+      "rise_m": 0.020132700822971014
+    },
+    {
+      "start_raw": {
+        "joint1": 558,
+        "joint2": 242,
+        "joint3": 718,
+        "joint4": 334,
+        "joint5": 495,
+        "r_joint": 156
+      },
+      "rise_m": 0.02110397745375954
+    },
+    {
+      "start_raw": {
+        "joint1": 558,
+        "joint2": 262,
+        "joint3": 718,
+        "joint4": 334,
+        "joint5": 495,
+        "r_joint": 156
+      },
+      "rise_m": 0.02192722484589686
+    }
+  ],
+  "max_commands": 3,
+  "max_step_ticks": 20,
+  "duration_seconds": 3,
+  "arrival_tolerance_ticks": 6,
+  "base_and_gripper_motion": false,
+  "physical_home_verified": false
+}

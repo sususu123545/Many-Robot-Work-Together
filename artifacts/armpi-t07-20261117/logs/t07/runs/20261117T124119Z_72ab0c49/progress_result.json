@@ -1,0 +1,143 @@
+{
+  "status": "unsuccessful_grasp_safe_withdrawal_confirmed",
+  "attempts": [
+    {
+      "folder": "native_pickattempt_3ddd5c85",
+      "arm_commands": 5,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "error": "RuntimeError('Model clearance bound')",
+      "last_phase": "approach_2",
+      "cleanup_confirmed": true,
+      "sequence_completed": false
+    },
+    {
+      "folder": "native_pickattempt_a4fa25af",
+      "arm_commands": 0,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "error": "RuntimeError('Reset refused: Need 10 seconds of fresh valid five-joint arm feedback, no pending poll and a successful stop; keep emergency')",
+      "last_phase": "permissions",
+      "cleanup_confirmed": true,
+      "sequence_completed": false
+    },
+    {
+      "folder": "native_pickattempt_b2fd0ef1",
+      "arm_commands": 16,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "error": "RuntimeError('Invalid actual arm feedback')",
+      "last_phase": "approach_1",
+      "cleanup_confirmed": true,
+      "sequence_completed": false
+    },
+    {
+      "folder": "native_pickattempt_b41ac225",
+      "arm_commands": 0,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "error": "RuntimeError('Wait timed out: permissions')",
+      "last_phase": "permissions",
+      "cleanup_confirmed": true,
+      "sequence_completed": false
+    },
+    {
+      "folder": "native_pickattempt_ce671b25",
+      "arm_commands": 9,
+      "gripper_commands": 2,
+      "chassis_commands": 0,
+      "error": "RuntimeError('Joint freshness/temperature: r_joint')",
+      "last_phase": "pregrasp",
+      "cleanup_confirmed": true,
+      "sequence_completed": false
+    },
+    {
+      "folder": "native_pickattempt_d712e3fb",
+      "arm_commands": 5,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "error": "RuntimeError('No fresh complete stable sphere')",
+      "last_phase": "approach_3",
+      "cleanup_confirmed": true,
+      "sequence_completed": false
+    },
+    {
+      "folder": "native_pickattempt_f2bf8bde",
+      "arm_commands": 0,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "error": "RuntimeError('Model clearance bound')",
+      "last_phase": "approach_1",
+      "cleanup_confirmed": true,
+      "sequence_completed": false
+    },
+    {
+      "folder": "native_pickattempt_fa0104df",
+      "arm_commands": 2,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "error": "RuntimeError('Model clearance bound')",
+      "last_phase": "approach_1",
+      "cleanup_confirmed": true,
+      "sequence_completed": false
+    },
+    {
+      "folder": "native_recoverup_42517701",
+      "arm_commands": 3,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "error": null,
+      "last_phase": null,
+      "cleanup_confirmed": true,
+      "sequence_completed": false
+    },
+    {
+      "folder": "native_recoverup_ccad4b38",
+      "arm_commands": 1,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "error": null,
+      "last_phase": null,
+      "cleanup_confirmed": true,
+      "sequence_completed": false
+    }
+  ],
+  "total_arm_commands": 41,
+  "total_gripper_commands": 2,
+  "total_chassis_commands": 0,
+  "grasp_verified": false,
+  "red_ball_closure_commands": 0,
+  "physical_lift_of_ball": false,
+  "operator_confirmed_fingers_touched_floor": true,
+  "operator_confirmed_withdrawal_clear_of_floor": true,
+  "operator_confirmed_no_ball_compression_after_withdrawal": true,
+  "withdrawal_pre_stop_model_rise_m": 0.03662400088754954,
+  "withdrawal_post_cleanup_model_rise_m": 0.027598941702122154,
+  "latest_measured_gap_to_last_complete_sphere_m": 0.013383148836216493,
+  "metric_gap_is_not_physical_alignment_proof": true,
+  "final_stop_confirmed": true,
+  "final_raw": {
+    "joint1": 558,
+    "joint2": 234,
+    "joint3": 715,
+    "joint4": 334,
+    "joint5": 495,
+    "r_joint": 156
+  },
+  "final_temperature_C": {
+    "joint1": 29,
+    "joint2": 47,
+    "joint3": 37,
+    "joint4": 28,
+    "joint5": 29,
+    "r_joint": 28
+  },
+  "prepared_operator_aligned_grasp_executed": false,
+  "acceptance": "FAIL grasp; physical finger clearance check inadequate; withdrawal confirmed; no success demonstration export; T07 remains unaccepted",
+  "next_requirements": [
+    "Measure true finger geometry and grasp center relative to modeled TCP",
+    "Independently establish floor plane and finger clearance across gripper openings and wrist angles",
+    "Verify post-stop holding and drift",
+    "Restore bounded grasp trial only after clearance checks reflect physical fingertips"
+  ]
+}

@@ -1,0 +1,1 @@
+{"ready": true, "service_called": true, "trajectory_publishers": 0, "success": false, "message": "{\"passed\": false, \"error\": \"Unexpected torque activation while preloading hold target\", \"servo_id\": 1, \"torque_writes\": 0, \"holding_target_commands\": 1, \"initial_raw\": 155, \"voltage_mv\": 7341, \"initial_torque\": false}"}

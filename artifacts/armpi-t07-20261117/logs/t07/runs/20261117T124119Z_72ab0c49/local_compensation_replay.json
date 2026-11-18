@@ -1,0 +1,111 @@
+{
+  "kind": "offline local replay; not a physical clearance validation",
+  "offsets_ticks": {
+    "joint1": 1,
+    "joint2": 1,
+    "joint3": -4,
+    "joint4": 6
+  },
+  "basis": "Median command-minus-actual of7 recent complete approach waypoints",
+  "assumed_recovery_raw": {
+    "joint1": 557,
+    "joint2": 236,
+    "joint3": 706,
+    "joint4": 321,
+    "joint5": 495,
+    "r_joint": 156
+  },
+  "initial_TCP_clearance_m": 0.020623987230024052,
+  "candidate_target": [
+    -0.060905783998452506,
+    0.24457918354977656,
+    -0.07648529403404736
+  ],
+  "candidates": [
+    {
+      "pitch": -152,
+      "desired": {
+        "joint1": 558,
+        "joint2": 234,
+        "joint3": 717,
+        "joint4": 349
+      },
+      "command": {
+        "joint1": 559,
+        "joint2": 235,
+        "joint3": 713,
+        "joint4": 355
+      },
+      "max_joint_delta": 34,
+      "minimum_model_TCP_clearance_m": 0.020623987230024052
+    },
+    {
+      "pitch": -148,
+      "desired": {
+        "joint1": 558,
+        "joint2": 250,
+        "joint3": 767,
+        "joint4": 400
+      },
+      "command": {
+        "joint1": 559,
+        "joint2": 251,
+        "joint3": 763,
+        "joint4": 406
+      },
+      "max_joint_delta": 85,
+      "minimum_model_TCP_clearance_m": 0.020623987230024052
+    },
+    {
+      "pitch": -144,
+      "desired": {
+        "joint1": 558,
+        "joint2": 259,
+        "joint3": 807,
+        "joint4": 447
+      },
+      "command": {
+        "joint1": 559,
+        "joint2": 260,
+        "joint3": 803,
+        "joint4": 453
+      },
+      "max_joint_delta": 132,
+      "minimum_model_TCP_clearance_m": 0.020574085639317577
+    },
+    {
+      "pitch": -140,
+      "desired": {
+        "joint1": 558,
+        "joint2": 263,
+        "joint3": 840,
+        "joint4": 493
+      },
+      "command": {
+        "joint1": 559,
+        "joint2": 264,
+        "joint3": 836,
+        "joint4": 499
+      },
+      "max_joint_delta": 178,
+      "minimum_model_TCP_clearance_m": 0.019940226155078275
+    },
+    {
+      "pitch": -136,
+      "desired": {
+        "joint1": 558,
+        "joint2": 261,
+        "joint3": 866,
+        "joint4": 539
+      },
+      "command": {
+        "joint1": 559,
+        "joint2": 262,
+        "joint3": 862,
+        "joint4": 545
+      },
+      "max_joint_delta": 224,
+      "minimum_model_TCP_clearance_m": 0.018750098150747727
+    }
+  ]
+}

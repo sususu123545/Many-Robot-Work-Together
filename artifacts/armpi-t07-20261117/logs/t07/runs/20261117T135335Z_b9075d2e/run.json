@@ -1,0 +1,9 @@
+{
+  "ticket": "T07",
+  "run_id": "20261117T135335Z_b9075d2e",
+  "started_utc": "2026-11-17T13:53:35.636722+00:00",
+  "note": "User requests arm reset then renewed ball grasp; inspect home definition and monotonic upward recovery before sending any physical movement",
+  "status": "recovery_stopped_retry_rejected_awaiting_review",
+  "updated_utc": "2026-11-17T14:00:20.360597+00:00",
+  "outcome": "One real arm command stopped on unexpected elbow encoder drift; cleanup verified. Hold retry rejected by auto-review before execution. Reset/grasp incomplete."
+}

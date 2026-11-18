@@ -1,0 +1,148 @@
+{
+  "dispatch": {
+    "kind": "dispatch",
+    "index": 0,
+    "stamp": {
+      "sec": 1794923781,
+      "nanosec": 191873126
+    },
+    "target_raw": 242,
+    "duration": 3,
+    "predicted_rise_m": 0.020132700822971014
+  },
+  "initial_raw": {
+    "joint1": 558,
+    "joint2": 222,
+    "joint3": 718,
+    "joint4": 333,
+    "joint5": 495,
+    "r_joint": 155
+  },
+  "samples": [
+    {
+      "robot_dt_seconds": 0.495324115,
+      "raw": {
+        "joint1": 558,
+        "joint2": 222,
+        "joint3": 718,
+        "joint4": 334,
+        "joint5": 495,
+        "r_joint": 156
+      },
+      "estop": false,
+      "model_tcp": [
+        -0.05628068533578203,
+        0.2270797540457138,
+        -0.09399899409104001
+      ]
+    },
+    {
+      "robot_dt_seconds": 0.9938700570000001,
+      "raw": {
+        "joint1": 558,
+        "joint2": 225,
+        "joint3": 718,
+        "joint4": 334,
+        "joint5": 496,
+        "r_joint": 156
+      },
+      "estop": false,
+      "model_tcp": [
+        -0.05675569722634491,
+        0.22899631889623506,
+        -0.0910466429251009
+      ]
+    },
+    {
+      "robot_dt_seconds": 1.4996778780000002,
+      "raw": {
+        "joint1": 557,
+        "joint2": 222,
+        "joint3": 718,
+        "joint4": 334,
+        "joint5": 496,
+        "r_joint": 156
+      },
+      "estop": false,
+      "model_tcp": [
+        -0.05532900491921681,
+        0.22731350917615184,
+        -0.09399899409104001
+      ]
+    },
+    {
+      "robot_dt_seconds": 1.9914391100000002,
+      "raw": {
+        "joint1": 558,
+        "joint2": 224,
+        "joint3": 718,
+        "joint4": 334,
+        "joint5": 495,
+        "r_joint": 156
+      },
+      "estop": false,
+      "model_tcp": [
+        -0.056598352074587244,
+        0.22836146702568222,
+        -0.09203351410581354
+      ]
+    },
+    {
+      "robot_dt_seconds": 2.4929253410000003,
+      "raw": {
+        "joint1": 558,
+        "joint2": 226,
+        "joint3": 718,
+        "joint4": 334,
+        "joint5": 495,
+        "r_joint": 156
+      },
+      "estop": false,
+      "model_tcp": [
+        -0.056912046546173566,
+        0.22962715281163754,
+        -0.09005704069035458
+      ]
+    },
+    {
+      "robot_dt_seconds": 2.993637977,
+      "raw": {
+        "joint1": 558,
+        "joint2": 231,
+        "joint3": 722,
+        "joint4": 334,
+        "joint5": 495,
+        "r_joint": 156
+      },
+      "estop": false,
+      "model_tcp": [
+        -0.05689649163664522,
+        0.2295643922924856,
+        -0.08753842403613932
+      ]
+    },
+    {
+      "robot_dt_seconds": 3.5012439900000003,
+      "raw": {
+        "joint1": 558,
+        "joint2": 225,
+        "joint3": 723,
+        "joint4": 334,
+        "joint5": 496,
+        "r_joint": 156
+      },
+      "estop": true,
+      "model_tcp": [
+        -0.055758012001806065,
+        0.2249708861202897,
+        -0.09402201093233242
+      ]
+    }
+  ],
+  "commands_sent": 1,
+  "gripper_commands": 0,
+  "base_commands": 0,
+  "cleanup_confirmed": true,
+  "error": "RuntimeError('Non-commanded joint moved')",
+  "note": "Observed elbow encoder change during shoulder command; cause not determined. New all-arm holding variant was rejected before execution by automatic approval review."
+}

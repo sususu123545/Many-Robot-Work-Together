@@ -1,0 +1,203 @@
+{
+  "run_id": "20261117T042848Z_6a8f5806",
+  "grasp_verified": false,
+  "completion": "not_achieved",
+  "arm_dispatches": 6,
+  "gripper_commands": 0,
+  "chassis_commands": 0,
+  "attempts": [
+    {
+      "folder": "native_healthwatch_bc6d2eff",
+      "dispatched_arm": 0,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "passed": null,
+      "error": null,
+      "cleanup_confirmed": null,
+      "waypoints_passed": 0,
+      "read_errors": []
+    },
+    {
+      "folder": "native_healthwatch_ee9dbe4f",
+      "dispatched_arm": 0,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "passed": null,
+      "error": null,
+      "cleanup_confirmed": null,
+      "waypoints_passed": 0,
+      "read_errors": []
+    },
+    {
+      "folder": "native_healthwatch_f4793661",
+      "dispatched_arm": 0,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "passed": null,
+      "error": null,
+      "cleanup_confirmed": null,
+      "waypoints_passed": 0,
+      "read_errors": []
+    },
+    {
+      "folder": "native_houghplan_063eb30d",
+      "dispatched_arm": 0,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "passed": null,
+      "error": null,
+      "cleanup_confirmed": null,
+      "waypoints_passed": 0,
+      "read_errors": []
+    },
+    {
+      "folder": "native_houghplan_073a24ab",
+      "dispatched_arm": 0,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "passed": null,
+      "error": null,
+      "cleanup_confirmed": null,
+      "waypoints_passed": 0,
+      "read_errors": []
+    },
+    {
+      "folder": "native_houghplan_42de1d8b",
+      "dispatched_arm": 0,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "passed": null,
+      "error": null,
+      "cleanup_confirmed": null,
+      "waypoints_passed": 0,
+      "read_errors": []
+    },
+    {
+      "folder": "native_houghplan_588d42af",
+      "dispatched_arm": 0,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "passed": null,
+      "error": null,
+      "cleanup_confirmed": null,
+      "waypoints_passed": 0,
+      "read_errors": []
+    },
+    {
+      "folder": "native_houghplan_8b2a9031",
+      "dispatched_arm": 0,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "passed": null,
+      "error": null,
+      "cleanup_confirmed": null,
+      "waypoints_passed": 0,
+      "read_errors": []
+    },
+    {
+      "folder": "native_houghplan_a7d77c6a",
+      "dispatched_arm": 0,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "passed": null,
+      "error": null,
+      "cleanup_confirmed": null,
+      "waypoints_passed": 0,
+      "read_errors": []
+    },
+    {
+      "folder": "native_houghplan_fb594874",
+      "dispatched_arm": 0,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "passed": null,
+      "error": null,
+      "cleanup_confirmed": null,
+      "waypoints_passed": 0,
+      "read_errors": []
+    },
+    {
+      "folder": "native_lock_f85b6557",
+      "dispatched_arm": 0,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "passed": true,
+      "error": null,
+      "cleanup_confirmed": null,
+      "waypoints_passed": 0,
+      "read_errors": []
+    },
+    {
+      "folder": "native_pregraspstage_76b32f3f",
+      "dispatched_arm": 3,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "passed": false,
+      "error": "RuntimeError('Stage temperature-rise guard')",
+      "cleanup_confirmed": true,
+      "waypoints_passed": 2,
+      "read_errors": []
+    },
+    {
+      "folder": "native_pregraspstage_cd8ce2cf",
+      "dispatched_arm": 0,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "passed": false,
+      "error": "RuntimeError('Joint age/temperature guard')",
+      "cleanup_confirmed": null,
+      "waypoints_passed": 0,
+      "read_errors": []
+    },
+    {
+      "folder": "native_pregraspstage_f0a2d069",
+      "dispatched_arm": 1,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "passed": false,
+      "error": "RuntimeError('Stage waypoint failed measured arrival; no next waypoint')",
+      "cleanup_confirmed": true,
+      "waypoints_passed": 0,
+      "read_errors": []
+    },
+    {
+      "folder": "native_pregraspstage_fb79cb8c",
+      "dispatched_arm": 2,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "passed": false,
+      "error": "RuntimeError('Stage temperature-rise guard')",
+      "cleanup_confirmed": true,
+      "waypoints_passed": 1,
+      "read_errors": []
+    },
+    {
+      "folder": "native_query_10618b20",
+      "dispatched_arm": 0,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "passed": null,
+      "error": null,
+      "cleanup_confirmed": null,
+      "waypoints_passed": 0,
+      "read_errors": []
+    },
+    {
+      "folder": "native_query_b0f06875",
+      "dispatched_arm": 0,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "passed": null,
+      "error": null,
+      "cleanup_confirmed": null,
+      "waypoints_passed": 0,
+      "read_errors": []
+    }
+  ],
+  "pending": [
+    "Measured approach and contact geometry",
+    "Gripper closure on red ball",
+    "Unsupported lift and hold verification",
+    "T07 physical dataset acceptance remains separate"
+  ]
+}

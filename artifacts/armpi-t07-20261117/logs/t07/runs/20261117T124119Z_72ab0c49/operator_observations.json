@@ -1,0 +1,14 @@
+[
+  {
+    "stage": "after first advanced approach",
+    "observation": "Ball not between fingers; no collision, vibration or abnormal noise reported"
+  },
+  {
+    "stage": "after final compensated approach and stop",
+    "observation": "Ball still not centered between fingers; fingers touching floor"
+  },
+  {
+    "stage": "after withdrawal",
+    "observation": "Gripper completely clear of floor; not pressing red ball"
+  }
+]

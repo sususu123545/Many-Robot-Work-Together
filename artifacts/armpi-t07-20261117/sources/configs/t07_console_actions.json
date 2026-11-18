@@ -1,0 +1,20 @@
+{
+  "elbowcompensate": "t07_redball_elbow_compensate.py",
+  "pregraspstage": "t07_redball_pregrasp_stage.py",
+  "visionbench": "t07_redball_vision_benchmark.py",
+  "viewrecovery": "t07_redball_view_recovery.py",
+  "houghplan": "t07_redball_hough_geometry.py",
+  "healthwatch": "t07_passive_health_watch.py",
+  "readcameratf": "t07_read_camera_tf.py",
+  "responseprobe": "t07_instrumented_probe.py",
+  "restoremeasuredtf": "t07_restore_measured_tf.py",
+  "restoregripper": "t07_native_restore_client.py",
+  "restorelocaltf": "t07_restore_local_tf.py",
+  "udpprobe": "t07_udp_observation_probe.py",
+  "udpquery": "t07_udp_query.py",
+  "pickattempt": "t07_guarded_pick_attempt.py",
+  "gripinspect": "t07_gripper_mapping_read.py",
+  "openresponse": "t07_gripper_open_response.py",
+  "recoverup": "t07_raise_recovery.py",
+  "clearanceraise": "t07_clearance_raise.py"
+}

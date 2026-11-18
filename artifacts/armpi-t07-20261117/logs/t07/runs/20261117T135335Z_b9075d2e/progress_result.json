@@ -1,0 +1,91 @@
+{
+  "run_id": "20261117T135335Z_b9075d2e",
+  "user_request": "Reset physical arm then grasp the ball again.",
+  "home_pose_available": false,
+  "reset_service_semantics": "reset_estop only clears latch and revokes motion gates; it is not physical homing.",
+  "motion_attempt": "Upward-only reset preparation, with 20tick shoulder increments at3seconds; at most3increments prepared.",
+  "motion_commands_sent": {
+    "arm": 1,
+    "gripper": 0,
+    "base": 0
+  },
+  "requested_shoulder_raw": 242,
+  "initial_shoulder_raw": 222,
+  "initial_elbow_raw": 718,
+  "shoulder_raw_at_guard": 231,
+  "elbow_raw_at_guard": 722,
+  "guard": "Non-commanded joint moved >3ticks",
+  "guard_time_from_dispatch_seconds": 2.993637977,
+  "motion_error": "RuntimeError('Non-commanded joint moved')",
+  "measured_arrival_passed": false,
+  "cleanup_confirmed": true,
+  "final_readonly_raw": {
+    "joint1": 560,
+    "joint2": 225,
+    "joint3": 723,
+    "joint4": 334,
+    "joint5": 496,
+    "r_joint": 156
+  },
+  "final_temperatures_C": {
+    "joint1": 30,
+    "joint2": 29,
+    "joint3": 28,
+    "joint4": 28,
+    "joint5": 29,
+    "r_joint": 28
+  },
+  "final_ages_seconds": {
+    "joint1": 0.23,
+    "joint2": 0.191,
+    "joint3": 0.15,
+    "joint4": 0.106,
+    "joint5": 0.067,
+    "r_joint": 0.019
+  },
+  "final_safety": {
+    "arm_estop": true,
+    "base_estop": true,
+    "arm_permission": false,
+    "gripper_permission": false,
+    "wheel_command": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "final_competing_publishers": {
+    "/arm_controller/command": 0,
+    "/gripper_controller/command": 0,
+    "/cmd_vel": 0
+  },
+  "post_ball_samples": 10,
+  "post_ball_sample_age_seconds": 0.054144336,
+  "retry_prepared": "bounded_hold.py holds other arm joints at their freshly measured positions; same drift3ticks, arrival6ticks and other guards.",
+  "retry_executed": false,
+  "retry_approval_review": {
+    "action": "python logs/t07/runs/20261117T135335Z_b9075d2e/run_hold_recovery.py",
+    "decision": "rejected_before_process_creation",
+    "reason": "This would issue another real-arm movement after a prior unexpected non-commanded joint drift, using a newly modified hold strategy whose safety has not been independently validated; the original reset request does not clearly authorize this higher-risk retry.",
+    "executed": false,
+    "workaround_used": false
+  },
+  "acceptance": {
+    "native_estop_reset_ack": "passed",
+    "physical_reset": "not_completed",
+    "upward_preparation": "failed_joint_drift_guard",
+    "grasp_lift_hold_release": "not_attempted",
+    "post_stop_readonly": "recorded"
+  },
+  "unresolved": [
+    "Cause of elbow encoder change under shoulder command unknown; do not claim mechanical failure or communication loss.",
+    "Physical home and full path are not calibrated.",
+    "Prior real finger-floor contact and post-STOP holding remain unresolved.",
+    "Modified hold strategy requires independent validation and explicit approval before retry."
+  ],
+  "grasp_success": false,
+  "T07_complete": false,
+  "physical_success_export": false,
+  "status": "recovery_stopped_retry_rejected_awaiting_review"
+}

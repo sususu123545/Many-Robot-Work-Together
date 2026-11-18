@@ -1,0 +1,117 @@
+{
+  "attempts": [
+    {
+      "source": "native_pregraspstage_297f546b\\stdout.log",
+      "passed": true,
+      "error": null,
+      "commands": [
+        {
+          "unique_matching_uart_write": true,
+          "move_time_monotonic": 1980.294304184,
+          "frame_hex": "aa55051001b80b0406df0105fe0104a703034d016b",
+          "duration_seconds": 3,
+          "next_retained_stop_after_seconds": 7.422889459999851,
+          "stop_within_command_duration": false
+        },
+        {
+          "unique_matching_uart_write": true,
+          "move_time_monotonic": 1984.037379685,
+          "frame_hex": "aa55051001b80b0406df0105e80104980303560188",
+          "duration_seconds": 3,
+          "next_retained_stop_after_seconds": 3.6798139590000574,
+          "stop_within_command_duration": false
+        }
+      ],
+      "measured_waypoints_passed": 2
+    },
+    {
+      "source": "native_pregraspstage_6d9f4cde\\stdout.log",
+      "passed": true,
+      "error": null,
+      "commands": [
+        {
+          "unique_matching_uart_write": true,
+          "move_time_monotonic": 1829.285934404,
+          "frame_hex": "aa55051001b80b0406e30105430204a103032b01e5",
+          "duration_seconds": 3,
+          "next_retained_stop_after_seconds": 4.438726864000046,
+          "stop_within_command_duration": false
+        }
+      ],
+      "measured_waypoints_passed": 1
+    },
+    {
+      "source": "native_pregraspstage_bc9623ef\\stdout.log",
+      "passed": true,
+      "error": null,
+      "commands": [
+        {
+          "unique_matching_uart_write": true,
+          "move_time_monotonic": 1884.289580777,
+          "frame_hex": "aa55051001b80b0406e301052c0204ae0303380128",
+          "duration_seconds": 3,
+          "next_retained_stop_after_seconds": 7.430792249999968,
+          "stop_within_command_duration": false
+        },
+        {
+          "unique_matching_uart_write": true,
+          "move_time_monotonic": 1888.039803014,
+          "frame_hex": "aa55051001b80b0406e30105140204a4030345017c",
+          "duration_seconds": 3,
+          "next_retained_stop_after_seconds": 3.6805700130000787,
+          "stop_within_command_duration": false
+        }
+      ],
+      "measured_waypoints_passed": 2
+    },
+    {
+      "source": "native_pregraspstage_d29dc121\\stdout.log",
+      "passed": false,
+      "error": "RuntimeError('Invalid measured feedback')",
+      "commands": [
+        {
+          "unique_matching_uart_write": true,
+          "move_time_monotonic": 2143.786199255,
+          "frame_hex": "aa55051001b80b0406df0105d401049503035b012e",
+          "duration_seconds": 3,
+          "next_retained_stop_after_seconds": 9.544357644999764,
+          "stop_within_command_duration": false
+        },
+        {
+          "unique_matching_uart_write": true,
+          "move_time_monotonic": 2147.41976436,
+          "frame_hex": "aa55051001b80b0406db0105bf0104840303610124",
+          "duration_seconds": 3,
+          "next_retained_stop_after_seconds": 5.910792539999875,
+          "stop_within_command_duration": false
+        },
+        {
+          "unique_matching_uart_write": true,
+          "move_time_monotonic": 2151.104521415,
+          "frame_hex": "aa55051001b80b0406db0105ab0104720303660131",
+          "duration_seconds": 3,
+          "next_retained_stop_after_seconds": 2.2260354850000112,
+          "stop_within_command_duration": true
+        }
+      ],
+      "measured_waypoints_passed": 2
+    },
+    {
+      "source": "native_responseprobe_02153b53\\stdout.log",
+      "passed": true,
+      "error": null,
+      "commands": [
+        {
+          "unique_matching_uart_write": true,
+          "move_time_monotonic": 1662.783989337,
+          "frame_hex": "aa55051001b80b0406e801055702048903031d017d",
+          "duration_seconds": 3,
+          "next_retained_stop_after_seconds": 3.9342053249999935,
+          "stop_within_command_duration": false
+        }
+      ],
+      "measured_waypoints_passed": 1
+    }
+  ],
+  "scope": "UART writes and measured arrival only; no inferred grasp success or general hardware certification"
+}

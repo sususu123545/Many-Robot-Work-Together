@@ -1,0 +1,5 @@
+{
+  "source_sha256": "2824bee45e7e9f69fd7c8a2e3727e626df124b83f4f39312054494a77fff749e",
+  "reason": "First single-axis recovery stopped on elbow drift. This variant commands the other arm joints to hold their fresh initial positions. Drift tolerance3ticks, arrival6ticks, step20ticks/3seconds, temperatures and cleanup unchanged. No gripper or base command.",
+  "max_steps": 3
+}

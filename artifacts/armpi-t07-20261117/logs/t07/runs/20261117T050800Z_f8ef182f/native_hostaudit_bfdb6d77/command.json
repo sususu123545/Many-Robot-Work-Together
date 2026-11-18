@@ -1,0 +1,11 @@
+{
+  "action": "hostaudit",
+  "argv": [
+    "python3",
+    "-u",
+    "-c",
+    "\"\"\"Select Docker lifecycle fields and filtered controller log lines only.\"\"\"\nimport json,subprocess\ndef command(argv):\n result=subprocess.run(argv,capture_output=True,text=True,timeout=20)\n if result.returncode:raise RuntimeError(result.stderr[:500])\n return result.stdout\nformat_string='{{json .Id}}\\n{{json .Created}}\\n{{json .State.StartedAt}}\\n{{json .RestartCount}}\\n{{json .Config.Image}}\\n{{json .Mounts}}'\nvalues=command(['docker','inspect','--format',format_string,'armpi_ros2_native']).splitlines()\nselected=dict(zip(['id','created','started','restart_count','image','mounts'],[json.loads(v) for v in values]))\nresult=subprocess.run(['docker','logs','--timestamps','--since','2h','--tail','1500','armpi_ros2_native'],capture_output=True,text=True,timeout=20)\nlines=[]\nfor line in (result.stdout+'\\n'+result.stderr).splitlines():\n if any(key in line for key in ['Transient arm feedback','Arm feedback fault','Gripper','gripper','Arm health','True feedback']):\n  if not any(key in line.lower() for key in ['password','token','secret']):lines.append(line)\nprint(json.dumps({'container':selected,'controller_log_lines':lines,'log_returncode':result.returncode,'motion_commands':0,'state_changes':0}))\n"
+  ],
+  "source_sha256": "e8432ce2ac24dacec59a538e1b6b5ec2e1ac5cf44d25d4dc932a2c29e7a3dade",
+  "returncode": 0
+}

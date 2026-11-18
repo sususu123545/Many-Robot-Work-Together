@@ -1,0 +1,45 @@
+{
+  "source": "native_query_10618b20\\stdout.log",
+  "latest_arm_estop": true,
+  "feedback_complete": true,
+  "fault": null,
+  "joints": {
+    "joint1": {
+      "position": 0.2305585520000477,
+      "temperature": 0.2112604270000702,
+      "raw": 487,
+      "temperature_C": 30
+    },
+    "joint2": {
+      "position": 0.19011703099999977,
+      "temperature": 0.16644825399998808,
+      "raw": 624,
+      "temperature_C": 30
+    },
+    "joint3": {
+      "position": 0.14974725100000796,
+      "temperature": 0.13018444199997248,
+      "raw": 934,
+      "temperature_C": 30
+    },
+    "joint4": {
+      "position": 0.10681599700001243,
+      "temperature": 0.09020005000002129,
+      "raw": 277,
+      "temperature_C": 30
+    },
+    "joint5": {
+      "position": 0.06807545300000584,
+      "temperature": 0.04943245599997681,
+      "raw": 496,
+      "temperature_C": 30
+    },
+    "r_joint": {
+      "position": 0.028946872000005897,
+      "temperature": 0.006722979000073792,
+      "raw": 155,
+      "temperature_C": 29
+    }
+  },
+  "grasp_verified": false
+}

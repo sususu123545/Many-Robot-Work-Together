@@ -1,0 +1,289 @@
+{
+  "run_id": "20261117T044329Z_32e1672d",
+  "grasp_verified": false,
+  "completion": "not_achieved",
+  "arm_dispatches": 9,
+  "gripper_commands": 0,
+  "chassis_commands": 0,
+  "attempts": [
+    {
+      "folder": "native_forensics_0039de65",
+      "dispatched_arm": 0,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "passed": null,
+      "error": null,
+      "cleanup_confirmed": null,
+      "waypoints_passed": 0,
+      "read_errors": []
+    },
+    {
+      "folder": "native_forensics_59b5b9ba",
+      "incomplete_output": true
+    },
+    {
+      "folder": "native_forensics_f6fde1fd",
+      "dispatched_arm": 0,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "passed": null,
+      "error": null,
+      "cleanup_confirmed": null,
+      "waypoints_passed": 0,
+      "read_errors": []
+    },
+    {
+      "folder": "native_hostaudit_14d50c1b",
+      "dispatched_arm": 0,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "passed": null,
+      "error": null,
+      "cleanup_confirmed": null,
+      "waypoints_passed": 0,
+      "read_errors": []
+    },
+    {
+      "folder": "native_houghplan_0db6e8e5",
+      "dispatched_arm": 0,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "passed": null,
+      "error": null,
+      "cleanup_confirmed": null,
+      "waypoints_passed": 0,
+      "read_errors": []
+    },
+    {
+      "folder": "native_houghplan_48abd5ee",
+      "dispatched_arm": 0,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "passed": null,
+      "error": null,
+      "cleanup_confirmed": null,
+      "waypoints_passed": 0,
+      "read_errors": []
+    },
+    {
+      "folder": "native_houghplan_4b4a1c6f",
+      "dispatched_arm": 0,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "passed": null,
+      "error": null,
+      "cleanup_confirmed": null,
+      "waypoints_passed": 0,
+      "read_errors": []
+    },
+    {
+      "folder": "native_houghplan_d81e1d2d",
+      "dispatched_arm": 0,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "passed": null,
+      "error": null,
+      "cleanup_confirmed": null,
+      "waypoints_passed": 0,
+      "read_errors": []
+    },
+    {
+      "folder": "native_houghplan_f0fca742",
+      "dispatched_arm": 0,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "passed": null,
+      "error": null,
+      "cleanup_confirmed": null,
+      "waypoints_passed": 0,
+      "read_errors": []
+    },
+    {
+      "folder": "native_pregraspstage_297f546b",
+      "dispatched_arm": 2,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "passed": true,
+      "error": null,
+      "cleanup_confirmed": true,
+      "waypoints_passed": 2,
+      "read_errors": []
+    },
+    {
+      "folder": "native_pregraspstage_6d9f4cde",
+      "dispatched_arm": 1,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "passed": true,
+      "error": null,
+      "cleanup_confirmed": true,
+      "waypoints_passed": 1,
+      "read_errors": []
+    },
+    {
+      "folder": "native_pregraspstage_bc9623ef",
+      "dispatched_arm": 2,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "passed": true,
+      "error": null,
+      "cleanup_confirmed": true,
+      "waypoints_passed": 2,
+      "read_errors": []
+    },
+    {
+      "folder": "native_pregraspstage_d29dc121",
+      "dispatched_arm": 3,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "passed": false,
+      "error": "RuntimeError('Invalid measured feedback')",
+      "cleanup_confirmed": true,
+      "waypoints_passed": 2,
+      "read_errors": [
+        "No physical reply from servo 3, command 9 after 3 reads"
+      ]
+    },
+    {
+      "folder": "native_query_45a5fe2d",
+      "dispatched_arm": 0,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "passed": null,
+      "error": null,
+      "cleanup_confirmed": null,
+      "waypoints_passed": 0,
+      "read_errors": []
+    },
+    {
+      "folder": "native_query_ff2d2edc",
+      "dispatched_arm": 0,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "passed": null,
+      "error": null,
+      "cleanup_confirmed": null,
+      "waypoints_passed": 0,
+      "read_errors": []
+    },
+    {
+      "folder": "native_readcameratf_5ff8719c",
+      "dispatched_arm": 0,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "passed": null,
+      "error": null,
+      "cleanup_confirmed": null,
+      "waypoints_passed": 0,
+      "read_errors": []
+    },
+    {
+      "folder": "native_responseprobe_02153b53",
+      "dispatched_arm": 1,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "passed": true,
+      "error": null,
+      "cleanup_confirmed": true,
+      "waypoints_passed": 1,
+      "read_errors": []
+    },
+    {
+      "folder": "native_restoremeasuredtf_9226ac8d",
+      "parse_error": "JSONDecodeError('Expecting value: line 1 column 1 (char 0)')"
+    },
+    {
+      "folder": "native_restoremeasuredtf_cc625aad",
+      "dispatched_arm": 0,
+      "gripper_commands": 0,
+      "chassis_commands": 0,
+      "passed": null,
+      "error": null,
+      "cleanup_confirmed": null,
+      "waypoints_passed": 0,
+      "read_errors": []
+    }
+  ],
+  "pending": [
+    "Measured approach and contact geometry",
+    "Gripper closure on red ball",
+    "Unsupported lift and hold verification",
+    "T07 physical dataset acceptance remains separate"
+  ],
+  "measured_waypoints_passed": 8,
+  "stopped_diagnostic_patch_deployed": true,
+  "diagnostic_tests_passed": 5,
+  "read_only_measurements": {
+    "joint1": {
+      "servo_id": 6,
+      "position_raw": 487,
+      "position_raw_read_monotonic": 1357.795952585,
+      "torque_enabled": true,
+      "torque_enabled_read_monotonic": 1357.815391543,
+      "voltage_mv": 7831,
+      "voltage_mv_read_monotonic": 1357.83552659,
+      "temperature_C": 30,
+      "temperature_C_read_monotonic": 1357.855527361
+    },
+    "joint2": {
+      "servo_id": 5,
+      "position_raw": 624,
+      "position_raw_read_monotonic": 1357.875613427,
+      "torque_enabled": true,
+      "torque_enabled_read_monotonic": 1357.895363142,
+      "voltage_mv": 7829,
+      "voltage_mv_read_monotonic": 1357.915646986,
+      "temperature_C": 30,
+      "temperature_C_read_monotonic": 1357.936599568
+    },
+    "joint3": {
+      "servo_id": 4,
+      "position_raw": 933,
+      "position_raw_read_monotonic": 1357.956611912,
+      "torque_enabled": true,
+      "torque_enabled_read_monotonic": 1357.97811453,
+      "voltage_mv": 7767,
+      "voltage_mv_read_monotonic": 1357.998485595,
+      "temperature_C": 29,
+      "temperature_C_read_monotonic": 1358.019548455
+    },
+    "joint4": {
+      "servo_id": 3,
+      "position_raw": 277,
+      "position_raw_read_monotonic": 1358.038770116,
+      "torque_enabled": true,
+      "torque_enabled_read_monotonic": 1358.058877757,
+      "voltage_mv": 7807,
+      "voltage_mv_read_monotonic": 1358.079919153,
+      "temperature_C": 29,
+      "temperature_C_read_monotonic": 1358.099486814
+    },
+    "joint5": {
+      "servo_id": 2,
+      "position_raw": 495,
+      "position_raw_read_monotonic": 1358.119552529,
+      "torque_enabled": true,
+      "torque_enabled_read_monotonic": 1358.139605669,
+      "voltage_mv": 7762,
+      "voltage_mv_read_monotonic": 1358.159744957,
+      "temperature_C": 29,
+      "temperature_C_read_monotonic": 1358.17973108
+    },
+    "r_joint": {
+      "servo_id": 1,
+      "position_raw": 156,
+      "position_raw_read_monotonic": 1358.200959939,
+      "torque_enabled": false,
+      "torque_enabled_read_monotonic": 1358.222981184,
+      "voltage_mv": 7738,
+      "voltage_mv_read_monotonic": 1358.24177931,
+      "temperature_C": 29,
+      "temperature_C_read_monotonic": 1358.26313528
+    }
+  },
+  "gripper_torque_enabled": false,
+  "physical_export_accepted": false,
+  "simulation_started": false,
+  "temperature_timeout_fix_deployed": false,
+  "camera_tf_restored": true
+}

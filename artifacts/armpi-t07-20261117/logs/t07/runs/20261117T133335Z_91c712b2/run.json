@@ -1,0 +1,7 @@
+{
+  "ticket": "T07",
+  "run_id": "20261117T133335Z_91c712b2",
+  "started_utc": "2026-11-17T13:33:35.910788+00:00",
+  "note": "Implement measured finger-floor clearance and separate STOP/permission/estop holding validation after operator-confirmed ground contact. Begin readonly geometry/status and static external measurement; no motion until calibrated clearance and onsite readiness are established.",
+  "status": "in_progress"
+}

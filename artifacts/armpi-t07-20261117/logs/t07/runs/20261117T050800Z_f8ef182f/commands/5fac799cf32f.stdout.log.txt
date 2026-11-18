@@ -1,0 +1,1 @@
+{"prepared": true, "arm_waypoints": 19, "geometry_report": "logs\\t07\\runs\\20261117T050800Z_f8ef182f\\native_houghplan_6cec88ea\\stdout.log", "source_sha256": "0142940aa574f51f539adab66b231e9667af617c9bd0542c931607a145ad0f82"}

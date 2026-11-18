@@ -1,0 +1,12 @@
+{
+  "operator_approval_for_restart": "approved_existing_session_readonly_restart; continued authorized control repair, no startup motion/torque",
+  "latch_stop_before_restart": true,
+  "baseline_arm_source_sha256": "ed561cd6e80b4e8c4db09ca4e2320a5e01805bb80fc96fc868c03230e0362e4c",
+  "baseline_launch_sha256": "8e17be19a170adafe068d63ccf6ad52e574a0a0083854ee79e8dd51b19be5d41",
+  "baseline_helper_sha256": "26325813d1cacea43ecfffe436d1fd7f4693cbe13b727982ba5ed488d0f728c9",
+  "baseline_protocol_sha256": "6c467a063fc7b7e107f0d84592c551cfede4e1cc52bd2c4981e08d0d0102e147",
+  "protocol_patch": true,
+  "module_filename": "gripper_diag.py",
+  "scope": "Temperature TimeoutError may retain previous measured value ONLY with original timestamp and age<1.5s; encoder faults and explicit errors still stop; original whole-cycle validity and 65C limit unchanged; startup gates OFF",
+  "physical_training_export": false
+}

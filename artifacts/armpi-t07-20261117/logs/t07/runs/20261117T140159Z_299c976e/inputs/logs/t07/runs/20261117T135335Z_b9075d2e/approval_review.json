@@ -1,0 +1,7 @@
+{
+  "action": "python logs/t07/runs/20261117T135335Z_b9075d2e/run_hold_recovery.py",
+  "decision": "rejected_before_process_creation",
+  "reason": "This would issue another real-arm movement after a prior unexpected non-commanded joint drift, using a newly modified hold strategy whose safety has not been independently validated; the original reset request does not clearly authorize this higher-risk retry.",
+  "executed": false,
+  "workaround_used": false
+}

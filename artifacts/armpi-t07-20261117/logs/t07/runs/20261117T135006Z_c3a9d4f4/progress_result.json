@@ -1,0 +1,77 @@
+{
+  "run_id": "20261117T135006Z_c3a9d4f4",
+  "user_instruction": "Proceed directly with grasp; authorization accepted, guards retained.",
+  "robot": "pi@[私网地址已脱敏]",
+  "motion_commands_sent": {
+    "arm": 0,
+    "gripper": 0,
+    "base": 0
+  },
+  "fresh_target_samples": 10,
+  "target_age_seconds": 0.050752042000000004,
+  "temperatures_C": {
+    "joint1": 29,
+    "joint2": 29,
+    "joint3": 28,
+    "joint4": 28,
+    "joint5": 29,
+    "r_joint": 28
+  },
+  "feedback_age_seconds": {
+    "joint1": 0.226,
+    "joint2": 0.185,
+    "joint3": 0.144,
+    "joint4": 0.103,
+    "joint5": 0.061,
+    "r_joint": 0.022
+  },
+  "competing_publishers": {
+    "/arm_controller/command": 0,
+    "/gripper_controller/command": 0,
+    "/cmd_vel": 0
+  },
+  "model_tool_translation_m": [
+    -0.05628068533578203,
+    0.2270797540457138,
+    -0.09399899409104001
+  ],
+  "model_ball_translation_m": [
+    -0.06755154013134121,
+    0.25906890192918425,
+    -0.0775312672877761
+  ],
+  "model_initial_tool_floor_clearance_m": 0.0025322731967360873,
+  "existing_minimum_clearance_m": 0.014,
+  "physical_finger_floor_clearance_measured": false,
+  "planner_error": "ValueError: Initial floor clearance too small for this attempt",
+  "planner_returncode": 1,
+  "trajectory_generated": false,
+  "motion_permissions_changed": false,
+  "safety_observed": {
+    "arm_estop": true,
+    "base_estop": true,
+    "arm_motion": false,
+    "gripper_motion": false,
+    "wheels": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "acceptance": {
+    "fresh_visual_target": "passed",
+    "fresh_feedback": "passed",
+    "candidate_pick_path": "failed_existing_initial_clearance_guard",
+    "grasp_lift_hold_release": "not_attempted"
+  },
+  "status": "preflight_failed_no_motion",
+  "grasp_success": false,
+  "unresolved": [
+    "Physical lowest finger point, grasp center and floor are not independently measured.",
+    "Prior floor contact and post-STOP posture drop remain unresolved.",
+    "No lowered guard, old coordinate reuse or unguarded trajectory was used."
+  ],
+  "next_evidence": "Side view with ball, both fingers, floor and external millimeter reference before defining a physical approach.",
+  "physical_success_training_export": false
+}

@@ -1,0 +1,111 @@
+# Bounded experimental pick: no intermediate STOP on successful waypoints.
+from std_msgs.msg import Int32
+buzzer=n.create_publisher(Int32,'/arm_controller/buzzer',10)
+grip_pub=n.create_publisher(JointTrajectory,'/gripper_controller/command',10)
+reference_roll=None;task_deadline=None;current_phase='preflight'
+report.update(grasp_verified=False,step_results=[],gripper_results=[],hold_seconds=0,scope='experimental physical pick attempt; success requires observed unsupported ball hold')
+def stage(name):
+ global current_phase
+ current_phase=name;report['last_phase']=name;events.append({'kind':'phase','phase':name,'monotonic':time.monotonic()})
+def fresh_all():
+ try:guard(True,True);return True
+ except RuntimeError as error:report['feedback_wait_reason']=str(error);return False
+def check_live():
+ a=guard(True,True)
+ if reference_roll is not None and abs(a['joints']['joint5']['raw']-reference_roll)>2:raise RuntimeError('Fixed wrist roll changed')
+ if task_deadline is not None and time.monotonic()>task_deadline:raise RuntimeError('Task time budget expired')
+ return a
+def measured(a):return {k:v['raw'] for k,v in a['joints'].items()}
+def wait_live(seconds):
+ until=time.monotonic()+seconds
+ while time.monotonic()<until:rclpy.spin_once(n,timeout_sec=.03);check_live()
+def send_arm(point,floor):
+ a=check_live();before=measured(a);command=point['command_raw'];desired=point['desired_raw'];temps={k:v['temperature'] for k,v in a['joints'].items()}
+ if max(abs(command[k]-before[k]) for k in ARM_NAMES)>35:raise RuntimeError('Measured command delta exceeds35ticks')
+ for i in range(21):
+  rr=dict(before);rr.update({k:before[k]+i/20*(command[k]-before[k]) for k in ARM_NAMES});clearance(rr,floor,point['minimum_clearance'])
+ msg=JointTrajectory();msg.header.stamp=n.get_clock().now().to_msg();msg.joint_names=list(ARM_NAMES);p=JointTrajectoryPoint();p.positions=[(command[k]-500)*math.pi/750*(-1 if k=='joint3' else 1) for k in ARM_NAMES];p.time_from_start.sec=2;msg.points=[p]
+ stamp={'sec':msg.header.stamp.sec,'nanosec':msg.header.stamp.nanosec};events.append({'kind':'dispatch','phase':current_phase,'stamp':stamp,'command_raw':command,'desired_measured_raw':desired,'duration':2})
+ pub.publish(msg);report['movement_commands']+=1;sent=time.monotonic();spin_until(lambda:latest.get('ack',{}).get('stamp')==stamp,2);ack=latest['ack']
+ if not ack.get('accepted') or ack.get('targets')!=[[SERVO_IDS[k],command[k]] for k in ARM_NAMES]:raise RuntimeError('Arm ACK rejected or mismatched')
+ stable=None;arrived=False;until=sent+5
+ while time.monotonic()<until:
+  rclpy.spin_once(n,timeout_sec=.03);a=check_live();actual=measured(a)
+  if a.get('estop') or not a.get('enable_arm_motion'):raise RuntimeError('Arm permission lost')
+  clearance(actual,floor,point['minimum_clearance'])
+  if any(abs(actual[k]-before[k])>40 for k in ARM_NAMES):raise RuntimeError('Measured joint excursion')
+  if any(a['joints'][k]['temperature']-temps[k]>=6 for k in temps):raise RuntimeError('Point thermal rise6C')
+  good=time.monotonic()-sent>=2 and all(a['joints'][k]['position_time']>sent and abs(actual[k]-desired[k])<=6 for k in ARM_NAMES) and math.dist(tool(actual),point['desired_tcp'])<=.008
+  if good:
+   if stable is None:stable=time.monotonic()
+   if time.monotonic()-stable>=.6:arrived=True;break
+  else:stable=None
+ report['step_results'].append({'phase':current_phase,'ack':ack,'command_raw':command,'desired_raw':desired,'measured_raw':actual,'measured_tcp':tool(actual),'passed':arrived})
+ if not arrived:raise RuntimeError('Measured arm arrival failed; no following action')
+def run_path(name,points,floor):
+ stage(name)
+ for point in points:send_arm(point,floor)
+def send_gripper(target,direction):
+ a=check_live();initial=a['joints']['r_joint']['raw'];temperature=a['joints']['r_joint']['temperature']
+ if not 0<=target<=320 or abs(target-initial)>100:raise RuntimeError('Bounded gripper target/delta')
+ msg=JointTrajectory();msg.header.stamp=n.get_clock().now().to_msg();msg.joint_names=['r_joint'];p=JointTrajectoryPoint();p.positions=[(target-700)*math.pi/1000];p.time_from_start.sec=1;p.time_from_start.nanosec=500000000;msg.points=[p]
+ stamp={'sec':msg.header.stamp.sec,'nanosec':msg.header.stamp.nanosec};events.append({'kind':'gripper_dispatch','phase':current_phase,'stamp':stamp,'target_raw':target,'duration':1.5});grip_pub.publish(msg);report['gripper_commands']+=1;sent=time.monotonic();spin_until(lambda:latest.get('ack',{}).get('stamp')==stamp,2);ack=latest['ack']
+ if not ack.get('accepted') or ack.get('targets')!=[[1,target]]:raise RuntimeError('Gripper ACK rejected/mismatched')
+ while time.monotonic()-sent<2.5:
+  rclpy.spin_once(n,timeout_sec=.03);a=check_live()
+  if a.get('estop') or not a.get('enable_gripper_motion'):raise RuntimeError('Gripper permission lost')
+  if a['joints']['r_joint']['temperature']-temperature>=6:raise RuntimeError('Gripper thermal rise')
+ actual=a['joints']['r_joint']['raw'];delta=actual-initial
+ report['gripper_results'].append({'phase':current_phase,'ack':ack,'command_raw':target,'initial_raw':initial,'measured_raw':actual,'delta':delta,'contact_verified':False})
+ if direction*delta<8:raise RuntimeError('No sufficient measured gripper response')
+ return actual
+try:
+ spin_until(fresh_all,8);a=check_live();raw=measured(a);reference_roll=raw['joint5']
+ if not 0<=n.get_clock().now().nanoseconds-GEOMETRY['source_robot_ros_ns']<=30*10**9:raise RuntimeError('Geometry report expired')
+ if any(abs(raw[k]-GEOMETRY['expected_raw'][k])>3 for k in GEOMETRY['expected_raw']):raise RuntimeError('Start changed; get new scene/feedback')
+ if n.count_publishers('/arm_controller/command')!=1 or n.count_publishers('/gripper_controller/command')!=1 or n.count_publishers('/cmd_vel')!=0:raise RuntimeError('Competing command source')
+ # Compute every candidate before any reset, permission enable or movement.
+ plan=prepare_pick_paths(raw,GEOMETRY['ball'],GEOMETRY['compensation']);report.update(plan=plan,geometry=GEOMETRY,initial_raw=raw)
+ if not params.wait_for_service(timeout_sec=2) or not reset.wait_for_service(timeout_sec=2):raise RuntimeError('Services unavailable')
+ changed=True;gates(False,False);estop.publish(Bool(data=True));last_stop=time.monotonic()
+ def ready():
+  try:return time.monotonic()-last_stop>1.2 and received.get('arm',0)>last_stop+1 and check_live().get('reset_eligible') and not latest['arm'].get('poll_pending') and latest['arm'].get('healthy_seconds',0)>=10
+  except RuntimeError:return False
+ report['reset_attempts']=[]
+ for _ in range(5):
+  spin_until(ready,10);answer=result(reset.call_async(Trigger.Request()));report['reset_attempts'].append({'success':answer.success,'message':answer.message})
+  if answer.success:break
+  wait_live(.2)
+ if not answer.success:raise RuntimeError('Reset refused; no motion')
+ gates(True,False);spin_until(lambda:latest['arm'].get('enable_arm_motion') and not latest['arm'].get('estop'),3)
+ if any(abs(measured(check_live())[k]-raw[k])>3 for k in ARM_NAMES):raise RuntimeError('Pose shifted at reset')
+ task_deadline=time.monotonic()+80
+ for name in ('recover','pregrasp','contact'):run_path(name,plan['paths'][name],plan['floor_m'])
+ stage('close');gates(True,True);spin_until(lambda:latest['arm'].get('enable_gripper_motion') is True,3)
+ for target in (240,320):closed=send_gripper(target,1)
+ if not 275<=closed<=330:raise RuntimeError('Closure outside bounded candidate range; no lift')
+ report['contact_pose_measured']=tool(measured(check_live()));report['contact_candidate_only']=True
+ buzzer.publish(Int32(data=2400));wait_live(.5)
+ run_path('lift',plan['paths']['lift'],plan['floor_m']);report['lift_pose_measured']=tool(measured(check_live()))
+ report['measured_lift_height_m']=report['lift_pose_measured'][2]-report['contact_pose_measured'][2]
+ if not .012<=report['measured_lift_height_m']<=.035:raise RuntimeError('Measured lift height outside envelope')
+ stage('hold');began=time.monotonic();lift_target=plan['paths']['lift'][-1]
+ while time.monotonic()-began<5:
+  rclpy.spin_once(n,timeout_sec=.03);a=check_live();rr=measured(a);report['hold_seconds']=time.monotonic()-began
+  if tool(rr)[2]-report['contact_pose_measured'][2]<.012 or any(abs(rr[k]-lift_target['desired_raw'][k])>6 for k in ARM_NAMES) or math.dist(tool(rr),lift_target['desired_tcp'])>.008:raise RuntimeError('Measured lift pose not maintained during hold')
+ run_path('return',plan['paths']['return'],plan['floor_m']);stage('controlled_release')
+ for target in (240,155):opened=send_gripper(target,-1)
+ if opened>185:raise RuntimeError('Release opening not confirmed')
+ report.update(passed=True,sequence_completed=True,grasp_verified=False,verification_pending='Operator must confirm the red ball was fully unsupported during hold; encoders alone do not verify grasp')
+except Exception as error:report['error']=repr(error)
+finally:
+ if changed:
+  stop.publish(Empty())
+  try:gates(False,False)
+  except Exception as error:report['disable_error']=repr(error)
+  for _ in range(8):estop.publish(Bool(data=True));rclpy.spin_once(n,timeout_sec=.1)
+  report['cleanup_confirmed']=latest.get('arm',{}).get('estop') is True and latest.get('base',{}).get('estop') is True and not latest.get('arm',{}).get('enable_arm_motion') and not latest.get('arm',{}).get('enable_gripper_motion')
+  if not report['cleanup_confirmed']:report['passed']=False
+ report['final_arm']=latest.get('arm');report['final_base']=latest.get('base');report['events']=events
+ n.destroy_node();rclpy.shutdown()
+signal.alarm(0);print(json.dumps(report))

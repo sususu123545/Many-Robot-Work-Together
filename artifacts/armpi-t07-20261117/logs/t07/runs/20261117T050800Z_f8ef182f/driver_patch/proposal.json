@@ -1,0 +1,10 @@
+{
+  "operator_approval_for_restart": "approved_existing_session_restart and authorized actual ball grasp, including servo1 enable at measured current opening only",
+  "latch_stop_before_restart": true,
+  "baseline_arm_source_sha256": "e09e3d8932dbbf4c971f9db8cf9897450da7e95847212dc159bb6634279e678d",
+  "baseline_launch_sha256": "8e17be19a170adafe068d63ccf6ad52e574a0a0083854ee79e8dd51b19be5d41",
+  "module_filename": "gripper_restore.py",
+  "restore_stage": true,
+  "scope": "Only servo1 torque restore with holding target at three stable actual readings; no arm/base motion, no offsets/limits writes; one consumed permit, no retries",
+  "grasp_verified": false
+}

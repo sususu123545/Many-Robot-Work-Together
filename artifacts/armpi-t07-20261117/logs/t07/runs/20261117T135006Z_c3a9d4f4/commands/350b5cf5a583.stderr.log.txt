@@ -1,0 +1,9 @@
+Traceback (most recent call last):
+  File "WORKSPACE/Documents\New project\scripts\t07_prepare_pick_attempt.py", line 20, in <module>
+    if __name__=='__main__':main()
+                            ^^^^^^
+  File "WORKSPACE/Documents\New project\scripts\t07_prepare_pick_attempt.py", line 11, in main
+    pure=(ROOT/'scripts/t07_pick_paths.py').read_text(encoding='utf-8');scope={'forward_tool_pose_raw':m.forward_tool_pose_raw,'inverse_kinematics_all':m.inverse_kinematics_all};exec(pure,scope);preview=scope['prepare_pick_paths'](d['current_raw'],geometry['ball'],comp)
+                                                                                                                                                                                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<string>", line 37, in prepare_pick_paths
+ValueError: Initial floor clearance too small for this attempt

@@ -1,0 +1,1 @@
+{"arm_dispatches": 9, "waypoints_passed": 8, "grasp_verified": false}

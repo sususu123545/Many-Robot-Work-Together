@@ -1,0 +1,7 @@
+{
+  "elbowcompensate": "t07_redball_elbow_compensate.py",
+  "pregraspstage": "t07_redball_pregrasp_stage.py",
+  "visionbench": "t07_redball_vision_benchmark.py",
+  "viewrecovery": "t07_redball_view_recovery.py",
+  "houghplan": "t07_redball_hough_geometry.py"
+}

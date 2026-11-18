@@ -1,0 +1,86 @@
+{
+  "run_id": "20261117T134651Z_9fdc4aec",
+  "robot": "pi@[私网地址已脱敏]",
+  "operator_confirmation": "User confirmed present, can stop, area clear, ball placed in this chat before inspection.",
+  "motion_commands_sent": {
+    "arm": 0,
+    "gripper": 0,
+    "chassis": 0
+  },
+  "control_services_called": 0,
+  "latest_raw": {
+    "joint1": 558,
+    "joint2": 222,
+    "joint3": 718,
+    "joint4": 334,
+    "joint5": 495,
+    "r_joint": 156
+  },
+  "temperatures_C": {
+    "joint1": 29,
+    "joint2": 29,
+    "joint3": 28,
+    "joint4": 28,
+    "joint5": 28,
+    "r_joint": 28
+  },
+  "feedback_age_seconds": {
+    "joint1": 0.225,
+    "joint2": 0.183,
+    "joint3": 0.144,
+    "joint4": 0.101,
+    "joint5": 0.061,
+    "r_joint": 0.021
+  },
+  "fault": null,
+  "last_read_error": null,
+  "safety_state_observed": {
+    "arm_estop": true,
+    "base_estop": true,
+    "enable_arm_motion": false,
+    "enable_gripper_motion": false,
+    "wheel_command": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "competing_publishers": {
+    "/arm_controller/command": 0,
+    "/gripper_controller/command": 0,
+    "/cmd_vel": 0
+  },
+  "complete_target": true,
+  "target_samples": 9,
+  "target_age_seconds": 0.11882875600000001,
+  "camera_stamp": {
+    "sec": 1794923264,
+    "nanosec": 940564174
+  },
+  "model_tool_translation_m": [
+    -0.05628068533578203,
+    0.2270797540457138,
+    -0.09399899409104001
+  ],
+  "model_ball_translation_m": [
+    -0.06755086955625471,
+    0.2588660951682165,
+    -0.07735518536788187
+  ],
+  "model_tf_disagreement_m": 1.3877787807814457e-17,
+  "model_limitation": "Internal TF agreement does not measure physical jaw center, lowest finger point, floor clearance or external localization accuracy.",
+  "visual_observation": "Complete red ball on tiled floor; fingers partially visible at bottom edge. Camera view does not establish side clearance or grasp alignment.",
+  "acceptance": {
+    "ssh": "passed",
+    "fresh_feedback": "passed",
+    "whole_ball_detected": "passed",
+    "physical_finger_floor_clearance": "pending_external_measurement",
+    "post_stop_holding": "pending",
+    "grasp_lift_hold_release": "not_attempted"
+  },
+  "status": "awaiting_external_clearance_measurement",
+  "grasp_success": false,
+  "next_required_evidence": "Side view including red ball, both fingers, floor and an external millimeter ruler to establish physical lowest-point clearance and grasp-center height. No hand beneath arm or between fingers.",
+  "training_success_export_enabled": false
+}

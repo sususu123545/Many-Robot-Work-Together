@@ -1,0 +1,25 @@
+class GripperOnlyTrial(Trial):
+ def guard(self,active=False):
+  super().guard(False)
+  if active and (self.status.get('estop') or self.status.get('enable_arm_motion') is not False or self.status.get('enable_gripper_motion') is not True):raise RuntimeError('Gripper-only permission check')
+def probe_main():
+ rclpy.init();n=GripperOnlyTrial();changed=False;signal.signal(signal.SIGALRM,lambda *_:(_ for _ in ()).throw(RuntimeError('Probe deadline')));signal.alarm(30)
+ try:
+  n.wait(lambda:bool(n.status) and bool(n.base),6);n.guard();changed=True;n.mode='gripper_only_reset';n.gates(False,False)
+  if n.count_publishers('/arm_controller/command')!=1 or n.count_publishers('/gripper_controller/command')!=0 or n.count_publishers('/cmd_vel')!=0:raise RuntimeError('Other controller')
+  n.wait(lambda:n.status.get('reset_eligible') and not n.status.get('poll_pending'),12);a=n.future(n.reset.call_async(Trigger.Request()))
+  if not a.success:raise RuntimeError('Reset refused '+a.message)
+  n.gates(False,True);n.wait(lambda:n.status.get('enable_gripper_motion') and not n.status.get('enable_arm_motion') and not n.status.get('estop'),3)
+  REPORT['initial_raw']=n.raw();n.mode='open_response';target=max(145,n.raw()['r_joint']-60);REPORT['target_raw']=target
+  n.send({'r_joint':target},duration=1.5,tries=1);REPORT['arrival_passed']=True
+ except Exception as e:REPORT['error']=repr(e)
+ finally:
+  signal.alarm(0)
+  if changed:
+   n.stop.publish(Empty())
+   try:n.gates(False,False)
+   except Exception as e:REPORT['cleanup_error']=repr(e)
+   n.estop.publish(Bool(data=True));n.spin_for(1)
+   REPORT['cleanup_confirmed']=n.status.get('estop') is True and not n.status.get('enable_arm_motion') and not n.status.get('enable_gripper_motion') and n.base.get('estop') is True
+  REPORT.update(events=RUN_EVENTS,images=n.images,final_status=n.status,final_base=n.base);n.destroy_node();rclpy.shutdown();print(json.dumps(REPORT))
+probe_main()

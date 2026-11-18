@@ -1,0 +1,13 @@
+{
+  "action": "readcameratf",
+  "argv": [
+    "docker",
+    "exec",
+    "armpi_ros2_native",
+    "bash",
+    "-c",
+    "source /opt/ros/jazzy/setup.bash\nsource /opt/armpi_ros2/install/setup.bash\nexec python3 -u -c '\"\"\"Read the existing camera TF implementation/config; no launch or control.\"\"\"\nimport json,hashlib\nfrom pathlib import Path\nroot=Path('\"'\"'/opt/armpi_ros2/install/armpi_ros2'\"'\"')\npaths=[root/'\"'\"'lib/python3.12/site-packages/armpi_ros2/arm_camera_tf.py'\"'\"',root/'\"'\"'share/armpi_ros2/config/arm_camera_tf.yaml'\"'\"']\nfiles={}\nfor p in paths:\n b=p.read_bytes();files[str(p)]={'\"'\"'sha256'\"'\"':hashlib.sha256(b).hexdigest(),'\"'\"'source'\"'\"':b.decode()}\nprint(json.dumps({'\"'\"'files'\"'\"':files,'\"'\"'motion_commands'\"'\"':0,'\"'\"'processes_launched'\"'\"':0}))\n'"
+  ],
+  "source_sha256": "eb1304a99101aa4565182e7e75efaa7900ecf3d783b65dbc93a98b07fe040b49",
+  "returncode": 0
+}

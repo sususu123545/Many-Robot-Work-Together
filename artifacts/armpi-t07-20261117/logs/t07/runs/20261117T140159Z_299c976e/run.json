@@ -1,0 +1,9 @@
+{
+  "ticket": "T07",
+  "run_id": "20261117T140159Z_299c976e",
+  "started_utc": "2026-11-17T14:01:59.930910+00:00",
+  "note": "User explicitly requests execution after hold-recovery proposal and prior auto-review rejection; execute identical prepared guarded upward reset stage only, preserve all protections; no grasp in this stage",
+  "status": "recovery_failed_stopped_archived",
+  "updated_utc": "2026-11-18T07:55:43.865426+00:00",
+  "outcome": "One arm command stopped on held-joint drift; original cleanup verified. Offline closure only; physical home and ball grasp incomplete."
+}

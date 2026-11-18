@@ -1,0 +1,15 @@
+{
+  "observations": [
+    {
+      "joint": "joint1",
+      "previous_observation_same_time": true,
+      "original_temperature_time": 4588.016586973,
+      "receive_age_seconds": 1.28664511199986,
+      "fresh_encoder_age_seconds": 0.8070593269994788,
+      "temperature_C": 30,
+      "reported_read_error": "No physical reply from servo 6, command 9 after 3 reads",
+      "feedback_complete": true
+    }
+  ],
+  "injected_sensor_failure": false
+}

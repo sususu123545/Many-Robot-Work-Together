@@ -1,0 +1,9 @@
+{
+  "ticket": "T07",
+  "run_id": "20261117T042848Z_6a8f5806",
+  "started_utc": "2026-11-17T04:28:48.283601+00:00",
+  "note": "Cross-day continuation: audit unsealed prior attempts, read current connectivity and stopped state before any physical movement; prior onsite confirmation expired.",
+  "status": "partial_grasp_not_achieved",
+  "updated_utc": "2026-11-17T04:41:54.311174+00:00",
+  "outcome": "Six accepted arm dispatches, three measured waypoints passed; thermal stops retained and final one-step arrival failed. No gripper/base trajectory or grasp success. Console exited0 after final read-only query: arm estop true, fresh complete feedback, no fault. Preserve raw outputs and final source snapshots; continue execution/holding diagnosis before closure."
+}

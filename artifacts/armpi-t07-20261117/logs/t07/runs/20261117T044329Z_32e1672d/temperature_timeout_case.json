@@ -1,0 +1,67 @@
+{
+  "source": "native_pregraspstage_d29dc121/stdout.log",
+  "error": "No physical reply from servo 3, command 9 after 3 reads",
+  "failed_query": {
+    "query_id": 19113,
+    "servo_id": 3,
+    "command": 9,
+    "started": 2152.695272291,
+    "result": "TIMEOUT",
+    "attempts": 3,
+    "elapsed_ms": 609.041
+  },
+  "failure_time_monotonic": 2153.304313291,
+  "previous_real_measurements": {
+    "joint1": {
+      "raw": 478,
+      "temperature": 30,
+      "time": 2152.072998345,
+      "position_time": 2152.072998345,
+      "temperature_time": 2152.093878038
+    },
+    "joint2": {
+      "raw": 439,
+      "temperature": 30,
+      "time": 2152.110754929,
+      "position_time": 2152.110754929,
+      "temperature_time": 2152.129185223
+    },
+    "joint3": {
+      "raw": 902,
+      "temperature": 32,
+      "time": 2152.15061347,
+      "position_time": 2152.15061347,
+      "temperature_time": 2152.1751593
+    },
+    "joint4": {
+      "raw": 350,
+      "temperature": 34,
+      "time": 2152.195304867,
+      "position_time": 2152.195304867,
+      "temperature_time": 2152.216447559
+    },
+    "joint5": {
+      "raw": 495,
+      "temperature": 29,
+      "time": 2152.235147352,
+      "position_time": 2152.235147352,
+      "temperature_time": 2152.260193699
+    },
+    "r_joint": {
+      "raw": 155,
+      "temperature": 28,
+      "time": 2152.277897421,
+      "position_time": 2152.277897421,
+      "temperature_time": 2152.296842602
+    }
+  },
+  "temperature_ages_at_failure": {
+    "joint1": 1.2104352530000142,
+    "joint2": 1.175128068000049,
+    "joint3": 1.129153991000294,
+    "joint4": 1.0878657320004095,
+    "joint5": 1.0441195920002428,
+    "r_joint": 1.0074706890000016
+  },
+  "proposed_change_not_deployed": "Only a temperature TimeoutError may retain the last real temperature with its ORIGINAL timestamp while age remains below the existing 1.5sec bound. Keep encoder faults, missing/expired temperature, explicit I/O/servo error and overtemperature as stops. Must test before deployment; never retimestamp or fabricate feedback."
+}

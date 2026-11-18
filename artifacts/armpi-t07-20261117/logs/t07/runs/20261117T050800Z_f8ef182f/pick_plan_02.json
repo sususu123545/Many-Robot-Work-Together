@@ -1,0 +1,497 @@
+{
+  "floor_m": -0.09403735314169631,
+  "paths": {
+    "recover": [
+      {
+        "desired_raw": {
+          "joint1": 468,
+          "joint2": 280,
+          "joint3": 767,
+          "joint4": 340
+        },
+        "command_raw": {
+          "joint1": 465,
+          "joint2": 284,
+          "joint3": 758,
+          "joint4": 347
+        },
+        "desired_tcp": [
+          0.031112741679570306,
+          0.23072132474898643,
+          -0.06581193581720837
+        ],
+        "minimum_clearance": 0.0175967287039952
+      },
+      {
+        "desired_raw": {
+          "joint1": 468,
+          "joint2": 289,
+          "joint3": 762,
+          "joint4": 326
+        },
+        "command_raw": {
+          "joint1": 465,
+          "joint2": 293,
+          "joint3": 753,
+          "joint4": 333
+        },
+        "desired_tcp": [
+          0.031115150518585523,
+          0.23073918786546846,
+          -0.05781357634706298
+        ],
+        "minimum_clearance": 0.0175967287039952
+      },
+      {
+        "desired_raw": {
+          "joint1": 468,
+          "joint2": 297,
+          "joint3": 755,
+          "joint4": 310
+        },
+        "command_raw": {
+          "joint1": 465,
+          "joint2": 301,
+          "joint3": 746,
+          "joint4": 317
+        },
+        "desired_tcp": [
+          0.031035147881175073,
+          0.23014591599387146,
+          -0.05000358647407399
+        ],
+        "minimum_clearance": 0.0175967287039952
+      }
+    ],
+    "pregrasp": [
+      {
+        "desired_raw": {
+          "joint1": 472,
+          "joint2": 303,
+          "joint3": 766,
+          "joint4": 329
+        },
+        "command_raw": {
+          "joint1": 469,
+          "joint2": 307,
+          "joint3": 757,
+          "joint4": 336
+        },
+        "desired_tcp": [
+          0.02790148171942522,
+          0.23680061167842426,
+          -0.04576303464745374
+        ],
+        "minimum_clearance": 0.03
+      },
+      {
+        "desired_raw": {
+          "joint1": 475,
+          "joint2": 307,
+          "joint3": 775,
+          "joint4": 349
+        },
+        "command_raw": {
+          "joint1": 472,
+          "joint2": 311,
+          "joint3": 766,
+          "joint4": 356
+        },
+        "desired_tcp": [
+          0.025658508454739628,
+          0.24412440079014439,
+          -0.04130483971221849
+        ],
+        "minimum_clearance": 0.03
+      },
+      {
+        "desired_raw": {
+          "joint1": 479,
+          "joint2": 309,
+          "joint3": 783,
+          "joint4": 368
+        },
+        "command_raw": {
+          "joint1": 476,
+          "joint2": 313,
+          "joint3": 774,
+          "joint4": 375
+        },
+        "desired_tcp": [
+          0.02208674924585727,
+          0.25043885688919426,
+          -0.038046146244244586
+        ],
+        "minimum_clearance": 0.03
+      },
+      {
+        "desired_raw": {
+          "joint1": 482,
+          "joint2": 310,
+          "joint3": 790,
+          "joint4": 388
+        },
+        "command_raw": {
+          "joint1": 479,
+          "joint2": 314,
+          "joint3": 781,
+          "joint4": 395
+        },
+        "desired_tcp": [
+          0.019423310330994932,
+          0.2571213080567107,
+          -0.03425038350291708
+        ],
+        "minimum_clearance": 0.03
+      },
+      {
+        "desired_raw": {
+          "joint1": 485,
+          "joint2": 310,
+          "joint3": 795,
+          "joint4": 408
+        },
+        "command_raw": {
+          "joint1": 482,
+          "joint2": 314,
+          "joint3": 786,
+          "joint4": 415
+        },
+        "desired_tcp": [
+          0.016632067526009858,
+          0.26435914313835956,
+          -0.02948018193630582
+        ],
+        "minimum_clearance": 0.03
+      },
+      {
+        "desired_raw": {
+          "joint1": 488,
+          "joint2": 308,
+          "joint3": 798,
+          "joint4": 428
+        },
+        "command_raw": {
+          "joint1": 485,
+          "joint2": 312,
+          "joint3": 789,
+          "joint4": 435
+        },
+        "desired_tcp": [
+          0.01366804966883706,
+          0.27168815944825747,
+          -0.024812836106476194
+        ],
+        "minimum_clearance": 0.03
+      }
+    ],
+    "contact": [
+      {
+        "desired_raw": {
+          "joint1": 488,
+          "joint2": 298,
+          "joint3": 803,
+          "joint4": 443
+        },
+        "command_raw": {
+          "joint1": 485,
+          "joint2": 302,
+          "joint3": 794,
+          "joint4": 450
+        },
+        "desired_tcp": [
+          0.013664746573557207,
+          0.271622501808813,
+          -0.033088582406782086
+        ],
+        "minimum_clearance": 0.012
+      },
+      {
+        "desired_raw": {
+          "joint1": 488,
+          "joint2": 287,
+          "joint3": 806,
+          "joint4": 457
+        },
+        "command_raw": {
+          "joint1": 485,
+          "joint2": 291,
+          "joint3": 797,
+          "joint4": 464
+        },
+        "desired_tcp": [
+          0.013663398144781104,
+          0.27159569826762,
+          -0.041288382869306264
+        ],
+        "minimum_clearance": 0.012
+      },
+      {
+        "desired_raw": {
+          "joint1": 488,
+          "joint2": 274,
+          "joint3": 807,
+          "joint4": 470
+        },
+        "command_raw": {
+          "joint1": 485,
+          "joint2": 278,
+          "joint3": 798,
+          "joint4": 477
+        },
+        "desired_tcp": [
+          0.013640789865704364,
+          0.2711462997155606,
+          -0.050602065727947315
+        ],
+        "minimum_clearance": 0.012
+      },
+      {
+        "desired_raw": {
+          "joint1": 488,
+          "joint2": 261,
+          "joint3": 806,
+          "joint4": 482
+        },
+        "command_raw": {
+          "joint1": 485,
+          "joint2": 265,
+          "joint3": 797,
+          "joint4": 489
+        },
+        "desired_tcp": [
+          0.01364361004569783,
+          0.2712023581533261,
+          -0.0588075179508428
+        ],
+        "minimum_clearance": 0.012
+      },
+      {
+        "desired_raw": {
+          "joint1": 488,
+          "joint2": 247,
+          "joint3": 804,
+          "joint4": 494
+        },
+        "command_raw": {
+          "joint1": 485,
+          "joint2": 251,
+          "joint3": 795,
+          "joint4": 501
+        },
+        "desired_tcp": [
+          0.013635108474770351,
+          0.27103336724286936,
+          -0.06738398241996318
+        ],
+        "minimum_clearance": 0.012
+      },
+      {
+        "desired_raw": {
+          "joint1": 488,
+          "joint2": 233,
+          "joint3": 799,
+          "joint4": 504
+        },
+        "command_raw": {
+          "joint1": 485,
+          "joint2": 237,
+          "joint3": 790,
+          "joint4": 511
+        },
+        "desired_tcp": [
+          0.013670239233214625,
+          0.27173168275481163,
+          -0.07465666065387506
+        ],
+        "minimum_clearance": 0.012
+      }
+    ],
+    "lift": [
+      {
+        "desired_raw": {
+          "joint1": 488,
+          "joint2": 245,
+          "joint3": 802,
+          "joint4": 495
+        },
+        "command_raw": {
+          "joint1": 485,
+          "joint2": 249,
+          "joint3": 793,
+          "joint4": 502
+        },
+        "desired_tcp": [
+          0.013679942811863912,
+          0.27192456670586257,
+          -0.06763622080448621
+        ],
+        "minimum_clearance": 0.012
+      },
+      {
+        "desired_raw": {
+          "joint1": 488,
+          "joint2": 256,
+          "joint3": 804,
+          "joint4": 486
+        },
+        "command_raw": {
+          "joint1": 485,
+          "joint2": 260,
+          "joint3": 795,
+          "joint4": 493
+        },
+        "desired_tcp": [
+          0.013684648347555867,
+          0.2720181015087306,
+          -0.061003742409300676
+        ],
+        "minimum_clearance": 0.012
+      },
+      {
+        "desired_raw": {
+          "joint1": 488,
+          "joint2": 267,
+          "joint3": 805,
+          "joint4": 476
+        },
+        "command_raw": {
+          "joint1": 485,
+          "joint2": 271,
+          "joint3": 796,
+          "joint4": 483
+        },
+        "desired_tcp": [
+          0.013687756924388284,
+          0.27207989258635806,
+          -0.05408602234706173
+        ],
+        "minimum_clearance": 0.012
+      }
+    ],
+    "return": [
+      {
+        "desired_raw": {
+          "joint1": 488,
+          "joint2": 256,
+          "joint3": 804,
+          "joint4": 486
+        },
+        "command_raw": {
+          "joint1": 485,
+          "joint2": 260,
+          "joint3": 795,
+          "joint4": 493
+        },
+        "desired_tcp": [
+          0.013684648347555867,
+          0.2720181015087306,
+          -0.061003742409300676
+        ],
+        "minimum_clearance": 0.012
+      },
+      {
+        "desired_raw": {
+          "joint1": 488,
+          "joint2": 245,
+          "joint3": 802,
+          "joint4": 494
+        },
+        "command_raw": {
+          "joint1": 485,
+          "joint2": 249,
+          "joint3": 793,
+          "joint4": 501
+        },
+        "desired_tcp": [
+          0.013655639076370456,
+          0.2714414665325446,
+          -0.06811993192594075
+        ],
+        "minimum_clearance": 0.012
+      },
+      {
+        "desired_raw": {
+          "joint1": 488,
+          "joint2": 233,
+          "joint3": 798,
+          "joint4": 503
+        },
+        "command_raw": {
+          "joint1": 485,
+          "joint2": 237,
+          "joint3": 789,
+          "joint4": 510
+        },
+        "desired_tcp": [
+          0.01368451054588611,
+          0.27201536234089524,
+          -0.07437967274985983
+        ],
+        "minimum_clearance": 0.012
+      }
+    ]
+  },
+  "contact_raw": {
+    "joint1": 488,
+    "joint2": 233,
+    "joint3": 799,
+    "joint4": 504,
+    "joint5": 495,
+    "r_joint": 155
+  },
+  "contact_tcp": [
+    0.013670239233214625,
+    0.27173168275481163,
+    -0.07465666065387506
+  ],
+  "initial_tcp": [
+    0.03112052055490429,
+    0.2307790101963378,
+    -0.07444062443770111
+  ],
+  "ball_base_xyz": [
+    0.014174894811812312,
+    0.271397715854721,
+    -0.07503735314169631
+  ],
+  "scope": "Candidate only; online feedback and source age checks still required",
+  "geometry": {
+    "source_robot_ros_ns": 1794897071334481968,
+    "expected_raw": {
+      "joint1": 468,
+      "joint2": 269,
+      "joint3": 770,
+      "joint4": 354,
+      "joint5": 495,
+      "r_joint": 155
+    },
+    "ball": [
+      0.014174894811812312,
+      0.271397715854721,
+      -0.07503735314169631
+    ],
+    "compensation": {
+      "joint1": -3,
+      "joint2": 4,
+      "joint3": -9,
+      "joint4": 7
+    },
+    "source_report": "logs\\t07\\runs\\20261117T050800Z_f8ef182f\\native_houghplan_630aad67\\stdout.log",
+    "source_camera_point": {
+      "xyz": [
+        -0.021756967692213084,
+        0.013800149276805014,
+        0.111951948810299
+      ],
+      "frame": "t07_rear_camera_measured",
+      "stamp": {
+        "sec": 1794897071,
+        "nanosec": 175386595
+      }
+    },
+    "static_scene_assumption": "One finite attempt on the last complete observed sphere; no base motion or manual scene change; no vision refresh claimed during final approach"
+  },
+  "source_sha256": "c20523703179faa61a328f7951593d167cfd6928044505e31d4f050670fde217",
+  "kinematics_sha256": "b13ea9e2bd7f3c0cb11584184e37f98d07f1bec8bec46803958020da5f42a178"
+}

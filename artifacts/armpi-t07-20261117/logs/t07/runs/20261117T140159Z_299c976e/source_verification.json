@@ -1,0 +1,20 @@
+{
+  "checks": [
+    {
+      "path": "bounded_hold.py",
+      "sha256": "2233121b560ece961d60e1c41a9f2ead16fae96df65af5fc19e79714e0be76b9",
+      "sealed_sha256": "2233121b560ece961d60e1c41a9f2ead16fae96df65af5fc19e79714e0be76b9",
+      "matches": true
+    },
+    {
+      "path": "run_hold_recovery.py",
+      "sha256": "93bb91c19730360fb03bd93b57e0558b9b022c20280a3d01f106061cc770cb4e",
+      "sealed_sha256": "93bb91c19730360fb03bd93b57e0558b9b022c20280a3d01f106061cc770cb4e",
+      "matches": true
+    }
+  ],
+  "normalized_source_matches_prepared": true,
+  "initial_check_issue": "Compared normalized-text SHA256 with CRLF file bytes; corrected using prior sealed manifest.",
+  "cancelled_start": "First local runner cancelled at getpass before authentication; no remote connection or command occurred.",
+  "new_user_authorization": "User requested execution after the hold-recovery proposal and prior rejection were disclosed."
+}

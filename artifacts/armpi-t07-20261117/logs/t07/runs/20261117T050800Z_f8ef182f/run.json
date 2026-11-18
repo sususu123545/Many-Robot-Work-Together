@@ -1,0 +1,7 @@
+{
+  "ticket": "T07",
+  "run_id": "20261117T050800Z_f8ef182f",
+  "started_utc": "2026-11-17T05:08:00.507664+00:00",
+  "note": "Previous turn made measured physical progress and identified early STOP from a temperature query timeout. Test bounded retention of the previous REAL temperature with ORIGINAL timestamp, no changes to encoder or overtemperature/age limits; then continue full grasp.",
+  "status": "in_progress"
+}

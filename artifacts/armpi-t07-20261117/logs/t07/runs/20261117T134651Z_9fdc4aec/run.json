@@ -1,0 +1,9 @@
+{
+  "ticket": "T07",
+  "run_id": "20261117T134651Z_9fdc4aec",
+  "started_utc": "2026-11-17T13:46:51.326145+00:00",
+  "note": "Fresh SSH physical ball grasp request; inspect scene and safety state before motion; known prior floor contact unresolved",
+  "status": "awaiting_external_clearance_measurement",
+  "updated_utc": "2026-11-17T13:49:03.554171+00:00",
+  "outcome": "Read-only inspection recorded; zero motion; grasp pending physical finger/floor measurements."
+}

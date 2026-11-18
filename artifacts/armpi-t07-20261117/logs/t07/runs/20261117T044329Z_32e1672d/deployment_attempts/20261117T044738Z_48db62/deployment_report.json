@@ -1,0 +1,42 @@
+{
+  "passed": false,
+  "motion_commands_sent": 0,
+  "torque_writes": 0,
+  "stack_stopped": false,
+  "stack_restarted": false,
+  "paths": {
+    "arm": "/opt/armpi_ros2/install/armpi_ros2/lib/python3.12/site-packages/armpi_ros2/arm_node.py",
+    "helper": "/opt/armpi_ros2/install/armpi_ros2/lib/python3.12/site-packages/armpi_ros2/gripper_diag.py",
+    "launch": "/opt/armpi_ros2/install/armpi_ros2/share/armpi_ros2/launch/base.launch.py",
+    "marker": "/opt/armpi_ros2/install/armpi_ros2/share/armpi_ros2/config/t07_readonly_lock.flag",
+    "arm_sha256": "97ab7de6cca85936c35ff05aa36ac83f698c9628083f5eeed7a25ceed719af29",
+    "launch_sha256": "9e79bff730f008023e3365e316cd54e4fdcbe7903d4b43360dbf25031001b485",
+    "helper_exists": false,
+    "protocol": "\\opt\\armpi_ros2\\install\\armpi_ros2\\lib\\python3.12\\site-packages\\armpi_ros2\\servo_protocol.py"
+  },
+  "pre_restart_stop": {
+    "passed": true,
+    "chassis": {
+      "dry_run": false,
+      "enable_motion": true,
+      "estop": true,
+      "hardware_fault": false,
+      "wheel_command": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "arm_stop": {
+      "estop": true,
+      "enable_arm_motion": false,
+      "enable_gripper_motion": false
+    },
+    "movement_commands_sent": 0,
+    "estop_true_published": true,
+    "reset_called": false,
+    "note": "Chassis enable_motion is a startup flag; runtime parameter change does not update driver attribute. Actual lock is verified latched chassis estop; do not reset chassis."
+  },
+  "error": "RuntimeError('Traceback (most recent call last):\\n  File \"<string>\", line 1, in <module>\\n  File \"/usr/lib/python3.12/pathlib.py\", line 1021, in read_bytes\\n    with self.open(mode=\\'rb\\') as f:\\n         ^^^^^^^^^^^^^^^^^^^^\\n  File \"/usr/lib/python3.12/pathlib.py\", line 1015, in open\\n    return io.open(self, mode, buffering, encoding, errors, newline)\\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\\nFileNotFoundError: [Errno 2] No such file or directory: \\'\\\\\\\\opt\\\\\\\\armpi_ros2\\\\\\\\install\\\\\\\\armpi_ros2\\\\\\\\lib\\\\\\\\python3.12\\\\\\\\site-packages\\\\\\\\armpi_ros2\\\\\\\\servo_protocol.py\\'\\n')"
+}

@@ -1,0 +1,17 @@
+{
+  "phase": "first_attempt_stopped_awaiting_onsite_observation",
+  "movement_commands": 0,
+  "gripper_commands": 2,
+  "chassis_commands": 0,
+  "grasp_verified": false,
+  "failure": "RuntimeError('Actual arrival failed; no subsequent motion')",
+  "opening_target_raw": 264,
+  "actual_gripper_raw": 286,
+  "cleanup_confirmed": true,
+  "pending": "User side observation whether finger underside contacts ground/objects before any recovery movement",
+  "source_checks": {
+    "t07_success_reference_core.txt": "e74f1cf5ac14854c3dbf0f407761213aa44a938717e2e51c15740e29801402cf",
+    "t07_success_reference_guarded.txt": "c9cdbfd5e97b2445b96f6e1d2206462a2ddff686361a7143dedf6845045bb9af",
+    "t07_success_reference_trial.py": "d9b410cc9be5108a8bc0e5f61336da37db056d4f9daef02a4faabff98d4210d9"
+  }
+}

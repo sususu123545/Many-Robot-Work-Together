@@ -1,0 +1,19 @@
+{
+  "movement_commands": 0,
+  "gripper_commands": 1,
+  "chassis_commands": 0,
+  "target_raw": 226,
+  "initial_raw": 286,
+  "final_raw": 246,
+  "cleanup_confirmed": true,
+  "grasp_verified": false,
+  "onsite_observation": "User reported no ground/object contact and no abnormal noise",
+  "conclusion": "Gripper moved40 ticks in opening direction, target residual20. This is actual response, not proof of a fixed deadband or precision calibration. Installed conversion and status show no additional software offset compensation; hardware offset read115 unchanged.",
+  "next_attempt": "Prepared opening-progress-only acceptance (direction, movement>=8, residual<=25); arm criteria unchanged. Full grasp attempt did not launch because SSH session was already inactive.",
+  "network": "Existing SSH reset WinError10054. Reconnect failed while reading SSH banner; no motion sent by failed reconnect.",
+  "unresolved": [
+    "Current hotspot/IP and device availability",
+    "Cause of direction-specific residual",
+    "Successful red-ball lift and independent physical verdict"
+  ]
+}

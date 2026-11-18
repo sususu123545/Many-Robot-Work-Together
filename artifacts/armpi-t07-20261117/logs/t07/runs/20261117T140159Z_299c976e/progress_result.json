@@ -1,0 +1,182 @@
+{
+  "run_id": "20261117T140159Z_299c976e",
+  "offline_summary_date_local": "2026-11-18",
+  "observation_date_local": "2026-11-17",
+  "current_live_state_verified": false,
+  "source_identity": "Both program files match previous sealed manifest; normalized text hash and CRLF byte hash distinguished.",
+  "user_authorization": "User requested execution after the hold-recovery proposal and prior rejection were disclosed.",
+  "initial_local_attempt": "Cancelled at getpass before authentication after source-hash check used incompatible newline representations; no remote commands.",
+  "motion_commands_sent": {
+    "arm": 1,
+    "gripper": 0,
+    "base": 0
+  },
+  "dispatch": {
+    "kind": "dispatch",
+    "index": 0,
+    "stamp": {
+      "sec": 1794924213,
+      "nanosec": 195089642
+    },
+    "target_raw": 245,
+    "held_raw": {
+      "joint1": 559,
+      "joint3": 723,
+      "joint4": 334,
+      "joint5": 495
+    },
+    "duration": 3,
+    "predicted_rise_m": 0.019950976890355437
+  },
+  "initial_raw": {
+    "joint1": 559,
+    "joint2": 225,
+    "joint3": 723,
+    "joint4": 334,
+    "joint5": 495,
+    "r_joint": 155
+  },
+  "error": "RuntimeError('Non-commanded joint moved')",
+  "passed": false,
+  "cleanup_confirmed": true,
+  "feedback_samples": [
+    {
+      "dt_seconds": 0.491870872,
+      "raw": {
+        "joint1": 559,
+        "joint2": 225,
+        "joint3": 723,
+        "joint4": 333,
+        "joint5": 495,
+        "r_joint": 156
+      },
+      "estop": false
+    },
+    {
+      "dt_seconds": 0.987657297,
+      "raw": {
+        "joint1": 559,
+        "joint2": 225,
+        "joint3": 723,
+        "joint4": 334,
+        "joint5": 495,
+        "r_joint": 156
+      },
+      "estop": false
+    },
+    {
+      "dt_seconds": 1.489679301,
+      "raw": {
+        "joint1": 560,
+        "joint2": 225,
+        "joint3": 723,
+        "joint4": 333,
+        "joint5": 495,
+        "r_joint": 156
+      },
+      "estop": false
+    },
+    {
+      "dt_seconds": 1.9887631840000002,
+      "raw": {
+        "joint1": 559,
+        "joint2": 226,
+        "joint3": 723,
+        "joint4": 334,
+        "joint5": 495,
+        "r_joint": 156
+      },
+      "estop": false
+    },
+    {
+      "dt_seconds": 2.491236024,
+      "raw": {
+        "joint1": 559,
+        "joint2": 230,
+        "joint3": 723,
+        "joint4": 334,
+        "joint5": 495,
+        "r_joint": 156
+      },
+      "estop": false
+    },
+    {
+      "dt_seconds": 2.987023208,
+      "raw": {
+        "joint1": 559,
+        "joint2": 232,
+        "joint3": 723,
+        "joint4": 334,
+        "joint5": 495,
+        "r_joint": 156
+      },
+      "estop": false
+    },
+    {
+      "dt_seconds": 3.887761202,
+      "raw": {
+        "joint1": 559,
+        "joint2": 239,
+        "joint3": 727,
+        "joint4": 334,
+        "joint5": 496,
+        "r_joint": 156
+      },
+      "estop": false
+    },
+    {
+      "dt_seconds": 4.342173076,
+      "raw": {
+        "joint1": 560,
+        "joint2": 232,
+        "joint3": 727,
+        "joint4": 334,
+        "joint5": 495,
+        "r_joint": 156
+      },
+      "estop": true
+    }
+  ],
+  "post_raw": {
+    "joint1": 559,
+    "joint2": 227,
+    "joint3": 727,
+    "joint4": 334,
+    "joint5": 496,
+    "r_joint": 156
+  },
+  "post_safety_observed": {
+    "arm_estop": true,
+    "base_estop": true,
+    "enable_arm_motion": false,
+    "enable_gripper_motion": false,
+    "wheel_command": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "post_temperatures_C": {
+    "joint1": 29,
+    "joint2": 30,
+    "joint3": 28,
+    "joint4": 28,
+    "joint5": 28,
+    "r_joint": 28
+  },
+  "acceptance": {
+    "native_estop_reset": "acknowledged",
+    "physical_home": "not_completed",
+    "upward_recovery": "failed_drift_guard",
+    "grasp_lift_hold_release": "not_attempted"
+  },
+  "unresolved": [
+    "Held elbow encoder changed from723 to727; cause not established.",
+    "No independently calibrated home trajectory.",
+    "Prior floor contact and post-stop holding behavior unresolved."
+  ],
+  "grasp_success": false,
+  "physical_success_training_export": false,
+  "status": "recovery_failed_stopped_archived"
+}

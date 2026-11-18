@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "WORKSPACE/Documents\New project\scripts\t07_prepare_latest_stage.py", line 21, in <module>
+    if __name__=='__main__':main()
+                            ^^^^^^
+  File "WORKSPACE/Documents\New project\scripts\t07_prepare_latest_stage.py", line 14, in main
+    if data.get('error'):raise RuntimeError(data['error'])
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: RuntimeError('No stable camera target or arm feedback')

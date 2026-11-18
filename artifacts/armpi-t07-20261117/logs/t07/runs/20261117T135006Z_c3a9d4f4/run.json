@@ -1,0 +1,9 @@
+{
+  "ticket": "T07",
+  "run_id": "20261117T135006Z_c3a9d4f4",
+  "started_utc": "2026-11-17T13:50:06.296698+00:00",
+  "note": "User requests direct grab; retain safety guards; refresh scene and evaluate existing guarded pick preconditions before any reset or motion",
+  "status": "preflight_failed_no_motion",
+  "updated_utc": "2026-11-17T13:51:45.684519+00:00",
+  "outcome": "Existing candidate planner rejected initial clearance; zero motion; physical grasp pending independent clearance evidence."
+}

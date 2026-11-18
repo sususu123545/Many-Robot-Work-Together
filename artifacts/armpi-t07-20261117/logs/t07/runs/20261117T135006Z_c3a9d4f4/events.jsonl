@@ -1,0 +1,4 @@
+{"utc": "2026-11-17T13:50:06.300224+00:00", "kind": "started", "note": "User requests direct grab; retain safety guards; refresh scene and evaluate existing guarded pick preconditions before any reset or motion"}
+{"utc": "2026-11-17T13:51:12.733471+00:00", "kind": "command_started", "id": "350b5cf5a583", "argv": ["python", "scripts/t07_prepare_pick_attempt.py", "--report", "logs/t07/runs/20261117T135006Z_c3a9d4f4/t07_redball_grasp_plan.py.stdout.json", "--preview", "logs/t07/runs/20261117T135006Z_c3a9d4f4/pick_preview.json"], "cwd": "WORKSPACE/Documents\\New project"}
+{"utc": "2026-11-17T13:51:12.861226+00:00", "kind": "command_finished", "id": "350b5cf5a583", "returncode": 1}
+{"utc": "2026-11-17T13:51:45.680828+00:00", "kind": "checkpoint", "status": "preflight_failed_no_motion", "note": "Existing candidate planner rejected initial clearance; zero motion; physical grasp pending independent clearance evidence."}

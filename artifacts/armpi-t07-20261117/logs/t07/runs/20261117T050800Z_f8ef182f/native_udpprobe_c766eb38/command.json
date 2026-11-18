@@ -1,0 +1,13 @@
+{
+  "action": "udpprobe",
+  "argv": [
+    "docker",
+    "exec",
+    "armpi_ros2_native",
+    "bash",
+    "-c",
+    "source /opt/ros/jazzy/setup.bash\nsource /opt/armpi_ros2/install/setup.bash\nexec python3 -u -c '\"\"\"Compare late-joiner observation using UDP transport; no publishers/services.\"\"\"\nimport os,json,time\nfrom pathlib import Path\nfor entry in Path('\"'\"'/proc/1/environ'\"'\"').read_bytes().split(b'\"'\"'\\0'\"'\"'):\n if entry.startswith((b'\"'\"'ROS_DOMAIN_ID='\"'\"',b'\"'\"'ROS_LOCALHOST_ONLY='\"'\"',b'\"'\"'RMW_IMPLEMENTATION='\"'\"')):\n  k,v=entry.decode().split('\"'\"'='\"'\"',1);os.environ[k]=v\nif os.environ.get('\"'\"'ROS_DOMAIN_ID'\"'\"')!='\"'\"'42'\"'\"':raise RuntimeError('\"'\"'Wrong domain'\"'\"')\nos.environ['\"'\"'FASTDDS_BUILTIN_TRANSPORTS'\"'\"']='\"'\"'UDPv4'\"'\"'\nimport rclpy\nfrom rclpy.utilities import get_rmw_implementation_identifier\nfrom std_msgs.msg import String\nfrom sensor_msgs.msg import CompressedImage\nfrom rclpy.qos import qos_profile_sensor_data\nrclpy.init();node=rclpy.create_node('\"'\"'t07_udp_readonly_probe'\"'\"',enable_rosout=False,start_parameter_services=False);counts={};latest={};arrival={}\ndef receive(k,m):\n counts[k]=counts.get(k,0)+1;arrival[k]=time.monotonic()\n if k!='\"'\"'image'\"'\"':latest[k]=json.loads(m.data)\nfor k,t in [('\"'\"'arm'\"'\"','\"'\"'/arm_controller/status'\"'\"'),('\"'\"'base'\"'\"','\"'\"'/chassis_control/status'\"'\"')]:node.create_subscription(String,t,lambda m,k=k:receive(k,m),10)\nnode.create_subscription(CompressedImage,'\"'\"'/rear_camera/image_raw/compressed'\"'\"',lambda m:receive('\"'\"'image'\"'\"',m),qos_profile_sensor_data)\nuntil=time.monotonic()+10\nwhile time.monotonic()<until:rclpy.spin_once(node,timeout_sec=.05)\nprint(json.dumps({'\"'\"'motion_commands'\"'\"':0,'\"'\"'control_services_called'\"'\"':0,'\"'\"'transport_override'\"'\"':'\"'\"'UDPv4'\"'\"','\"'\"'rmw'\"'\"':get_rmw_implementation_identifier(),'\"'\"'counts'\"'\"':counts,'\"'\"'latest'\"'\"':latest,'\"'\"'last_receive_monotonic'\"'\"':arrival,'\"'\"'node_names'\"'\"':node.get_node_names_and_namespaces()}));node.destroy_node();rclpy.shutdown()\n'"
+  ],
+  "source_sha256": "54ba2360af7190e69f910d1e4797571649a56a590260f4af0a140f43b1805a2b",
+  "returncode": 0
+}

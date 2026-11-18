@@ -1,0 +1,19 @@
+{
+  "strategy": "Measured visual correction using reviewed successful source; explicit ACK, fresh real feedback, bounded retry, fail on failed motion, independent operator grasp verdict",
+  "ball_diameter_m": 0.038,
+  "arm_step_ticks": 40,
+  "gripper_step_ticks": 70,
+  "arm_arrival_tolerance_ticks": 14,
+  "approach_gate_m": 0.015,
+  "lift_target_m": 0.025,
+  "hold_seconds": 5,
+  "automatic_success_label": false,
+  "timeout_seconds": 105,
+  "known_limitations": [
+    "TCP/link centerline clearance is a model estimate, not full collision mesh proof",
+    "Vision has historical handeye and ball-size scale uncertainty",
+    "Contact candidate is not force measurement",
+    "Operator must confirm unsupported lift"
+  ],
+  "source_sha256": "d9b410cc9be5108a8bc0e5f61336da37db056d4f9daef02a4faabff98d4210d9"
+}

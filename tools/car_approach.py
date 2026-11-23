@@ -48,7 +48,7 @@ from rosbridge_client import Rosbridge  # noqa: E402
 
 # Calibrated intrinsics of the rear camera (fisheye, equidistant model).
 FX, CX, CY = 541.286, 308.972, 220.808
-BALL_RADIUS_M = 0.0175          # 35 mm ball
+BALL_RADIUS_M = 0.0185          # 37 mm ball, measured 2026-11-23 (was 35, unverified)
 
 MIN_DIFF = 30                   # R must beat both G and B by this much
 MIN_RED = 85                    # and be reasonably bright

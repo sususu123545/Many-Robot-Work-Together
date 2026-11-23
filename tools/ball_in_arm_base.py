@@ -38,7 +38,7 @@ SNAPSHOT = ('http://127.0.0.1:19099/snapshot'
 CALIBRATION = os.path.join(REPO, 'tools', 'runtime', 'calib',
                            'rear_camera_hand_eye.json')
 
-BALL_RADIUS_M = 0.0175
+BALL_RADIUS_M = 0.0185          # 37 mm measured 2026-11-23 by the operator; the old 35 mm was never verified
 # Calibrated equidistant fisheye model (RMS 1.158 px, 29 views).
 FX, FY, CX, CY = 541.286, 536.832, 308.972, 220.808
 

@@ -135,7 +135,7 @@ def locate(source, ticks, plane_z=FLOOR_Z):
     centre_distance = math.dist(origin, centre)
 
     # old method, for comparison only
-    old_distance = 0.0175 / math.sin(max(1e-6, (bottom_v - top_v) / 2.0 / FX))
+    old_distance = 0.0185 / math.sin(max(1e-6, (bottom_v - top_v) / 2.0 / FX))
 
     return {'pixel': [round(u, 1), round(bottom_v, 1), round((bottom_v - top_v) / 2.0, 1)],
             'contact': [round(v, 4) for v in point],

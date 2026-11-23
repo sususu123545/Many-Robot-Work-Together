@@ -14,7 +14,9 @@ coupled things each step:
    until the ball's projected distance reaches the arm's reach margin.
 
 Distance comes from the blob radius: d = FX * BALL_RADIUS / r_px. It assumes
-the ball is a 35 mm sphere seen broadside -- good enough to stop on.
+the ball is a 37 mm sphere seen broadside (measured 2026-11-23) -- good enough
+to stop on.  The diameter only scales this distance linearly, so a wrong value
+biases the stop range by the same fraction.
 """
 
 import argparse
@@ -35,7 +37,7 @@ from car_approach import CX, FX, locate_ball             # noqa: E402
 SNAPSHOT = ('http://127.0.0.1:19099/snapshot'
             '?topic=/rear_camera/image_raw&type=ros_compressed')
 
-BALL_RADIUS_M = 0.0175
+BALL_RADIUS_M = 0.0185          # 37 mm measured 2026-11-23 by the operator; the old 35 mm was never verified
 PX_PER_CMD_TICK = 2.1          # measured on both axes, dead-band included
 TICK_DEG = 0.24                # 1000 ticks = 240 deg
 JOINT1_REF = 512               # startup-pose tick where the camera looked

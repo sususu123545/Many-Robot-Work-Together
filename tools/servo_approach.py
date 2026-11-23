@@ -199,7 +199,7 @@ def main():
             last_good = None
             u, v, r = blob['center_x'], blob['center_y'], blob['radius_px']
             last_good = (r, v)
-            distance = ca.FX * 0.0175 / max(1.0, r)
+            distance = ca.FX * ca.BALL_RADIUS_M / max(1.0, r)
             log('cycle %d: u=%.0f v=%.0f r=%.0f (~%.2f m)' % (cycle, u, v, r, distance))
             report['cycles'].append([round(u), round(v), round(r, 1)])
             # 远距候选验证：真球靠近时半径必须变大；墙面红色花纹不会

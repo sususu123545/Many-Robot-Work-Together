@@ -43,3 +43,9 @@ datasets/
 *.onnx
 *.pt
 *.engine
+
+# Model weights are far beyond GitHub's 100 MB per-file limit; see
+# artifacts/smolvla_sim_finetune_20261123/README.md for where they live.
+*.safetensors
+!artifacts/smolvla_sim_finetune_20261123/checkpoint_*/**/*.safetensors
+artifacts/smolvla_sim_finetune_20261123/checkpoint_*/model.safetensors

@@ -229,6 +229,9 @@ def _parse_status(messages):
                 joints[name] = entry['raw']
         out.append({'stamp_ns': stamp, 'joints': joints,
                     'health': parsed.get('health_state'),
+                    # The node echoes the last command it accepted. On the real
+                    # robot this is the only honest source for an action label.
+                    'last_command': parsed.get('last_command'),
                     'temperature': {n: (e or {}).get('temperature')
                                     for n, e in (parsed.get('joints') or {}).items()
                                     if isinstance(e, dict)}})

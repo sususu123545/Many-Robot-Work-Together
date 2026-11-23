@@ -6,6 +6,7 @@ import json
 import time
 import threading
 import unittest
+from contextlib import contextmanager
 from unittest.mock import Mock, patch
 from armpi_ros2.servo_protocol import JOINTS, to_radians
 
@@ -32,6 +33,8 @@ class FakeBoard:
         self.hot = None
         self.fail_stop = False
         self.receiver_error = None
+        self.torque_enabled = Mock(return_value=False)
+        self.voltage_mv = Mock(return_value=7900)
 
     def limits(self, ident):return next(list(v[3:]) for v in JOINTS.values() if v[0] == ident)
     def offset(self, ident):return 0
@@ -76,6 +79,9 @@ class ArmCallbackTests(unittest.TestCase):
             self.node.health.success(samples, t)
 
     def reset(self):return self.node.reset(Trigger.Request(), Trigger.Response())
+
+    def read_elbow(self):
+        return self.node.read_elbow_diagnostics(Trigger.Request(), Trigger.Response())
 
     def grant(self, **values):
         return self.node.set_parameters_atomically([Parameter(k, value=v) for k,v in values.items()])
@@ -127,6 +133,80 @@ class ArmCallbackTests(unittest.TestCase):
         self.assertFalse(self.reset().success)
         self.assertTrue(self.node.health.estop)
         self.assertEqual(self.node.health.last_fault['kind'], 'stop_io')
+
+    def test_elbow_diagnostic_reports_disabled_torque_without_changing_state(self):
+        response = self.read_elbow()
+        self.assertTrue(response.success)
+        self.assertEqual(json.loads(response.message), {'joint': 'joint3', 'servo_id': 4,
+            'torque_enabled': False, 'voltage_mv': 7900, 'errors': {}})
+        self.node.board.torque_enabled.assert_called_once_with(4, attempts=1)
+        self.node.board.voltage_mv.assert_called_once_with(4, attempts=1)
+        self.assertTrue(self.node.health.estop)
+        self.assertFalse(self.node.enabled)
+        self.assertFalse(self.node.gripper_enabled)
+        self.assertEqual(self.node.board.stops, 0)
+        self.assertEqual(self.node.board.moves, [])
+
+    def test_elbow_diagnostic_keeps_voltage_when_torque_read_fails(self):
+        self.node.board.torque_enabled.side_effect = TimeoutError('injected torque read timeout')
+        response = self.read_elbow()
+        self.assertFalse(response.success)
+        result = json.loads(response.message)
+        self.assertIsNone(result['torque_enabled'])
+        self.assertEqual(result['voltage_mv'], 7900)
+        self.assertEqual(result['errors'], {'torque_enabled': 'injected torque read timeout'})
+        self.assertIsNone(self.node.health.current_error)
+        self.assertEqual(self.node.board.stops, 0)
+
+    def test_elbow_diagnostic_refuses_with_motion_permission_or_active_point(self):
+        self.healthy()
+        self.assertTrue(self.reset().success)
+        for permission in ('enable_arm_motion', 'enable_gripper_motion'):
+            with self.subTest(permission=permission):
+                self.assertTrue(self.grant(**{permission: True}).successful)
+                self.assertFalse(self.read_elbow().success)
+                self.assertTrue(self.grant(**{permission: False}).successful)
+        self.node.busy_until = time.monotonic() + 3
+        self.assertFalse(self.read_elbow().success)
+        self.node.board.torque_enabled.assert_not_called()
+        self.node.board.voltage_mv.assert_not_called()
+
+    def test_elbow_diagnostic_refuses_with_a_busy_feedback_lock(self):
+        self.node.feedback_cycle_lock = Mock()
+        self.node.feedback_cycle_lock.acquire.return_value = False
+        self.assertFalse(self.read_elbow().success)
+        self.node.feedback_cycle_lock.release.assert_not_called()
+        self.node.board.torque_enabled.assert_not_called()
+        self.node.board.voltage_mv.assert_not_called()
+
+    def test_estop_does_not_wait_for_the_elbow_reply(self):
+        reading = threading.Event()
+        finish_read = threading.Event()
+        stopped = threading.Event()
+
+        def wait_for_reply(*_args, **_kwargs):
+            reading.set()
+            finish_read.wait(2)
+            return True
+
+        def request_stop():
+            self.node.on_estop(Bool(data=True))
+            stopped.set()
+
+        self.node.board.torque_enabled.side_effect = wait_for_reply
+        diagnostic = threading.Thread(target=self.read_elbow)
+        stop = threading.Thread(target=request_stop)
+        diagnostic.start()
+        try:
+            self.assertTrue(reading.wait(1))
+            stop.start()
+            self.assertTrue(stopped.wait(.75))
+            self.assertTrue(self.node.health.manual_estop)
+        finally:
+            finish_read.set()
+            diagnostic.join(2)
+            if stop.ident is not None:
+                stop.join(2)
 
     def test_partial_poll_does_not_publish_true_feedback_or_new_joint_state(self):
         self.node.board.fail_temperature = 5
@@ -208,8 +288,9 @@ class ArmCallbackTests(unittest.TestCase):
         self.assertFalse(self.reset().success)
         self.assertFalse(self.grant(enable_gripper_motion=True).successful)
 
-    def waiting_command(self, message):
-        """Hold the poll transaction and observe the command entering its wait."""
+    @contextmanager
+    def pending_feedback(self, callback):
+        """Hold the poll transaction and observe a callback entering its wait."""
         lock = threading.Lock()
         lock.acquire()
         waiting = threading.Event()
@@ -222,35 +303,70 @@ class ArmCallbackTests(unittest.TestCase):
                 lock.release()
 
         self.node.feedback_cycle_lock = ObservedLock()
-        self.node.health.pending = True
-        worker = threading.Thread(target=self.node.on_command, args=(message,))
+        self.node.health.begin_cycle()
+        worker = threading.Thread(target=callback)
         worker.start()
-        self.assertTrue(waiting.wait(1))
-        return lock, worker
+        try:
+            self.assertTrue(waiting.wait(1), 'Callback did not wait for pending feedback')
+            yield
+        finally:
+            lock.release()
+            worker.join(2)
+        self.assertFalse(worker.is_alive())
+
+    def test_reset_waits_for_poll_and_checks_committed_feedback(self):
+        self.healthy()
+        self.assertTrue(self.node.health.can_reset(time.monotonic()))
+        responses = []
+        with self.pending_feedback(lambda: responses.append(self.reset())):
+            self.assertTrue(self.node.health.estop)
+            self.assertEqual(self.node.board.stops, 0)
+            self.healthy(0)
+        self.assertTrue(responses[0].success, responses[0].message)
+        self.assertFalse(self.node.health.estop)
+        self.assertFalse(self.node.enabled)
+        self.assertFalse(self.node.gripper_enabled)
+        self.assertEqual(self.node.board.moves, [])
+
+    def test_new_estop_during_poll_wait_cancels_reset(self):
+        self.healthy()
+        responses = []
+        with self.pending_feedback(lambda: responses.append(self.reset())):
+            self.node.on_estop(Bool(data=True))
+            self.healthy(0)
+        self.assertFalse(responses[0].success)
+        self.assertIn('Stop or fault occurred', responses[0].message)
+        self.assertTrue(self.node.health.manual_estop)
+        self.assertEqual(self.node.board.moves, [])
+
+    def test_failed_poll_during_wait_blocks_reset(self):
+        self.healthy()
+        responses = []
+        with self.pending_feedback(lambda: responses.append(self.reset())):
+            self.node.health.transient_fail('injected read timeout', time.monotonic())
+        self.assertFalse(responses[0].success)
+        self.assertIn('Arm feedback error: injected read timeout', responses[0].message)
+        self.assertTrue(self.node.health.estop)
+        self.assertEqual(self.node.board.stops, 0)
+        self.assertEqual(self.node.board.moves, [])
 
     def test_command_waits_for_poll_and_uses_committed_feedback(self):
         self.healthy();self.assertTrue(self.reset().success)
         self.assertTrue(self.grant(enable_arm_motion=True).successful)
-        lock, worker = self.waiting_command(self.command('joint2', 525))
-        try:
+        command = self.command('joint2', 525)
+        with self.pending_feedback(lambda: self.node.on_command(command)):
             self.assertEqual(self.node.board.moves, [])
             self.healthy(0)
-        finally:
-            lock.release();worker.join(2)
-        self.assertFalse(worker.is_alive())
         self.assertEqual(self.node.board.moves[0][1], [(5, 525)])
         self.assertTrue(self.node.last_command_result['accepted'])
 
     def test_stop_during_poll_wait_cancels_waiting_command(self):
         self.healthy();self.assertTrue(self.reset().success)
         self.assertTrue(self.grant(enable_arm_motion=True).successful)
-        lock, worker = self.waiting_command(self.command('joint2', 525))
-        try:
+        command = self.command('joint2', 525)
+        with self.pending_feedback(lambda: self.node.on_command(command)):
             self.node.on_stop(None)
             self.healthy(0)
-        finally:
-            lock.release();worker.join(2)
-        self.assertFalse(worker.is_alive())
         self.assertEqual(self.node.board.moves, [])
         self.assertFalse(self.node.last_command_result['accepted'])
         self.assertIn('Stop occurred', self.node.last_command_result['reason'])

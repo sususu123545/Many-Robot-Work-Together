@@ -286,13 +286,13 @@ class ServoBoard:
     def temperature(self, ident):
         return self.read(ident, 0x09, '<BBbB')[0]
 
-    def voltage_mv(self, ident):
+    def voltage_mv(self, ident, *, attempts=3):
         # A measurement, not proof that the supply/holding torque is healthy.
-        return self.read(ident, 0x07, '<BBbH')[0]
+        return self.read(ident, 0x07, '<BBbH', attempts=attempts)[0]
 
-    def torque_enabled(self, ident):
+    def torque_enabled(self, ident, *, attempts=3):
         # Read only. NEVER turn torque on/off to resolve an unknown arm state.
-        state = self.read(ident, 0x0D, '<BBbb')[0]
+        state = self.read(ident, 0x0D, '<BBbb', attempts=attempts)[0]
         if state not in (0, 1):
             raise OSError(f'Invalid physical torque feedback: servo {ident}: {state}')
         return bool(state)

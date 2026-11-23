@@ -86,12 +86,16 @@ class ArmNode(Node):
         self.command_result_pub = self.create_publisher(String, '/arm_controller/command_result', 10)
         commands = MutuallyExclusiveCallbackGroup()
         polling = MutuallyExclusiveCallbackGroup()
+        # Keep reset serialized with parameter services, but let stops run
+        # while reset waits for the current poll.
+        stops = MutuallyExclusiveCallbackGroup()
         self.create_subscription(JointTrajectory, '/arm_controller/command', self.on_command, 1, callback_group=commands)
         self.create_subscription(JointTrajectory, '/gripper_controller/command', self.on_gripper, 1, callback_group=commands)
-        self.create_subscription(Empty, '/arm_controller/stop', self.on_stop, 1)
+        self.create_subscription(Empty, '/arm_controller/stop', self.on_stop, 1, callback_group=stops)
         self.create_subscription(Int32, '/arm_controller/buzzer', self.on_buzzer, 10)
-        self.create_subscription(Bool, '/safety/estop', self.on_estop, 1)
+        self.create_subscription(Bool, '/safety/estop', self.on_estop, 1, callback_group=stops)
         self.create_service(Trigger, '/arm_controller/reset_estop', self.reset)
+        self.create_service(Trigger, '/arm_controller/read_elbow_diagnostics', self.read_elbow_diagnostics)
         self.create_timer(.5, self.poll, callback_group=polling)
         self.add_on_set_parameters_callback(self.validate_permissions)
         self.add_post_set_parameters_callback(self.apply_permissions)
@@ -248,32 +252,100 @@ class ArmNode(Node):
                 self.health.manual_stop()
                 self.on_stop(None)
 
+    def _reset_blocker(self, now):
+        if self.dry or self.board is None:
+            return 'Physical arm feedback is unavailable in dry run'
+        if self.health.pending:
+            return 'Arm feedback poll is still pending'
+        if self.health.current_error is not None:
+            return 'Arm feedback error: ' + self.health.current_error
+        if not self.health.fresh(now):
+            return 'Arm feedback is incomplete or stale'
+        if not self.health.can_reset(now):
+            return 'Continuous healthy arm feedback recovery window is not complete'
+        if now < self.busy_until:
+            return 'A preceding arm command is still executing'
+        if self.board.diagnostics()['receiver_error']:
+            return 'Serial receiver has failed'
+        return None
+
+    @staticmethod
+    def _refuse_reset(response, reason):
+        response.success = False
+        response.message = reason
+        return response
+
     def reset(self, _request, response):
+        # The eligibility topic describes the last finished poll. Queue the
+        # request behind the next poll if it started during the service trip.
+        # Remember both stop generations before waiting so a new stop wins.
         with self.state_lock:
-            now = time.monotonic()
-            ready = (not self.dry and self.board is not None and self.health.can_reset(now)
-                     and now >= self.busy_until and not self.board.diagnostics()['receiver_error'])
             generation = self.health.generation
-            if ready:
+            stop_generation = self.stop_generation
+        if not self.feedback_cycle_lock.acquire(timeout=.8):
+            return self._refuse_reset(response, 'Timed out waiting for the arm feedback cycle')
+        try:
+            with self.state_lock:
+                if generation != self.health.generation or stop_generation != self.stop_generation:
+                    return self._refuse_reset(response, 'Stop or fault occurred while reset was waiting')
+                blocker = self._reset_blocker(time.monotonic())
+                if blocker:
+                    return self._refuse_reset(response, blocker)
                 # Reset NEVER grants movement. Revoke both gates and invalidate old messages.
                 result = self.set_parameters_atomically([
                     Parameter('enable_arm_motion', value=False),
                     Parameter('enable_gripper_motion', value=False)])
-                ready = result.successful
-            if ready:
+                if not result.successful:
+                    return self._refuse_reset(response, 'Motion-gate revocation failed: ' + result.reason)
+                if generation != self.health.generation:
+                    return self._refuse_reset(response, 'Stop failed during motion-gate revocation')
                 self.on_stop(None)
-                ready = self.health.acknowledge(time.monotonic(), generation,
-                                               stop_succeeded=not self.board.diagnostics()['receiver_error'])
-            response.success = ready
-            response.message = ('Arm reset acknowledged; motion gates OFF; await NEW authorization and command'
-                                if ready else 'Need 10 seconds of fresh valid five-joint arm feedback, no pending poll and a successful stop; keep emergency')
-            if ready and (self.gripper_read_error is not None
-                          or not complete_feedback(
-                              self.health.samples, time.monotonic(), self.temp_max,
-                              required_names=(GRIPPER_JOINT,))):
-                response.message = ('Arm reset acknowledged; arm motion remains OFF until separately authorized; '
-                                    'gripper remains unavailable because its feedback is invalid')
-        return response
+                if generation != self.health.generation:
+                    return self._refuse_reset(response, 'Stop write failed during reset')
+                blocker = self._reset_blocker(time.monotonic())
+                if blocker:
+                    return self._refuse_reset(response, blocker)
+                if not self.health.acknowledge(time.monotonic(), generation, stop_succeeded=True):
+                    return self._refuse_reset(response, 'Arm state changed before reset acknowledgment')
+                response.success = True
+                response.message = 'Arm reset acknowledged; motion gates OFF; await NEW authorization and command'
+                if self.gripper_read_error is not None or not complete_feedback(
+                        self.health.samples, time.monotonic(), self.temp_max, required_names=(GRIPPER_JOINT,)):
+                    response.message = ('Arm reset acknowledged; arm motion remains OFF until separately authorized; '
+                                        'gripper remains unavailable because its feedback is invalid')
+                return response
+        finally:
+            self.feedback_cycle_lock.release()
+
+    def read_elbow_diagnostics(self, _request, response):
+        if self.dry or self.board is None:
+            response.message = 'Physical elbow diagnostics are unavailable in dry run'
+            return response
+        if not self.feedback_cycle_lock.acquire(timeout=.35):
+            response.message = 'Arm feedback cycle is busy; retry the diagnostic read'
+            return response
+        try:
+            # The default callback group serializes this service with ROS motion
+            # parameter changes. Release the state lock so stop/e-stop stays live.
+            with self.state_lock:
+                if self.enabled or self.gripper_enabled or time.monotonic() < self.busy_until:
+                    response.message = 'Elbow diagnostics require an idle arm and both motion gates off'
+                    return response
+            servo_id = JOINTS['joint3'][0]
+            result = {'joint': 'joint3', 'servo_id': servo_id, 'errors': {}}
+            for name, read in (('torque_enabled', self.board.torque_enabled),
+                               ('voltage_mv', self.board.voltage_mv)):
+                try:
+                    # Bound the time borrowed from the normal position/temperature poll.
+                    result[name] = read(servo_id, attempts=1)
+                except OSError as error:
+                    result[name] = None
+                    result['errors'][name] = str(error)
+            response.success = not result['errors']
+            response.message = json.dumps(result)
+            return response
+        finally:
+            self.feedback_cycle_lock.release()
 
     def handle_feedback_error(self, error):
         """Overtemperature latches at once; a communication glitch needs a run of them."""
@@ -442,7 +514,9 @@ class ArmNode(Node):
 def main(args=None):
     rclpy.init(args=args)
     node = None
-    executor = MultiThreadedExecutor(num_threads=3)
+    # Keep a worker available for stop/e-stop when polling, a command and a
+    # reset callback are all active at once.
+    executor = MultiThreadedExecutor(num_threads=4)
     try:
         node = ArmNode()
         executor.add_node(node)

@@ -113,6 +113,11 @@ OPEN_ADEQUATE = 295
 # while 7-8 ticks delivers nothing at all.
 MIN_JOG_TICKS = 14
 
+# What the servo can actually resolve.  A joint asked for a target closer than
+# this simply never gets there, so any convergence test finer than 12 ticks is
+# unsatisfiable by construction.
+TICK_DEADBAND = 12
+
 # Largest gripper step the controller accepts in one message. Beyond this it
 # answers "Step too large; use incremental targets" and drops the command.
 GRIPPER_STEP = 40
@@ -148,13 +153,69 @@ VISION = {'backend': 'color', 'model': None, 'label': None, 'plane': -0.094}
 # Lowest first, because only the low end actually grips.  On 2026-11-05 a run
 # with dz=+6 mm landed the tool point 5 mm ABOVE the ball centre, the jaws closed
 # over the top of it and stopped at 446 (empty-jaw is 452) -- the operator's
-# summary was exactly "在高度上还不够低".  The successful grab the day before had
-# the tool point 8.5 mm BELOW the centre.  Sweeping high-to-low wasted the useful
-# heights: each miss nudged the ball 40+ mm away, and by the time the low level
-# came up it had no IK solution at all.
-DZ_LEVELS = (-0.010, -0.006, 0.000)
+# summary was exactly "在高度上还不够低".  Sweeping high-to-low wastes the useful
+# heights: each miss nudges the ball 40+ mm away, and by the time the low level
+# comes up it has no IK solution at all.
+# Deepest first.  A successful grasp must put the ball against the MIDDLE of the
+# finger pads, and r_closed is the tell: historical solid grips stopped at
+# 334 / 345 / 350 / 390, while the 2026-11-11 attempt that only caught the ball
+# with the LOWER edge of the fingers closed all the way to 402 (empty is ~445).
+# That attempt used dz=+20 mm, i.e. the tool point 20 mm above the ball centre,
+# which holds the pads too high; the operator saw the consequence directly
+# ("这次抓取小球很极限是抓夹的下边部分抓到小球，接触面小很容易掉") and the ball
+# then fell out.  So aim lower first and let the sweep climb only if it must.
+#
+# Back to (0.008, 0.016) on 2026-11-16 evening.  +20/+28 looked safer on paper
+# (more clearance from the guard line) but it loses the grasp: the descent
+# cannot close the last ~15 mm because joint3 stalls 9 ticks short of target and
+# 9 ticks is inside the 12-tick dead-band, so move_tool_to reports "never
+# reached this level" and the level is skipped with the pads ABOVE the ball.
+# The close then runs to 452 (pads touching, nothing between them).
+# dz=+8 is the level that has actually worked: 2026-11-12 measured miss 6.2 mm
+# and r_closed 390 with the pads on the ball.
+DZ_LEVELS = (0.008, 0.016)
+EDGE_GRIP = 395       # r_closed above this means only the ball's edge is held
+# Every level must be ABOVE the ball centre, and positive means "tool point
+# higher than the centre".  The old (-0.010, -0.006, 0.000) trio was impossible
+# on this floor: measured 2026-11-10, the plane is z=-0.094, SAFE_FLOOR_MARGIN
+# keeps the tool point at or above z=-0.079, and a 30 mm ball's centre sits at
+# z=-0.0805 -- BELOW the guard line.  So dz<=0 asked the arm to descend into a
+# zone the guard forbids; all three levels aborted with "tool point is only
+# 4 mm above the surface", the tool ended ~12 mm under the ball centre, and the
+# jaws closed beneath the ball three rounds in a row.
 EMPTY_CLOSE = 430     # jaws reach ~445 with nothing between them
 BALL_CLOSE = 420      # anything at or below this means the ball is in the jaws
+MIN_CLOSE_TRAVEL = 60   # ...but only if the jaws actually travelled this far
+
+
+def jaws_hold(closed, opened):
+    """True only when the jaws really closed onto something.
+
+    ``closed <= BALL_CLOSE`` on its own is not evidence.  On 2026-11-11 the jaw
+    sat at 169 -- its own OPEN value -- because the gripper gate had been dropped
+    before the close command, so nothing moved; 169 <= 420 was then reported as
+    "ball between the jaws" while the photograph showed the ball still on the
+    floor.  A real grasp both stops early AND travels a long way from open
+    (measured successful closes: 334-390 starting from 169-298).
+    """
+    if closed is None or opened is None:
+        return False
+    return closed <= BALL_CLOSE and (closed - opened) >= MIN_CLOSE_TRAVEL
+
+# --- closing on the ball, not on the estimate ------------------------------
+# On 2026-11-10 the arm reported "within 6 mm" of the ball, the jaws then closed
+# empty at 448, and the camera showed the ball sitting 25-30 mm BEYOND the
+# fingertips, with the fingers passing in front of it.  The ground estimator's
+# forward range reads short by about that much at this height.  Rather than bake
+# a fudge constant into solve(), walk the tool in until the jaws actually stall:
+# an empty close reaches ~445, a held 35 mm ball stops them at 300-420, and that
+# stall is physical ground truth that no estimate can argue with.
+CLOSE_CREEPS = 3      # kept for compatibility; the sweep below drives the retries
+CREEP_MM = 0.012      # 12 mm per crawl: small enough to never bulldoze the ball
+LATERAL_MM = 15       # ~1.5 cm sideways per nudge -- the offset the operator saw
+# joint1 at ~0.20 m reach turns 0.24 deg per tick ~= 0.84 mm of tool travel, so
+# 18 ticks is the ~15 mm of sideways movement needed here.
+LATERAL_TICKS = 18
 
 
 def log(message):
@@ -304,6 +365,16 @@ def ball_in_base(ticks):
     if not 5.0 <= result['height_mm'] <= 250.0:
         return None, ('implausible object height %.0f mm, refusing to aim at it'
                       % result['height_mm'])
+    # Distance is the check the height cannot make.  A red object far across the
+    # room still reports a sensible HEIGHT, because the ground-ray math divides
+    # the apparent size by the very distance that is wrong.  Measured 2026-11-11:
+    # a 12.5 px blob high in the frame came back as a ball 1.727 m away, the
+    # grasp was refused with "past the arm reach", and a round was lost.  The
+    # ball we are chasing is always on the floor within the 0.34 m reach.
+    planar = math.hypot(result['centre'][0], result['centre'][1])
+    if planar > 0.60:
+        return None, ('red object %.2f m away is outside any graspable range, '
+                      'so it is not the ball' % planar)
 
     tool = forward_tool_pose_raw(ticks)
     return {'pixel': result['pixel'],
@@ -340,22 +411,27 @@ def ball_in_base_legacy(ticks):
 
 
 def locate_with_backoff(bridge, ticks, label='locate'):
-    """定位球；看不到就后退几厘米再试。
+    """Locate the ball.  NO reversing -- that cure is worse than the disease.
 
-    换姿态（尤其切到前伸的预备位）会改变相机视角，0.25 m 的球会掉出画面下缘。
-    盲目重试没用，后退一点让球重新进画面才是正解（2026-11-03 实测）。
+    The original idea (2026-11-03) was sound for a stale camera pose: back up a
+    little so a ball that fell below the frame comes back into view.  In practice
+    it destroys the setup it is trying to fix.  "Cannot see the ball" is the
+    NORMAL state during a grasp -- the open jaws sit right over it and occlude it
+    -- so the tool reversed away from a perfectly good position and then
+    complained the ball was out of reach.
+
+    Measured 2026-11-11 (evening): two consecutive back-offs of 6 cm each moved
+    the ball from 0.23 m to 0.453 m, past the 0.34 m arm reach, and the round was
+    thrown away with "move it closer by hand".  Distance is approach_ball's job;
+    this function's job is only to say whether the ball is visible right now.
     """
     estimator = VISION.get('estimator') or ball_in_base
-    for attempt in range(3):
-        located, reason = estimator(ticks)
-        if located:
-            return located, ''
-        log('    %s: ball not visible (%s) -> backing off %.0f cm'
-            % (label, reason, 6 + attempt * 0))
-        drive(bridge, -0.05, 0.06 / 0.05)
-        time.sleep(0.8)
-        ticks = read_ticks(bridge) or ticks
-    return None, 'still not visible after backing off'
+    located, reason = estimator(ticks)
+    if located:
+        return located, ''
+    log('    %s: ball not visible (%s) -- not reversing, that only pushes it away'
+        % (label, reason))
+    return None, reason
 
 
 
@@ -579,8 +655,17 @@ def move_all(bridge, targets, duration=2.4):
     return True
 
 
-def move_to(target, current, bridge, tolerance=10, attempts=8, max_step=90):
+def move_to(target, current, bridge, tolerance=TICK_DEADBAND, attempts=8,
+            max_step=90):
     """Walk each joint to its target, retrying while the dead-band eats steps.
+
+    ``tolerance`` must never be finer than the servo dead-band.  It was 3 for
+    every descent, and the dead-band is ~12 ticks, so the loop could never
+    satisfy its own exit condition: it ran all 12 attempts on every joint, at
+    ~2.4 s per attempt.  Measured 2026-11-11: one descent hop spent about two
+    minutes printing "joint3/4 -14 NO MOVEMENT (moved 7 of 14)" -- the joints
+    WERE moving, just never to within 3 ticks of a target they cannot resolve.
+    Asking for the dead-band is both honest and four times faster.
 
     Three attempts used to be the limit and a long move could not finish inside
     it -- 3 x 60 ticks caps the travel at 180 ticks, so a pose needing more
@@ -618,6 +703,15 @@ def move_to(target, current, bridge, tolerance=10, attempts=8, max_step=90):
             if abs(delta) <= tolerance:
                 break
             step = max(-max_step, min(max_step, delta))
+            # Re-evaluate the cap BEFORE EVERY JOINT STEP, not once per hop.
+            # descent_step_cap() at the hop level was not enough: move_to() then
+            # walked several 60-tick shoulder commands with the same allowance,
+            # and the second of them put the tool through the floor guard
+            # (2026-11-12, accept_r4.log).  A raised pose leaves 125 mm of room,
+            # so the hop-level cap allowed 60; after one step only ~60 mm is
+            # left and the next 60-tick step is already too much.
+            live_cap = descent_step_cap(ticks, max_step)
+            step = max(-live_cap, min(live_cap, step))
             # Anything under about a dozen ticks vanishes into the servo
             # dead-band: joint3 sat through ten consecutive "-7 -> no movement"
             # rounds during refinement and never budged.  Inflate to a step that
@@ -639,7 +733,86 @@ def move_to(target, current, bridge, tolerance=10, attempts=8, max_step=90):
     return ticks, True
 
 
-def open_wide(bridge, floor_tick=169):
+def descent_step_cap(ticks, base):
+    """Shrink a descent step as the tool approaches the floor guard.
+
+    A joint step is not a Cartesian step.  When the arm is stretched toward a
+    ball at 0.26 m, one 60-tick shoulder command can drop the tool point tens of
+    millimetres, while the target sits only ~12 mm above the guard line.  The
+    guard then trips halfway through a hop and the whole height level is thrown
+    away (2026-11-12, accept_r3.log: hop 2 aborted, empty close at 448).
+
+    Use at most half of the remaining vertical room, assuming a conservative
+    1 mm of tool travel per tick.  High above the floor this leaves ``base``
+    untouched, so the fast part of the descent is unchanged; near the ball it
+    converges to a single dead-band step.
+    """
+    tool_z = forward_tool_pose_raw(ticks)['translation_m'][2]
+    room_m = tool_z - (VISION['plane'] + SAFE_FLOOR_MARGIN)
+    # 0.20, not 0.35.  Even the tighter coefficient let a single hop cross the
+    # guard on 2026-11-23 (tmp/run1.log): hop 1 asked the tool to descend 95 mm
+    # but its IK target moved joint3 by 96 ticks and joint2 by 190, and joint3
+    # travels roughly 1 mm of tool height PER TICK -- so the hop spent ~170 mm
+    # of vertical room and hit the guard at 8 mm above the floor.  Budgeting a
+    # fifth of the remaining room per step keeps one joint's overshoot from
+    # consuming the whole hop's allowance.
+    cap = max(MIN_JOG_TICKS, int(max(0.0, room_m) * 1000 * 0.20))
+    return min(base, cap)
+
+
+def move_tool_to(point, ticks, bridge, max_step=25, rounds=3, tol=0.016,
+                 floor=None):
+    """Drive the TOOL POINT to `point`, closing the loop on forward kinematics.
+
+    move_to() aims at the IK solution's JOINT angles, and every servo then
+    settles up to a dead-band (12 ticks ~ 2.9 deg) away from them, which at a
+    0.25 m reach is about 12 mm of tool travel.  So move_to can report success
+    while the fingers are a centimetre from where they were sent: measured
+    2026-11-11, a commanded z of -0.0758 landed at -0.0660 and the jaws closed
+    on nothing, three times in a row.
+
+    Two things make this loop work where a plain re-solve does not:
+      * it measures the achieved point with kinematics and corrects the
+        residual, exactly the way the chassis turns close their loop on odom;
+      * it COMMANDS THE CORRECTION WITH OVERSHOOT, because a correction smaller
+        than one dead-band would be swallowed by the same dead-band that caused
+        it.  The overshoot is clamped against the floor guard.
+    """
+    floor = VISION['plane'] if floor is None else floor
+    ceiling = floor + SAFE_FLOOR_MARGIN
+    for _ in range(rounds):
+        tool = forward_tool_pose_raw(ticks)['translation_m']
+        residual = [point[i] - tool[i] for i in range(3)]
+        distance = math.sqrt(sum(r * r for r in residual))
+        if distance <= tol:
+            return ticks, True
+        # NO overshoot.  The 1.6x correction was added to beat the 12-tick
+        # servo dead-band, but move_to now converges at tolerance=12 with a
+        # closed-loop re-measurement, and hops 1-3 of a real descent landed
+        # within 1-2 mm without it (2026-11-12, tmp/accept_r1.log).  On the last
+        # hop the overshoot pushed the tool 13 mm BELOW the aim, tripped the
+        # floor guard and turned a good approach into an empty close at r=444.
+        # Commanding exactly the target is both more accurate and safer here.
+        command = [tool[i] + residual[i] for i in range(3)]
+        # Never command deeper than the target itself; the guard is a backstop,
+        # not an aiming point.
+        command[2] = max(command[2], min(point[2], ceiling + 0.001))
+        ball = (command[0] - TOOL_OFFSET[0],
+                command[1] - TOOL_OFFSET[1],
+                command[2] - TOOL_OFFSET[2])
+        solution = solve(ball, ticks, 0.0)
+        if solution is None:
+            return ticks, False
+        ticks, path_ok = move_to(solution['joints'], ticks, bridge,
+                                 tolerance=TICK_DEADBAND, attempts=10,
+                                 max_step=max_step)
+        if not path_ok:
+            return ticks, False
+    tool = forward_tool_pose_raw(ticks)['translation_m']
+    return ticks, math.dist(tool, point) <= 0.012
+
+
+def open_wide(bridge, floor_tick=115):
     """Open the jaw in verified increments.
 
     The node rejects any single step beyond about 60 ticks with "Step too large;
@@ -650,6 +823,8 @@ def open_wide(bridge, floor_tick=169):
     actually moved the jaw.
     """
     position = read_r(bridge) or 440
+    stalled = 0
+    regates = 0
     for attempt in range(24):
         if position <= floor_tick + 8:
             break
@@ -659,9 +834,29 @@ def open_wide(bridge, floor_tick=169):
         fresh = read_r(bridge)
         if fresh is None:
             continue
-        if fresh == position and attempt >= 2:
-            log('    open stalled at %d -- jaw will not go wider' % fresh)
-            break
+        if abs(fresh - position) <= 2 and attempt >= 2:
+            # Same +/-1 tick wobble as close_until_stall: strict equality let a
+            # jaw sitting at 397 look like it was "moving" on every other read.
+            # was never commanded.  Re-secure once before believing a stall.
+            if regates < 2:
+                regates += 1
+                log('    jaw did not move -- re-securing the gripper gate')
+                if gripper_gate(bridge):
+                    continue
+            # Three identical reads, not one.  A single unchanged reading is not
+            # proof of a stall: measured 2026-11-11 evening, the jaw reported
+            # "open stalled at 397" and then opened to 114 when asked again a
+            # moment later -- the servo was simply slower than the read.  Giving
+            # up early left every descent with only ~40 mm of gap around a 35 mm
+            # ball, which is exactly why the fingers kept touching it on the way
+            # down.
+            stalled += 1
+            time.sleep(1.2)
+            if stalled >= 3:
+                log('    open stalled at %d -- jaw will not go wider' % fresh)
+                break
+            continue
+        stalled = 0
         if fresh != position:
             log('    open -> %d' % fresh)
         position = fresh
@@ -672,6 +867,7 @@ def close_until_stall(bridge, limit=470):
     """Close in big steps until the feedback stops advancing (= something is there)."""
     position = read_r(bridge) or 169
     stalled = 0
+    regates = 0
     trace = []
     while position < limit:
         target = min(position + 60, limit)
@@ -682,9 +878,30 @@ def close_until_stall(bridge, limit=470):
             break
         trace.append(fresh)
         log('    close %d -> %d' % (target, fresh))
-        if fresh == position:
+        # A +/-1 tick wobble is normal servo noise, NOT motion.  Strict equality
+        # was fooled by the jaw alternating 131/132 on 2026-11-12: the loop never
+        # accumulated a stall, ran 55 reads (3 s each = 165 s of dead waiting),
+        # and only stopped when three 131s happened to line up.  Compare with a
+        # tolerance and bail out quickly on a jaw that is genuinely stuck.
+        if abs(fresh - position) <= 2:
+            # A jaw that never leaves its open value was not commanded at all.
+            # The motion gate has a lifetime and it expires on its own mid-run --
+            # measured 2026-11-11: the status stream showed estate=False
+            # arm_motion=False while the descent was still going, so every
+            # subsequent joint and jaw command was silently dropped and the whole
+            # round failed with "jaws never stalled" while the ball sat between
+            # the fingers.  The arm path already re-secures and retries; the
+            # gripper path did not.  Do it here before believing the stall.
+            if regates < 2:
+                regates += 1
+                log('    jaw did not move -- re-securing the gripper gate')
+                if gripper_gate(bridge):
+                    continue
+            # Same reasoning as open_wide: three identical reads, not two.  The
+            # jaw is sometimes slower than the read, and a premature stall here
+            # reports a healthy gripper as "never moved" (2026-11-11).
             stalled += 1
-            if stalled >= 2:
+            if stalled >= 3:
                 break
         else:
             stalled = 0
@@ -693,11 +910,50 @@ def close_until_stall(bridge, limit=470):
 
 
 def gripper_gate(bridge):
-    return secure_gate(bridge, arm=False, gripper=True)
+    # Keyword arguments, not positional.  secure_gate's signature is
+    # (bridge, arm, gripper); on 2026-11-11 a refactor passed the two booleans
+    # by position and swapped them, so every "arm_gate" actually opened the
+    # gripper and vice versa.  The symptom was commands silently dropped while
+    # status still read READY -- which was misdiagnosed as a servo bus fault and
+    # cost several unnecessary power cycles.  Never write these as bare booleans.
+    return gate_with_retry(
+        lambda b: secure_gate(b, arm=False, gripper=True), bridge)
 
 
 def arm_gate(bridge):
-    return secure_gate(bridge, arm=True, gripper=False)
+    return gate_with_retry(
+        lambda b: secure_gate(b, arm=True, gripper=False), bridge)
+
+
+def gate_with_retry(function, bridge, *arguments, tries=3, wait=4.0):
+    """Take a motion gate, tolerating a momentary drop in arm feedback.
+
+    The servo bus occasionally misses a reply, and reset_estop then answers
+    "Need 10 seconds of fresh valid five-joint arm feedback" -- which is not a
+    permanent fault, it clears on its own a few seconds later.  Treating that as
+    fatal aborted entire grasp rounds: measured 2026-11-11 evening, a transient
+    drop stopped the lateral sweep after its first miss, so the round that would
+    have been rescued by the second nudge was thrown away instead.
+    """
+    last_error = ''
+    for attempt in range(tries):
+        if attempt:
+            log('    gate retry %d/%d after a feedback drop (%s)'
+                % (attempt + 1, tries, last_error[:80]))
+            time.sleep(wait)
+        try:
+            if function(bridge, *arguments):
+                return True
+            last_error = 'gate refused'
+        except (Exception, SystemExit) as error:
+            # status()/reset_estop() raise on a transient feedback drop.  The
+            # original version of this helper had no except at all, so the very
+            # exception it was written to tolerate escaped and the retries
+            # never ran (found by tools/test_gate_semantics.py on 2026-11-12).
+            # SystemExit is included because gripper_jog.status uses it for a
+            # failed status read; here it means "try again", not "quit".
+            last_error = '%s: %s' % (type(error).__name__, error)
+    return False
 
 
 def gripper_send(bridge, tick, duration=2.0):
@@ -729,7 +985,15 @@ def drive(bridge, linear, seconds):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument('--open-tick', type=int, default=169, help='wide-open r_joint')
+    # 115, not 169: the jaw's mechanical stop is near 100 and it will happily
+    # reach ~107, but the old default asked for 169 and open_wide stopped as
+    # soon as it was within 8 ticks -- so every descent happened with a gap of
+    # only ~40 mm around a 35 mm ball.  Measured 2026-11-11, the operator saw
+    # the consequence: "抓夹碰到小球之后，小球滚到抓夹中间，然后抓到" -- the
+    # fingers were touching the ball on the way down and relying on it rolling
+    # into place.  15 ticks of margin is kept off the stop.
+    parser.add_argument('--open-tick', type=int, default=115,
+                        help='wide-open r_joint (stop is ~100)')
     parser.add_argument('--close-limit', type=int, default=470)
     parser.add_argument('--lift', type=int, default=90, help='total joint2 lift ticks')
     parser.add_argument('--no-lift', action='store_true')
@@ -865,9 +1129,29 @@ def main():
             % (ball_y, ' '.join('%+.0f' % (dz * 1000) for dz in levels)))
 
         grasped = None
+        z_bias = 0.0        # measured (achieved - target) height error so far
         for index, dz in enumerate(levels):
-            log('  attempt %d/%d: tool point %+d mm above the ball centre'
-                % (index + 1, len(levels), round(dz * 1000)))
+            # The IK solution lands lower than asked on this arm, and the answer
+            # is measured, not assumed: on 2026-11-11 targets of -0.056 / -0.062 /
+            # -0.068 came out at -0.087 / -0.093 / -0.090, i.e. 22-31 mm too low,
+            # which put the fingers under the ball and the floor guard then
+            # aborted every attempt.  So aim higher by whatever the previous
+            # level missed by, and let the sweep converge instead of repeating
+            # the same miss three times.
+            # Never aim below the ball centre.  The floor guard line is z=-0.079
+            # and a ball on this floor has its centre at about -0.079, so a
+            # negative dz would ask the tool to descend into a forbidden zone.
+            # A stale +45 mm bias once produced aim_dz=-10 mm and the level was
+            # lost before it started.  Floor at 6 mm keeps DZ_LEVELS[0]=8 usable.
+            aim_dz = max(0.006, min(0.045, dz - z_bias))
+            log('  attempt %d/%d: tool point %+d mm above the ball centre%s'
+                % (index + 1, len(levels), round(aim_dz * 1000),
+                   '' if abs(z_bias) < 0.002
+                   else ' (aiming %+.0f mm to cancel a %+.0f mm miss)'
+                   % (-z_bias * 1000, z_bias * 1000)))
+            # Everything downstream of here (the hop plan, solve(), the report)
+            # uses this corrected height; enumerate() rebinds dz next round.
+            dz = aim_dz
             fresh = read_ticks(bridge) or ticks
             # Re-locate before every attempt after the first.  A failed close
             # pushes the ball, and aiming at a stale coordinate is how a retry
@@ -977,6 +1261,17 @@ def main():
 
             miss = None
             blocked_by_floor = False
+            # How much legal descent is left BEFORE the step is chosen.  This
+            # used to be decided from the BALL's height, which is wrong: a ball
+            # sitting 15 mm above the floor made every hop of the whole descent
+            # crawl at 12 ticks, so a 4-hop descent spent minutes.  What matters
+            # is where the TOOL is right now -- high up it can step 60 ticks,
+            # and only the last 50 mm has to be gentle.
+            def floor_room(pose):
+                return (forward_tool_pose_raw(pose)['translation_m'][2]
+                        - VISION['plane'] - SAFE_FLOOR_MARGIN)
+
+            near_floor = floor_room(ticks) < 0.050
             for hop, step_dz in enumerate(walk):
                 solution = solve(located['ball'], ticks, step_dz)
                 if solution is None:
@@ -984,9 +1279,28 @@ def main():
                     break
                 # Big steps far from the floor, small ones near it: the guard has
                 # only 15 mm of room and a coarse command overshoots.
-                ticks, path_ok = move_to(solution['joints'], ticks, bridge,
-                                         tolerance=3, attempts=12,
-                                         max_step=60 if step_dz > 0.045 else 40)
+                #
+                # Measured 2026-11-10, three dz levels in a row: the descent
+                # aborted with "tool point is only 4 mm above the surface", the
+                # tool ended at z=-0.090 when the ball centre is at -0.0783 and
+                # the guard line at -0.079, i.e. ~12 mm TOO LOW -- and the jaws
+                # then closed underneath the ball (trace ran to 447, empty).
+                # The ball centre sits only 15.7 mm above the floor, so at this
+                # height there is no room for a 40-tick last step.
+                room = floor_room(ticks)
+                near_floor = room < 0.050
+                # 20/16 instead of 60/40: a joint step is not a Cartesian step,
+                # and joint3 converts ~1 mm of tool height per tick.  2026-11-23
+                # a 40-49 tick step spent the entire hop's vertical budget in one
+                # command and the level was lost at 8 mm above the floor.
+                max_step = descent_step_cap(
+                    ticks, 12 if near_floor else (20 if step_dz > 0.045 else 16))
+                # Close the loop on the TOOL POINT, not on the joint angles: a
+                # joint-space move stops within one dead-band of its target and
+                # that is ~12 mm at the fingers, which is why every grasp landed
+                # about a centimetre off (2026-11-11).
+                ticks, path_ok = move_tool_to(solution['target'], ticks, bridge,
+                                              max_step=max_step)
                 if not path_ok:
                     log('     hop %d: aborted near the surface' % (hop + 1))
                     blocked_by_floor = True
@@ -1018,8 +1332,11 @@ def main():
                     solution = solve(located['ball'], ticks, dz)
                     if solution is None:
                         break
-                    ticks, path_ok = move_to(solution['joints'], ticks, bridge,
-                                             tolerance=3, attempts=10, max_step=30)
+                    ticks, path_ok = move_tool_to(solution['target'], ticks,
+                                                  bridge,
+                                                  max_step=descent_step_cap(
+                                                      ticks,
+                                                      12 if near_floor else 16))
                     if not path_ok:
                         log('     refine %d: aborted near the surface' % (refine + 1))
                         blocked_by_floor = True
@@ -1030,11 +1347,48 @@ def main():
                     if miss <= 0.008:
                         break
             tool = forward_tool_pose_raw(ticks)['translation_m']
+            # What the IK actually delivered, versus what it was told.  Fed into
+            # the next level's aim so a systematic miss is corrected instead of
+            # repeated.  Clamped: one bad hop must not throw the aim far away.
+            wanted_z = located['ball'][2] + dz + TOOL_OFFSET[2]
+            if blocked_by_floor:
+                # The tool we just measured is AFTER the "lift clear" recovery,
+                # not where the descent actually stopped.  Feeding that inflated
+                # height into the next level's aim produced +45 mm of bogus bias
+                # on 2026-11-12.  A guard abort carries no height information.
+                z_bias = 0.0
+                log('     height calibration skipped: the floor guard aborted '
+                    'this level, so its final tool height is not a measurement')
+            else:
+                z_bias = max(-0.045, min(0.045, tool[2] - wanted_z))
             report.setdefault('attempts', []).append(
                 {'dz': dz, 'joints': ticks,
                  'tool': [round(v, 4) for v in tool],
+                 'wanted': [round(located['ball'][0] + TOOL_OFFSET[0], 4),
+                            round(located['ball'][1] + TOOL_OFFSET[1], 4),
+                            round(wanted_z, 4)],
+                 'z_bias_mm': round(z_bias * 1000, 1),
                  'miss_mm': None if miss is None else round(miss * 1000, 1),
                  'aborted_by_floor_guard': blocked_by_floor})
+            log('     landed %+.0f mm in z against the aim (bias now %+.0f mm)'
+                % ((tool[2] - wanted_z) * 1000, z_bias * 1000))
+            if blocked_by_floor:
+                # The guard stopped the arm hard against the surface.  Starting
+                # the next level from down there just shoves the ball again --
+                # measured 2026-11-11, the ball moved 63 mm between two attempts.
+                log('     lifting clear of the surface before the next level')
+                if arm_gate(bridge):
+                    for _ in range(8):
+                        now = read_ticks(bridge) or ticks
+                        if (forward_tool_pose_raw(now)['translation_m'][2]
+                                > VISION['plane'] + 0.080):
+                            ticks = now
+                            break
+                        _, lifted = jog_ex('joint2', 40, duration=2.0,
+                                           bridge=bridge)
+                        if lifted:
+                            ticks.update(lifted)
+                        time.sleep(0.4)
             if miss is None:
                 log('     the tool point never reached this level -> skipping it')
                 continue
@@ -1062,14 +1416,103 @@ def main():
                               detail='jaw did not open (r_joint=%s)' % position)
                 return finish(report, 2)
 
-            closed, trace = close_until_stall(bridge, args.close_limit)
-            report.setdefault('close_attempts', []).append(
-                {'dz': dz, 'trace': trace, 'r': closed})
-            log('     jaws stopped at %d -- %s'
-                % (closed, 'ball between them' if closed <= BALL_CLOSE
-                   else 'nothing between them'))
-            if closed <= BALL_CLOSE:
+            # Search around the ball with the jaws themselves as the sensor.
+            # The operator watched the 2026-11-10 attempts and reported the ball
+            # sitting 1-2 cm to the RIGHT of the fingers while the camera put it
+            # 23 px from the centre of the image -- i.e. the optical axis is not
+            # on the gripper's centre line.  A fixed offset cannot be trusted
+            # either, because arm_base's x flips meaning as joint1 turns (the
+            # same ball read x=-0.60 at joint1=645 and x=+0.18 at joint1=318).
+            # So sweep instead: one close, one nudge each way, then a little
+            # forward.  Each close either stalls on the ball (r <= 420) or does
+            # not, and that is the only judge that cannot be argued with.
+            #
+            # EVERY sideways move happens ABOVE the ball, never at its height.
+            # The first version nudged j1 while the jaws were down beside the
+            # ball, which swept the open fingers straight through it: the
+            # operator watched exactly that on 2026-11-11 ("在左右调整的时候，抓夹
+            # 还碰到小球了"), it is why the ball drifted 63 mm between two
+            # attempts, and it silently moved the thing we were aiming at.
+            # So: rise clear, shift, descend vertically, close.  Horizontal
+            # motion within 45 mm of the ball is forbidden from here on.
+            NUDGES = (('as is', 0, 0.0),
+                      ('%d mm to one side' % LATERAL_MM, LATERAL_TICKS, 0.0),
+                      ('%d mm to the other side' % LATERAL_MM,
+                       -2 * LATERAL_TICKS, 0.0))
+            clear_z = max(located['ball'][2] + 0.060,
+                          VISION['plane'] + 0.075)
+            closed = None
+            trace = []
+            for index, (label, j1_delta, forward) in enumerate(NUDGES):
+                if index:
+                    log('     %s -- rising clear of the ball first' % label)
+                    if not arm_gate(bridge):
+                        log('     cannot re-authorise the arm -- stopping')
+                        break
+                    perch = (located['ball'][0], located['ball'][1] - 0.010,
+                             clear_z)
+                    ticks, rose = move_tool_to(perch, ticks, bridge, max_step=40)
+                    if not rose:
+                        log('     could not rise clear -- stopping the sweep')
+                        break
+                    if j1_delta:
+                        moved, after = jog_ex('joint1', j1_delta, bridge=bridge)
+                        if after:
+                            ticks = after
+                        time.sleep(0.8)
+                    aim = (located['ball'][0], located['ball'][1] + forward,
+                           located['ball'][2])
+                    solution = solve(aim, ticks, dz)
+                    if solution is None:
+                        log('     no IK for that nudge -- stopping')
+                        break
+                    if not gripper_gate(bridge):
+                        log('     cannot secure the gripper gate -- stopping')
+                        break
+                    open_wide(bridge, args.open_tick)
+                    position = read_r(bridge) or position
+                    if not arm_gate(bridge):
+                        log('     cannot re-authorise the arm -- stopping')
+                        break
+                    ticks, came_down = move_tool_to(
+                        solution['target'], ticks, bridge,
+                        max_step=descent_step_cap(ticks, 25))
+                    if not came_down:
+                        log('     the surface stopped the descent -- stopping')
+                        break
+                    time.sleep(0.5)
+                    # arm_gate() above disarmed the gripper; without this the
+                    # close is dropped and the jaw reads its own open value.
+                    if not gripper_gate(bridge):
+                        log('     cannot re-arm the gripper -- stopping the sweep')
+                        break
+                    height = (forward_tool_pose_raw(ticks)['translation_m'][2]
+                              - located['ball'][2])
+                    if height > 0.045:
+                        log('     jaws are still %.0f mm above the ball -- not '
+                            'closing in mid-air' % (height * 1000))
+                        continue
+                closed, trace = close_until_stall(bridge, args.close_limit)
+                report.setdefault('close_attempts', []).append(
+                    {'dz': dz, 'nudge': label, 'opened': position,
+                     'trace': trace, 'r': closed})
+                held = jaws_hold(closed, position)
+                log('     jaws stopped at %d (opened at %d) -- %s'
+                    % (closed, position,
+                       'ball between them' if held
+                       else ('jaw never moved' if closed == position
+                             else 'nothing between them')))
+                if held:
+                    break
+            if jaws_hold(closed, position):
                 grasped = {'dz': dz, 'r_closed': closed}
+                if closed > EDGE_GRIP:
+                    # Says out loud what the number means, because a marginal
+                    # grip is how a "successful" grasp ends up on the floor a
+                    # second later (2026-11-11: closed at 402, good enough to
+                    # pass, ball dropped anyway).
+                    log('     only the EDGE of the ball is between the jaws '
+                        '(closed %d) -- a deeper dz would grip better' % closed)
                 break
             log('     raising and trying the next height')
 

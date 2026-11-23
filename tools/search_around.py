@@ -107,9 +107,20 @@ def goto_pose(bridge, pose, label):
     for joint, value in pose.items():
         for _ in range(12):
             delta = value - ticks[joint]
-            if abs(delta) <= 10:
+            # 12 ticks is the servo dead-band: a smaller remaining error cannot
+            # be expressed, so treat it as arrived instead of grinding.
+            if abs(delta) <= 12:
                 break
-            gs.jog(joint, max(-55, min(55, delta)), duration=1.6)
+            step = max(-55, min(55, delta))
+            # A step INSIDE the dead-band moves nothing at all, and the old code
+            # sent it anyway.  Measured 2026-11-10: joint3 sat at 918 against a
+            # 907 target and every "-11" command came back "moved 0 of 11", five
+            # times in a row (2.4 s each) until the caller's timeout killed the
+            # whole search.  Inflate to a step the servo can actually resolve;
+            # the loop re-reads feedback and corrects on the next pass.
+            if abs(step) < gs.MIN_JOG_TICKS:
+                step = gs.MIN_JOG_TICKS if step > 0 else -gs.MIN_JOG_TICKS
+            gs.jog(joint, step, duration=1.6)
             fresh = gs.read_ticks(bridge)
             if fresh is None:
                 return None
@@ -280,7 +291,7 @@ def goto_reset_pose(bridge):
 
 
 def jog_towards(bridge, joint, target, settle=0.0, max_steps=8,
-                step_cap=80, tolerance=10):
+                step_cap=80, tolerance=12):
     """Drive one joint to `target`, in steps small enough for the controller.
 
     The sweep used to make a SINGLE jog of ``max(-55, min(55, delta))`` per sample
@@ -293,6 +304,7 @@ def jog_towards(bridge, joint, target, settle=0.0, max_steps=8,
 
     Returns the final tick, or None if feedback was lost.
     """
+    stuck = 0
     for _ in range(max_steps):
         ticks = gs.read_ticks(bridge)
         if ticks is None:
@@ -300,7 +312,18 @@ def jog_towards(bridge, joint, target, settle=0.0, max_steps=8,
         delta = target - ticks[joint]
         if abs(delta) <= tolerance:
             return ticks[joint]
-        gs.jog(joint, max(-step_cap, min(step_cap, delta)), duration=1.5)
+        moved = gs.jog(joint, max(-step_cap, min(step_cap, delta)), duration=1.5)
+        # A joint that will not move twice running has reached its mechanical
+        # stop, and retrying spends real time for nothing: j1 bottoms out near
+        # 120 ticks, and the 2026-11-11 sweep ground through 20 consecutive
+        # "-80 NO MOVEMENT" commands (2.4 s each) against it before giving up.
+        # gs.jog already retries once internally on a zero-move, so one False
+        # here means two failed commands.
+        stuck = stuck + 1 if not moved else 0
+        if stuck >= 2:
+            log('    %s will not go past %d -- mechanical limit, not retrying'
+                % (joint, ticks[joint]))
+            return ticks[joint]
         if settle:
             time.sleep(settle)
     ticks = gs.read_ticks(bridge)

@@ -1,0 +1,22 @@
+{
+  "schema": "grasp_command_sequence_v1",
+  "source_log": "tmp\\run3.log",
+  "commands": 56,
+  "completed_first_try": 37,
+  "by_joint": {
+    "joint4": {
+      "commands": 19,
+      "completed": 13
+    },
+    "joint2": {
+      "commands": 25,
+      "completed": 23
+    },
+    "joint3": {
+      "commands": 12,
+      "completed": 1
+    }
+  },
+  "timestamps_available": false,
+  "why": "the grasp script prints no clocks; per-command latency and cadence cannot be recovered from this log. Use the listen subcommand to capture timestamped feedback next session."
+}

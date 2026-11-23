@@ -24,7 +24,7 @@ produce a target that satisfies every limit and is not on the requested path.
 import math
 
 from .spec import (ACTION_DIM, ARM_PI_JOINTS, DEFAULT_MAX_STEP_TICKS,
-                   POSE_JOINTS, WRIST_ROLL_JOINT, RADIANS_PER_TICK)
+                   POSE_JOINTS, WRIST_ROLL_JOINT, tick_to_radians)
 
 
 class AdapterError(ValueError):
@@ -219,8 +219,7 @@ class TcpDeltaAdapter:
         """Solution -> {joint: radians} as carried on /joint_commands."""
         result = {}
         for name, tick in solution.targets.items():
-            _, centre, sign, _, _ = ARM_PI_JOINTS[name]
-            result[name] = sign * (tick - centre) * RADIANS_PER_TICK
+            result[name] = tick_to_radians(name, tick)
         return result
 
     def tick_targets(self, solution):

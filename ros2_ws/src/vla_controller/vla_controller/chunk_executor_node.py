@@ -82,9 +82,9 @@ def _ticks_from_joint_state(msg):
             continue
         if not math.isfinite(radians):
             return {}, 0.0
-        _, centre, sign, low, high = spec.ARM_PI_JOINTS[name]
-        tick = round(centre + sign * radians / spec.RADIANS_PER_TICK)
-        if not low <= tick <= high:
+        try:
+            _, tick = spec.radians_to_tick(name, radians)
+        except ValueError:
             return {}, 0.0
         raw[name] = int(tick)
     return raw, _seconds(msg.header.stamp)

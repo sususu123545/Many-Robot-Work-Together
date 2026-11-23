@@ -83,7 +83,7 @@ WRIST_ROLL_JOINT = 'joint5'
 
 GRIPPER_JOINT = 'r_joint'
 
-#: One servo tick is 240/1000 degrees.
+#: Arm-joint scale. The gripper uses 180/1000 degrees, as in servo_protocol.
 TICKS_PER_DEGREE = 1000.0 / 240.0
 RADIANS_PER_TICK = math.radians(1.0 / TICKS_PER_DEGREE)
 
@@ -97,10 +97,17 @@ MIN_MOVE_DURATION_S = 0.3
 MAX_MOVE_DURATION_S = 5.0
 
 
+def tick_radians(name):
+    """Per-joint scale matching the actual arm-controller driver."""
+    if name not in ARM_PI_JOINTS:
+        raise ValueError('Unknown joint: ' + str(name))
+    return math.radians(180.0) / 1000 if name == GRIPPER_JOINT else RADIANS_PER_TICK
+
+
 def tick_to_radians(name, raw):
     """Servo tick -> the radian value carried on /joint_states."""
     _, centre, sign, _, _ = ARM_PI_JOINTS[name]
-    return sign * (raw - centre) * RADIANS_PER_TICK
+    return sign * (raw - centre) * tick_radians(name)
 
 
 def radians_to_tick(name, radians):
@@ -110,7 +117,7 @@ def radians_to_tick(name, radians):
     if not math.isfinite(radians):
         raise ValueError('Non-finite angle for ' + name)
     ident, centre, sign, low, high = ARM_PI_JOINTS[name]
-    raw = round(centre + sign * radians / RADIANS_PER_TICK)
+    raw = round(centre + sign * radians / tick_radians(name))
     if not low <= raw <= high:
         raise ValueError('Target exceeds hardware limits for %s: %d not in %d..%d'
                          % (name, raw, low, high))

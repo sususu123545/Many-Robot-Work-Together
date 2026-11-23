@@ -13,13 +13,27 @@ class JointTableTest(unittest.TestCase):
         self.assertEqual(servo_protocol.JOINTS, spec.ARM_PI_JOINTS)
 
     def test_tick_conversion_round_trips(self):
-        for name in spec.POSE_JOINTS:
+        for name in spec.ARM_PI_JOINTS:
             low, high = spec.joint_limits(name)
             for tick in (low, (low + high) // 2, high):
                 radians = spec.tick_to_radians(name, tick)
                 ident, back = spec.radians_to_tick(name, radians)
                 self.assertEqual(back, tick, name)
                 self.assertEqual(ident, spec.ARM_PI_JOINTS[name][0])
+
+    def test_each_joint_scale_matches_the_actual_driver(self):
+        from armpi_ros2 import servo_protocol
+        for name, (_, centre, sign, low, high) in servo_protocol.JOINTS.items():
+            for tick in (low, (low + high) // 2, high):
+                expected = sign * (tick - centre) * servo_protocol.tick_radians(name)
+                self.assertAlmostEqual(spec.tick_to_radians(name, tick), expected, places=12)
+                self.assertEqual(spec.radians_to_tick(name, expected)[1], tick)
+
+    def test_gripper_uses_180_degree_scale(self):
+        # Independent fixture: raw 128 from the driver's 180-degree scale.
+        angle = (128 - 700) * math.pi / 1000
+        self.assertAlmostEqual(spec.tick_to_radians('r_joint', 128), angle)
+        self.assertEqual(spec.radians_to_tick('r_joint', angle), (1, 128))
 
     def test_out_of_range_target_is_refused(self):
         with self.assertRaises(ValueError):

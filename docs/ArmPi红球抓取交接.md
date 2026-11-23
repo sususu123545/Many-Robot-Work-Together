@@ -422,6 +422,74 @@ python3 -B tools/test_smolvla_armpi_contract.py       # 25 项
 
 `command_output_enabled` 仍为 `false`，第 4 步之前不得打开。
 
+### 7.7 仿真微调已跑通：这是本项目第一次非零训练（2026-11-23）
+
+ycw 的 T10 进度里一直写着"训练更新为 0"、"计划 3,600 步"。**这次真的跑了。**
+
+**用的数据**：`lerobot_gazebo_t10_2_camera_corrected`——20 回合 / 8,557 帧 / 10 fps /
+6 维关节 / 单相机 `camera1`（480×640）/ 两条语言指令（"把粉色圆柱放到左/右目标区"）。
+按官方 `pilot_episode_split.csv` 取 18 条训练（7,707 帧），**回合 3、13 留出做验证**。
+
+**训练**：`lerobot-train`，`smolvla_base` 热启动，`train_expert_only`（可训练 1.0 亿 / 总 4.5 亿），
+batch 8，3,600 步，12 分 15 秒，4.90 步/秒，显存 2.55 GB，3.74 个 epoch。
+
+⚠️ **不能直接上 batch 16**：GPU 上另有一个 `llama-server`（Ternary-Bonsai-2-27B）常驻占 20.4 GB，
+batch 16 立刻 `CUDA out of memory`。这不是本项目的进程，未动它。
+
+| 步数 | 训练 loss |
+| --- | --- |
+| 100 | 0.374 |
+| 500 | 0.156 |
+| 900 | 0.126 |
+| 2000 | 0.053 |
+| 3600 | **0.045** |
+
+**留出集离线评估**（回合 3、13，各 64 帧，固定噪声）：
+
+| 检查点 | 归一化 L1 | "什么都不动"基线 | 比值 |
+| --- | --- | --- | --- |
+| 1,800 步 | 0.1184 | 0.4047 | 0.293 |
+| **3,600 步** | **0.1034** | 0.4047 | **0.255** |
+
+**比"原地不动"好 3.9 倍，且多训练还有效**（−12.6%），尚未到平台。
+逐关节原始 L1（弧度，3,600 步）——`joint2/3/4` 与夹爪提升最明显，`joint1` 本来就几乎不动：
+
+| 关节 | 策略 | 不动基线 |
+| --- | --- | --- |
+| joint1 | 0.0103 | 0.0125 |
+| joint2 | 0.0215 | 0.1471 |
+| joint3 | 0.0563 | 0.2231 |
+| joint4 | 0.0448 | 0.1675 |
+| joint5 | 0.0000 | 0.0000（全程常数） |
+| r_joint | 0.0450 | 0.1715 |
+
+**这个结果的边界（不要当成"能抓球了"）：**
+- 这是**离线回放**，不是闭环：没有 Gazebo rollout，**没有任务成功率**。超过基线只证明"模型在预测运动"，
+  不证明"能把东西放到目标区"。
+- 仿真 10 fps，真机总线 3.33 Hz（§7.5），要上真机必须按 §7.5 重新采/训。
+- 任务是"放粉色圆柱"，不是"抓红球"；仿真相机也不等于真机手眼与畸变。
+- `joint5` 全程 std=0，这个数据集实际只有 5 个自由度在动。
+
+**另一个顺带被实测确认的事**：训练管线自动把契约建成了 `input_features = {state: [6], camera1: [3,480,640]}`
+、`output_features = {action: [6]}`、`empty_cameras=0`——**单相机 + 六维关节是自动成立的**，再次印证 §7.2。
+
+复现：
+```bash
+# 训练（在 ycw，注意 HF 离线变量）
+.venv/bin/lerobot-train --dataset.repo_id=local/armpi_t07_sim \
+  --dataset.root=<...>/lerobot_gazebo_t10_2_camera_corrected \
+  --dataset.episodes="[0,1,2,4,5,6,7,8,9,10,11,12,14,15,16,17,18,19]" \
+  --policy.type=smolvla --policy.pretrained_path=<snapshot> \
+  --policy.device=cuda --policy.push_to_hub=false \
+  --output_dir=<run>/full3600_b8 --batch_size=8 --steps=3600 --save_freq=1800 --seed=1000
+# 评估（本地工具，需上传到 ycw 跑）
+python3 scripts/eval_smolvla_offline.py --checkpoint <run>/checkpoints/003600/pretrained_model \
+  --dataset-root <...> --episodes 3,13 --samples 64 --out eval_3600.json
+```
+
+证据：`artifacts/smolvla_sim_finetune_20261123/`（`train_summary.json`、`eval_1800.json`、`eval_3600.json`）。
+⚠️ `train_summary.json` 里 1000 步以上的 `step` 是 lerobot 打印的 `NK` 四舍五入值，loss 是精确的。
+
 本机（Windows）没有 `torch`/`lerobot`/本地 checkpoint，且设计上不装——环境在 ycw：
 `/home/ycw/armpi_pro_ws/vla`（`.venv` 里 torch 2.11.0+cu130、lerobot 0.7.0、RTX 3090 24 GB），
 模型缓存在 `cache/huggingface/hub/models--lerobot--smolvla_base`（1.8 GB）。

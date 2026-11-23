@@ -1,0 +1,231 @@
+{
+  "schema": "smolvla_sim_finetune_v1",
+  "dataset_frames": 7707,
+  "dataset_episodes": 18,
+  "held_out_episodes": [
+    3,
+    13
+  ],
+  "batch_size": 8,
+  "steps": 3600,
+  "final_loss": 0.045,
+  "loss_curve": [
+    {
+      "step": 100,
+      "loss": 0.374,
+      "grad_norm": 5.408,
+      "lr": 4.3e-05
+    },
+    {
+      "step": 200,
+      "loss": 0.245,
+      "grad_norm": 4.276,
+      "lr": 9.8e-05
+    },
+    {
+      "step": 300,
+      "loss": 0.221,
+      "grad_norm": 3.972,
+      "lr": 9.9e-05
+    },
+    {
+      "step": 400,
+      "loss": 0.173,
+      "grad_norm": 3.284,
+      "lr": 9.8e-05
+    },
+    {
+      "step": 500,
+      "loss": 0.156,
+      "grad_norm": 2.99,
+      "lr": 9.6e-05
+    },
+    {
+      "step": 600,
+      "loss": 0.161,
+      "grad_norm": 2.95,
+      "lr": 9.4e-05
+    },
+    {
+      "step": 700,
+      "loss": 0.137,
+      "grad_norm": 2.871,
+      "lr": 9.2e-05
+    },
+    {
+      "step": 800,
+      "loss": 0.126,
+      "grad_norm": 2.48,
+      "lr": 9e-05
+    },
+    {
+      "step": 900,
+      "loss": 0.126,
+      "grad_norm": 2.432,
+      "lr": 8.7e-05
+    },
+    {
+      "step": 1000,
+      "loss": 0.105,
+      "grad_norm": 2.352,
+      "lr": 8.4e-05
+    },
+    {
+      "step": 1000,
+      "loss": 0.1,
+      "grad_norm": 2.004,
+      "lr": 8.1e-05
+    },
+    {
+      "step": 1000,
+      "loss": 0.094,
+      "grad_norm": 2.003,
+      "lr": 7.7e-05
+    },
+    {
+      "step": 1000,
+      "loss": 0.088,
+      "grad_norm": 1.846,
+      "lr": 7.4e-05
+    },
+    {
+      "step": 1000,
+      "loss": 0.084,
+      "grad_norm": 1.825,
+      "lr": 7e-05
+    },
+    {
+      "step": 2000,
+      "loss": 0.087,
+      "grad_norm": 1.96,
+      "lr": 6.6e-05
+    },
+    {
+      "step": 2000,
+      "loss": 0.075,
+      "grad_norm": 1.698,
+      "lr": 6.2e-05
+    },
+    {
+      "step": 2000,
+      "loss": 0.073,
+      "grad_norm": 1.634,
+      "lr": 5.8e-05
+    },
+    {
+      "step": 2000,
+      "loss": 0.067,
+      "grad_norm": 1.51,
+      "lr": 5.3e-05
+    },
+    {
+      "step": 2000,
+      "loss": 0.065,
+      "grad_norm": 1.443,
+      "lr": 4.9e-05
+    },
+    {
+      "step": 2000,
+      "loss": 0.067,
+      "grad_norm": 1.44,
+      "lr": 4.5e-05
+    },
+    {
+      "step": 2000,
+      "loss": 0.06,
+      "grad_norm": 1.328,
+      "lr": 4.1e-05
+    },
+    {
+      "step": 2000,
+      "loss": 0.058,
+      "grad_norm": 1.254,
+      "lr": 3.7e-05
+    },
+    {
+      "step": 2000,
+      "loss": 0.055,
+      "grad_norm": 1.197,
+      "lr": 3.3e-05
+    },
+    {
+      "step": 2000,
+      "loss": 0.053,
+      "grad_norm": 1.125,
+      "lr": 2.9e-05
+    },
+    {
+      "step": 2000,
+      "loss": 0.053,
+      "grad_norm": 1.13,
+      "lr": 2.5e-05
+    },
+    {
+      "step": 3000,
+      "loss": 0.049,
+      "grad_norm": 1.004,
+      "lr": 2.2e-05
+    },
+    {
+      "step": 3000,
+      "loss": 0.049,
+      "grad_norm": 1.0,
+      "lr": 1.8e-05
+    },
+    {
+      "step": 3000,
+      "loss": 0.049,
+      "grad_norm": 1.02,
+      "lr": 1.5e-05
+    },
+    {
+      "step": 3000,
+      "loss": 0.047,
+      "grad_norm": 0.92,
+      "lr": 1.3e-05
+    },
+    {
+      "step": 3000,
+      "loss": 0.053,
+      "grad_norm": 0.998,
+      "lr": 1e-05
+    },
+    {
+      "step": 3000,
+      "loss": 0.048,
+      "grad_norm": 0.922,
+      "lr": 8e-06
+    },
+    {
+      "step": 3000,
+      "loss": 0.046,
+      "grad_norm": 0.88,
+      "lr": 6.2e-06
+    },
+    {
+      "step": 3000,
+      "loss": 0.045,
+      "grad_norm": 0.86,
+      "lr": 4.8e-06
+    },
+    {
+      "step": 3000,
+      "loss": 0.046,
+      "grad_norm": 0.839,
+      "lr": 3.7e-06
+    },
+    {
+      "step": 4000,
+      "loss": 0.047,
+      "grad_norm": 0.839,
+      "lr": 2.9e-06
+    },
+    {
+      "step": 4000,
+      "loss": 0.045,
+      "grad_norm": 0.796,
+      "lr": 2.6e-06
+    }
+  ],
+  "note": "lerobot prints step:NK for anything >=1000, so steps above 1000 are rounded to the nearest thousand. Loss values are exact. The run was 3600 steps; the last printed point shows as step 4K."
+}

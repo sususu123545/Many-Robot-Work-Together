@@ -1,0 +1,43 @@
+{
+  "schema": "smolvla_offline_eval_v1",
+  "checkpoint": "/home/ycw/armpi_pro_ws/vla/logs/t10/runs/20261123T104500Z_full3600_train/full3600_b8/checkpoints/001800/pretrained_model",
+  "dataset_root": "/home/ycw/armpi_pro_ws/vla/logs/t07/runs/20261121T120535Z_7612fc4e_supplement/lerobot_gazebo_t10_2_camera_corrected",
+  "held_out_episodes": [
+    3,
+    13
+  ],
+  "samples": 64,
+  "chunk_size": 50,
+  "normalized_l1": 0.118411,
+  "hold_normalized_l1": 0.404725,
+  "ratio_to_hold": 0.2926,
+  "beats_hold": true,
+  "per_joint": {
+    "joint1": {
+      "policy_l1_raw": 0.0164,
+      "hold_l1_raw": 0.01252
+    },
+    "joint2": {
+      "policy_l1_raw": 0.03019,
+      "hold_l1_raw": 0.14713
+    },
+    "joint3": {
+      "policy_l1_raw": 0.05993,
+      "hold_l1_raw": 0.22306
+    },
+    "joint4": {
+      "policy_l1_raw": 0.04256,
+      "hold_l1_raw": 0.16746
+    },
+    "joint5": {
+      "policy_l1_raw": 0.0,
+      "hold_l1_raw": 0.0
+    },
+    "r_joint": {
+      "policy_l1_raw": 0.05236,
+      "hold_l1_raw": 0.17146
+    }
+  },
+  "seconds": 15.16,
+  "scope": "held-out offline replay only; no Gazebo rollout and no task success rate. Beating the hold baseline shows the model predicts motion, not that it completes the task."
+}

@@ -233,16 +233,33 @@ checkpoint 里存的统计键是 `so100.buffer.action`、`so100-red.buffer.actio
 2. `so100-red` 与 `so100-blue` 互相高度一致（wrist_roll 均值 −103.9 vs −106.5，仅差 2.6°），`so100` 则明显偏离
    （wrist_roll −27.4，与两者差约 76°）。所以候选实际是「red/blue 一组」对「so100 一组」。
 
-**仍未解决**：这只是统计自洽性，不能证明哪一套与物理量对应。需要一次**带数值输出的推理**做交叉验证——
-把真实画面与真实六轴喂给模型，把输出按三套统计分别反归一化，看哪一套的结果既落在关节限位内、又接近当前实测姿态
-（模型预测的是下一步动作，应当邻近当前状态）。本机缺 `lerobot`/`torch`/本地 checkpoint，只能在 ycw 环境执行：
+**已用真实模型输出做交叉验证（2026-11-23，ycw GPU）。** 在 ycw 上按 `tools/smolvla_probe.py infer --allow-unadapted-state`
+跑通一次（`status: inference_completed`、`peak_cuda_bytes=1.26 GB`），并把 3 步 × 6 维原始输出按三套统计分别反归一化：
 
-```bash
-python tools/smolvla_probe.py run --input <observation.json> --out <out.json> --device cuda
-python tools/smolvla_probe.py normal --checkpoint <ckpt> --out <norm.json> --stats-profile tools/config/smolvla_source_stats/so100-red.json
-```
+| 统计 | 越界通道 | 具体表现 |
+| --- | --- | --- |
+| `so100` | **5** | `elbow_flex` = **−280 / −265 / −189 度**（超 ±180），`gripper` = −0.4 / −0.3%（负百分比） |
+| `so100-red` | 2 | 仅 `gripper` = −0.0%（浮点边界） |
+| `so100-blue` | **0** | 肩 129~131°、肘 −17~+16°、腕俯 30~45°、腕转 −89~−115°、爪 0.1~0.3% |
 
-两项产出物必须**保存 `actions` 数组本身**，不能只存 shape——现有 `ycw_cpu_inference.json` 只留了 `[1, 50, 6]`，
-数值没落盘，这正是现在无法继续验证的直接原因。
+**`so100` 可以排除**：它把肘关节反归一化成 −280 度，物理上不存在。`red` 与 `blue` 实质等价（`blue` 零越界），
+在现有证据下 **`so100-blue` 是最自洽的一套**。这一步同时印证了 `output_matches_raw: true`——
+`postprocessor_output_equal_model_output` 为真，官方 pre/post 变换确实被跳过，输出停留在归一化空间。
+
+**这次验证的边界（不要当成"已选定域"）：**
+- 只拿到 `postprocessor_output_preview` 的 **3 步**，不是完整 50 步；
+- 模型 `configured_cameras=3` 而本地只喂了 **1 路**相机（`supplied_cameras=1`），视觉输入不足；
+- 反归一化是**手工套公式**做的（`raw = z*std + mean`），不是官方 transform；
+- `target_robot_mapping_verified`、`checkpoint_to_urdf_calibration_verified`、`absolute_zero_verified`
+  在 `armpi_smolvla_adapter.pending.json` 里**仍然全是 false**，跨域标定一项都没解决。
+
+**下一步（要真正定域，仍需补两件事）：** ①把 `tools/smolvla_probe.py` 的 preview 改成落盘完整 50 步；
+②用三路相机喂满 `configured_cameras`。两项齐了再把 `so100-blue` 写进 `source_statistics_profile`。
+
+本机（Windows）没有 `torch`/`lerobot`/本地 checkpoint，且设计上不装——环境在 ycw：
+`/home/ycw/armpi_pro_ws/vla`（`.venv` 里 torch 2.11.0+cu130、lerobot 0.7.0、RTX 3090 24 GB），
+模型缓存在 `cache/huggingface/hub/models--lerobot--smolvla_base`（1.8 GB）。
+**ycw 无外网**，跑推理必须带 `HF_HOME=<缓存路径> HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1`，
+否则 huggingface_hub 会卡在版本检查上反复重试（实测卡了 10 分钟）。
 
 

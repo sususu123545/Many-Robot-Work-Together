@@ -208,8 +208,8 @@ ycw 已用现有环境和缓存 `lerobot/smolvla_base` 做过离线推理。一�
 2. 核实 6 维输出的语义、单位、零点、方向和量级。现有 ROS 2 VLA 执行入口使用另一路 7 维动作表示，先设计明确转换。需要时用源机器人正算、任务坐标与 ArmPi 逆算来做物理映射，同时校准夹爪。
 3. 用固定画面和同步反馈做可重复的离线回放，再用实时帧运行影子模式，保存候选动作、限位、预计末端轨迹和模型结果。校对底盘、机械臂、夹爪权限和停止条件。
 4. 确认映射与保护流程后，从有界单段真机动作开始，逐项验收跟踪、净空和夹持。现有 `command_output_enabled` 为 `false`，应将适配和验证完成后再决定启用。
-5. **前置硬条件（§7.3 得出）：先做 ArmPi↔SO100 的逐关节仿射标定（符号、零点、斜率）**，把状态拉回训练分布内，
-   否则第 2~4 步做的动作转换没有可用的输入基础。
+5. **前置硬条件（§7.4/§7.5 得出）：先按 ~3.33 fps 录制 ArmPi 演示并用自家数据拟合归一化**，
+   走微调；不要试图把 ArmPi 标定到 SO100 坐标系（那个坐标系没有唯一解，见 §7.4）。
 
 [待定适配配置](../tools/config/armpi_smolvla_adapter.pending.json) · [三组源统计](../tools/config/smolvla_source_stats/) · [离线探针](../tools/smolvla_probe.py) · [域审计工具](../tools/smolvla_domain_audit.py) · [ROS 2 VLA 配置](../ros2_ws/src/vla_controller/config/vla_controller.yaml)
 
@@ -340,12 +340,11 @@ ArmPi 有意义——SO100 从没在这个位姿上演示过任何东西。
 
 **为什么不能靠"换算单位"一把过：** 光把弧度换成度，joint3 已经是 −12.7σ。真正的差距在于 ArmPi 在开机
 姿态（joint3 = 907 tick，肘是**反方向**弯的），而 SO100 的 elbow_flex 均值是 **+126.75°**。两家的符号与零点
-本来就不是一套。要把状态拉回分布内，必须做**逐关节的仿射映射（符号 + 零点 + 斜率）标定**，这正是
-`target_robot_mapping_verified` / `absolute_zero_verified` 那两个 false 所代表的未完成工作。
+本来就不是一套。
 
 **对"现在为什么不能用 VLA"的一句话回答：**
 不是缺相机，不是缺显存，也不是模型跑不起来——是**预训练模型的输入口只认 SO100 的关节坐标系，
-而 ArmPi 的六轴和它差了 12~22 个标准差；不先把两套关节坐标系标定对齐，模型输出的 50 步动作再自洽也不能下发。**
+而 ArmPi 的六轴和它差了 12~22 个标准差。**
 
 **复现方式**（两个子命令，纯 Python，不需要 GPU）：
 
@@ -362,6 +361,66 @@ python3 -B tools/test_smolvla_domain_audit.py     # 15 项，含"弧度必须先
 
 证据：`artifacts/smolvla_domain_audit_20261123/`（`actions.json` 原样取自 ycw 的
 `probe_20261123/run1.json/actions.json`，`observation.json` 取自 `probe_20261123/input1/`）。
+
+### 7.4 不需要标定到 SO100：那个坐标系根本没有唯一解（2026-11-23，源码级）
+
+§7.3 结尾我写过"必须做逐关节仿射标定，把状态对齐到 SO100 坐标系"。**这条路是死的，撤回。**
+
+为什么：LeRobot 的 `MotorNormMode.DEGREES`（`motors_bus.py:_normalize`）算的是
+
+```python
+mid = (min_ + max_) / 2                       # range_min/max 来自这条臂的现场标定
+normalized_values[id_] = (val - mid) * 360 / (resolution - 1)
+```
+
+而 `range_min` / `range_max` 是标定时**把这条臂手动走完全程录下来的**，零点来自"把关节摆到行程中点按回车"
+（`so100.md` 的 Calibrate 一节）。也就是说 **SO100 报的"度"是相对该臂某次标定的相对量，不是绝对物理角**。
+同一物理姿态，两个人在不同中点标定，读数不同。因此：
+
+- 不存在一个"SO100 标准坐标系"可以对齐；
+- 仿射映射**没有唯一解**，也**没有真值可以验证**——做出来只能自我说服。
+
+**推论：12~22σ 的差距是"零样本迁移"的固有代价，不是靠标定能修掉的缺陷。** 唯一能验证的路子是
+**用 ArmPi 自己的数据微调**，让归一化统计描述这台机器人本身；那时 SO100 的三套统计直接不用。
+`tools/smolvla_armpi_contract.py` 的 `Normalizer` 就是为这条路准备的（`fit` 从录制的状态算 mean/std，
+零方差关节会被标出来而不是除零）。
+
+### 7.5 节奏：9 倍抽帧，不是 9 倍放慢（2026-11-23）
+
+SmolVLA 的 chunk 是 30 Hz × 50 步 = 1.67 s 的意图；臂的总线一条命令 0.3~5.0 s，
+所以指令率上限 `1/0.3 = 3.33 Hz`。两者差 **9 倍**。这里有一个很容易搞错的区别：
+
+| 做法 | 保留路点数 | 覆盖的计划时长 | 实际耗时 | 后果 |
+| --- | --- | --- | --- | --- |
+| 把 50 步全部按 0.3 s 发 | 50 | 1.63 s | **15.0 s** | 动作被放慢约 9 倍（我上一轮说的"10 倍变速"指这个） |
+| **每 9 步取一个** | **6** | 1.50 s | **1.8 s** | 几何不变，只是路点变稀 ← 应该这么做 |
+
+因为每一维都是**绝对关节位置**（不是增量），抽帧只丢掉中间路点，轨迹形状不变。
+
+**但这仍然是数据集决策**：策略学的是它被训练时的节奏。若用 30 Hz 数据训练、却按 3.33 Hz 闭环执行，
+策略每次看到的状态跳变会是它预期的 9 倍——那才是真正的失配。所以**演示必须按 ~3.33 fps 录制/转换**，
+而不是按 30 Hz 录完再抽。
+
+单条命令的行程上限是 **100 tick = 24°**，在 0.3 s 内即 **80°/s**；对比现有脚本抓取用的是
+12~20 tick/步（2.9~4.8°），远在余量之内。
+
+```bash
+python3 tools/smolvla_armpi_contract.py contract      # 打印上面全套数字
+python3 tools/smolvla_armpi_contract.py normalizer --states <录制的状态.json>
+python3 -B tools/test_smolvla_armpi_contract.py       # 25 项
+```
+
+### 7.6 结论：真正的前置条件是数据，不是标定
+
+按 §7.4 / §7.5，接入顺序应该改成：
+
+1. **定动作表示：6 维关节目标**（SmolVLA 原生，与 ycw 的 `t07_convert_remote.py` 契约一致），放弃"7 维 TCP 增量"作为策略输出。
+2. **按 ~3.33 fps 录制 ArmPi 演示**——用现有已经抓成功的 `tools/grasp_sequence.py` 跑多轮，逐步记录
+   （当前图像、当前六轴、当步下达的关节目标）。它现在只取帧不落盘，需要一个 recorder。
+3. **用自己的数据拟合 MEAN_STD**，走微调；SO100 统计不再参与。
+4. 微调后按 3.33 Hz 闭环执行，每步下发绝对关节目标。
+
+`command_output_enabled` 仍为 `false`，第 4 步之前不得打开。
 
 本机（Windows）没有 `torch`/`lerobot`/本地 checkpoint，且设计上不装——环境在 ycw：
 `/home/ycw/armpi_pro_ws/vla`（`.venv` 里 torch 2.11.0+cu130、lerobot 0.7.0、RTX 3090 24 GB），

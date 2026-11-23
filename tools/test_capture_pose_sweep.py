@@ -17,6 +17,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import capture_pose_sweep as sweep  # noqa: E402
+from capture_pose_sweep import _parse_status  # noqa: E402
 
 
 class TestTickMath(unittest.TestCase):
@@ -195,6 +196,57 @@ class TestSummarise(unittest.TestCase):
                    self.record(2, 206, 29.7, [1.0])]
         result = sweep.summarise(records, 50.0)
         self.assertEqual(result['openings_mm'], [29.7, 40.2])
+
+
+class TestStatusParsing(unittest.TestCase):
+    """The running arm node and the 2026-11-23 probe use different schemas.
+
+    Reading only the old one produced zero samples silently, so both are pinned.
+    """
+
+    OLD = {'arm_message_ns': 1795415352527473934,
+           'joints': {'joint1': {'raw': 486, 'temperature': 26},
+                      'r_joint': {'raw': 247, 'temperature': 29}},
+           'last_command': {'sequence': 2, 'joint_names': ['joint3'],
+                            'targets': [[4, 907]]}}
+
+    NEW = {'stamp': {'sec': 1795440359, 'nanosec': 365031223},
+           'joints': {'joint1': {'raw': 486, 'temperature': 26},
+                      'r_joint': {'raw': 130, 'temperature': 29}},
+           'arm_joints': {'joint1': {'raw': 486, 'temperature': 26}},
+           'last_command_result': {'sequence': 259, 'accepted': True,
+                                   'joint_names': ['r_joint'], 'targets': [[1, 115]]}}
+
+    def parse(self, payload):
+        import json as _json
+        return _parse_status([{'msg': {'data': _json.dumps(payload)}}])
+
+    def test_old_schema_still_parses(self):
+        rows = self.parse(self.OLD)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]['stamp_ns'], 1795415352527473934)
+        self.assertEqual(rows[0]['joints']['r_joint'], 247)
+        self.assertEqual(rows[0]['last_command']['targets'], [[4, 907]])
+
+    def test_new_schema_parses(self):
+        rows = self.parse(self.NEW)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]['stamp_ns'], 1795440359365031223)
+        self.assertEqual(rows[0]['joints']['r_joint'], 130)
+        self.assertEqual(rows[0]['last_command']['targets'], [[1, 115]])
+
+    def test_arm_joints_is_the_fallback(self):
+        payload = {'stamp': {'sec': 5, 'nanosec': 0},
+                   'arm_joints': {'joint2': {'raw': 300, 'temperature': 25}}}
+        rows = self.parse(payload)
+        self.assertEqual(rows[0]['joints'], {'joint2': 300})
+
+    def test_a_message_without_any_stamp_is_skipped(self):
+        self.assertEqual(self.parse({'joints': {}}), [])
+
+    def test_the_command_echo_is_always_present_in_one_form(self):
+        for payload in (self.OLD, self.NEW):
+            self.assertIsNotNone(self.parse(payload)[0]['last_command'])
 
 
 if __name__ == '__main__':

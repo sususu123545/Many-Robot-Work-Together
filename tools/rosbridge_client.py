@@ -272,6 +272,17 @@ class Rosbridge:
         self.send(payload)
         self.subscriptions[topic] = message_type
 
+    def recv_any(self, timeout=1.0):
+        """Next raw text frame from rosbridge, whatever its topic.
+
+        For stream recorders that need several topics at once.  ``wait_for_topic``
+        serves one topic only, and ``drain`` deliberately discards what it reads,
+        so neither can feed a multi-topic recorder.  Raises ``RosbridgeError``
+        whose message contains 'timed out' when nothing arrived in time; callers
+        should treat that as "keep going" and everything else as fatal.
+        """
+        return self.ws.recv_text(timeout=timeout)
+
     def read_fresh(self, topic, msg_type, timeout=2.0, drain_s=0.4):
         """Subscribe, drain the stale backlog, then read the newest sample.
 

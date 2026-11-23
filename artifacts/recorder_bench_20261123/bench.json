@@ -1,0 +1,28 @@
+{
+  "schema": "recorder_bench_v1",
+  "measured_on": "the real car 2026-11-23, rosbridge 19091 over the ssh tunnel",
+  "modes": [
+    {
+      "mode": "--image-throttle-ms 100 (default)",
+      "state_hz": 1.847,
+      "images": 194,
+      "states_with_all_six_joints": 42,
+      "pairing_rate": 0.8571,
+      "median_skew_ms": 25.597,
+      "duration_s": 22.2,
+      "meta": "meta_throttle100.json"
+    },
+    {
+      "mode": "--image-throttle-ms 0",
+      "state_hz": 1.677,
+      "images": 380,
+      "states_with_all_six_joints": 41,
+      "pairing_rate": 1.0,
+      "median_skew_ms": 16.288,
+      "duration_s": 24.45,
+      "meta": "meta_unthrottled.json"
+    }
+  ],
+  "why_this_matters": "the arm status stream is 2 Hz by construction (arm_node.py:99, 0.5 s timer). Anything the recorder captures below that is a gap in the training data, not a property of the robot.",
+  "conclusion": "server-side throttling recovers most of the nominal 2 Hz state rate while keeping 86-94% of samples paired inside 50 ms; leaving the images unthrottled pairs every sample but drops the state stream to about 1.7 Hz because decoding 16 frames a second starves the loop. Default is 100 ms."
+}

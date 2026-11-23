@@ -1,0 +1,38 @@
+{
+  "schema": "armpi_demo_recording_v1",
+  "started_wall": 1795440687.861,
+  "finished_wall": 1795440713.409,
+  "seconds_requested": 25.0,
+  "task": "Pick up the red ball.",
+  "joint_state_messages": 42,
+  "status_messages": 42,
+  "passive": true,
+  "published_anything": false,
+  "touched_motion_gate": false,
+  "topics": [
+    "/joint_states",
+    "/arm_controller/status",
+    "/rear_camera/image_raw/compressed"
+  ],
+  "note": "action labels are the arm node last accepted command, not the caller intent; pair images to states by stamp in the converter",
+  "summary": {
+    "state_samples": 42,
+    "states_with_all_six_joints": 42,
+    "states_with_commanded_target": 42,
+    "images": 194,
+    "duration_s": 22.2,
+    "state_hz": 1.847,
+    "expected_state_hz": 2.0,
+    "state_gap_s": {
+      "median": 0.508,
+      "max": 1.6
+    },
+    "pairing": {
+      "matched": 36,
+      "rate": 0.8571,
+      "worst_skew_ms": 76.564,
+      "median_skew_ms": 25.597,
+      "budget_ms": 50.0
+    }
+  }
+}

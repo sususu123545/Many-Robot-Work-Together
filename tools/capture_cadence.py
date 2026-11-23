@@ -87,8 +87,12 @@ def command_listen(arguments):
 
     while time.monotonic() < deadline:
         try:
-            raw = bridge.recv_text(timeout=1.0)
-        except Exception:
+            raw = bridge.recv_any(timeout=1.0)
+        except Exception as error:
+            # Only a quiet stream is expected here; a typo in an attribute name
+            # or a closed socket must surface instead of looping forever.
+            if 'timed out' not in str(error):
+                raise
             continue
         if not raw:
             continue

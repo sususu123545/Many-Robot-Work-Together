@@ -71,7 +71,8 @@ def _stamp_of(message):
 def check_pairing(states, images, max_skew_ms=50.0):
     """How many states can be matched to an image inside the skew budget."""
     if not states or not images:
-        return {'matched': 0, 'rate': 0.0, 'worst_skew_ms': None}
+        return {'matched': 0, 'rate': 0.0, 'worst_skew_ms': None,
+                'median_skew_ms': None, 'budget_ms': max_skew_ms}
     skews = []
     for state in states:
         _, skew = nearest_by_stamp(images, state['stamp_ns'])
@@ -151,11 +152,15 @@ def command_run(arguments):
         print('  usual cause: the tunnel is not up.  Start it with')
         print('  python tools/ssh_tunnel.py --host 100.102.57.19 --local-port 19091 --remote-port 9091')
         return 2
+    # Images are throttled server-side rather than dropped after arrival: letting
+    # rosbridge skip the frames is far cheaper than decoding and discarding them
+    # in Python, and the earlier client-side version starved the state stream.
+    throttle = int(arguments.image_throttle_ms) if arguments.image_throttle_ms else 0
     for topic, kind in ((JOINT_TOPIC, 'sensor_msgs/msg/JointState'),
                         (STATUS_TOPIC, 'std_msgs/msg/String'),
                         (IMAGE_TOPIC, 'sensor_msgs/msg/CompressedImage'),
                         (TF_TOPIC, 'tf2_msgs/msg/TFMessage')):
-        bridge.subscribe(topic, kind)
+        bridge.subscribe(topic, kind, throttle_rate=throttle if topic == IMAGE_TOPIC else 0)
 
     states, images = [], []
     latest_tf = None
@@ -178,8 +183,13 @@ def command_run(arguments):
     try:
         while time.monotonic() < deadline:
             try:
-                raw = bridge.recv_text(timeout=1.0)
-            except Exception:
+                raw = bridge.recv_any(timeout=1.0)
+            except Exception as error:
+                # Only a quiet stream is expected here.  Anything else -- a typo
+                # in an attribute name, a closed socket -- must not be swallowed,
+                # which is exactly how a silent zero-message recording happened.
+                if 'timed out' not in str(error):
+                    raise
                 continue
             if not raw:
                 continue
@@ -341,8 +351,11 @@ def main(argv=None):
     run.add_argument('--bridge-host', default='127.0.0.1')
     run.add_argument('--bridge-port', type=int, default=19091)
     run.add_argument('--max-skew-ms', type=float, default=50.0)
+    run.add_argument('--image-throttle-ms', type=int, default=100,
+                     help='ask rosbridge to send images at most this often (server side). '
+                          '0 keeps every frame; 100 keeps ~10 Hz, still above the 2 Hz state rate')
     run.add_argument('--min-image-interval', type=float, default=0.0,
-                     help='throttle image storage; 0 keeps the native ~12.7 Hz')
+                     help='client-side drop; prefer --image-throttle-ms, this one starves the state stream')
     run.add_argument('--report-every', type=float, default=30.0)
     run.set_defaults(handler=command_run)
 

@@ -220,20 +220,31 @@ def _parse_status(messages):
             parsed = None
         if not isinstance(parsed, dict):
             continue
+        # Two schemas are in the wild, and the running build is not the one the
+        # 2026-11-23 probe saw: the older one carried a top-level
+        # `arm_message_ns`, the current one nests `stamp.{sec,nanosec}` and names
+        # the command echo `last_command_result`.  Accept both -- reading only
+        # the old one silently produced zero samples, which already happened.
         stamp = parsed.get('arm_message_ns')
         if not isinstance(stamp, int):
+            header = parsed.get('stamp') or {}
+            seconds, nanos = header.get('sec'), header.get('nanosec')
+            stamp = (seconds * 10**9 + int(nanos or 0)) if isinstance(seconds, int) else None
+        if not isinstance(stamp, int):
             continue
+        source = parsed.get('joints') or parsed.get('arm_joints') or {}
         joints = {}
-        for name, entry in (parsed.get('joints') or {}).items():
+        for name, entry in source.items():
             if isinstance(entry, dict) and isinstance(entry.get('raw'), int):
                 joints[name] = entry['raw']
         out.append({'stamp_ns': stamp, 'joints': joints,
                     'health': parsed.get('health_state'),
                     # The node echoes the last command it accepted. On the real
                     # robot this is the only honest source for an action label.
-                    'last_command': parsed.get('last_command'),
+                    'last_command': (parsed.get('last_command')
+                                     or parsed.get('last_command_result')),
                     'temperature': {n: (e or {}).get('temperature')
-                                    for n, e in (parsed.get('joints') or {}).items()
+                                    for n, e in source.items()
                                     if isinstance(e, dict)}})
     return out
 
@@ -265,8 +276,12 @@ def _drain_bucket(bridge, seconds):
     bucket = {'images': [], 'status': [], 'tf': []}
     while time.monotonic() < deadline:
         try:
-            raw = bridge.recv_text(timeout=1.0)
-        except Exception:
+            raw = bridge.recv_any(timeout=1.0)
+        except Exception as error:
+            # Only a quiet stream is expected here; a typo in an attribute name
+            # or a closed socket must surface instead of looping forever.
+            if 'timed out' not in str(error):
+                raise
             continue
         if not raw:
             continue

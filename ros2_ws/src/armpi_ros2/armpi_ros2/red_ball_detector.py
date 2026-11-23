@@ -94,6 +94,39 @@ def sphere_center_in_camera(center_xy, radius_px, camera_info, diameter_m):
     return tuple(float(v) for v in point), angular_radius
 
 
+def _fit_upper_ball_arc(contour, bbox):
+    """Fit a circle to an upper silhouette with support on both sides."""
+    x, y, width, _ = bbox
+    if width < 18:
+        return None
+
+    # The top and sides are usually clear even when a red reflection joins the
+    # ball at floor level. Select the upper arc using the horizontal diameter.
+    anchor = np.array((x + (width - 1) / 2, y + (width - 1) / 2))
+    points = contour.reshape(-1, 2).astype(np.float64)
+    upper = points[points[:, 1] <= anchor[1]]
+    if len(upper) < 15:
+        return None
+    offsets = upper - anchor
+    matrix = np.column_stack((2 * offsets, np.ones(len(offsets))))
+    fit, _, rank, _ = np.linalg.lstsq(matrix, np.sum(offsets**2, axis=1), rcond=None)
+    radius_squared = float(fit[2] + fit[:2] @ fit[:2])
+    if rank < 3 or not math.isfinite(radius_squared) or radius_squared <= 0:
+        return None
+    radius = math.sqrt(radius_squared)
+    center = anchor + fit[:2]
+    cx, cy = center
+    residual = float(np.sqrt(np.mean((np.linalg.norm(upper - center, axis=1) - radius)**2)))
+    if (not 0.88 <= 2 * radius / (width - 1) <= 1.10
+            or abs(cx - anchor[0]) > 0.08 * width
+            or abs(cy - radius - y) > max(2.0, 0.07 * radius)
+            or upper[:, 0].min() > cx - 0.7 * radius
+            or upper[:, 0].max() < cx + 0.7 * radius
+            or residual > max(0.85, 0.035 * radius)):
+        return None
+    return float(cx), float(cy), radius
+
+
 def find_red_sphere(image_bgr, min_radius_px=6.0, max_radius_px=180.0,
                     min_area_px=100.0):
     """Return the largest unambiguous red, approximately circular image blob."""
@@ -108,7 +141,7 @@ def find_red_sphere(image_bgr, min_radius_px=6.0, max_radius_px=180.0,
     kernel = np.ones((3, 3), dtype=np.uint8)
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
     candidates = []
     for contour in contours:
         area = float(cv2.contourArea(contour))
@@ -121,14 +154,30 @@ def find_red_sphere(image_bgr, min_radius_px=6.0, max_radius_px=180.0,
         if perimeter <= 0:
             continue
         circularity = min(1.0, 4.0 * math.pi * area / (perimeter * perimeter))
-        _, _, width, height = cv2.boundingRect(contour)
+        bbox = cv2.boundingRect(contour)
+        _, _, width, height = bbox
         aspect = width / float(max(height, 1))
         if circularity < 0.48 or not 0.58 <= aspect <= 1.72:
             continue
-        candidates.append({'center_x': float(x), 'center_y': float(y),
-                           'radius_px': float(radius), 'area_px': area,
-                           'circularity': circularity,
-                           'bbox': [int(v) for v in cv2.boundingRect(contour)]})
+        radius_method = 'enclosing_circle'
+        upper_arc = _fit_upper_ball_arc(contour, bbox)
+        arc_geometry = None
+        if upper_arc is not None and min_radius_px <= upper_arc[2] <= max_radius_px:
+            arc_x, arc_y, arc_radius = upper_arc
+            arc_geometry = {'center_x': arc_x, 'center_y': arc_y, 'radius_px': arc_radius}
+            lower_extension = bbox[1] + height - 1 - (arc_y + arc_radius)
+            if (height - width >= max(3.0, 0.08 * width)
+                    and lower_extension >= max(2.5, 0.085 * arc_radius)
+                    and arc_radius < radius):
+                x, y, radius = upper_arc
+                radius_method = 'upper_arc'
+        candidate = {'center_x': float(x), 'center_y': float(y),
+                     'radius_px': float(radius), 'area_px': area,
+                     'circularity': circularity, 'radius_method': radius_method,
+                     'bbox': [int(v) for v in bbox]}
+        if arc_geometry is not None:
+            candidate['upper_arc'] = arc_geometry
+        candidates.append(candidate)
     candidates.sort(key=lambda item: item['area_px'], reverse=True)
     if not candidates:
         return None, 0
@@ -154,19 +203,25 @@ def fuse_recent_detections(recent):
     Median rather than mean on purpose: a single frame where the blob leaks onto
     a nearby red object would drag a mean and is simply out-voted by a median.
 
-    The window is safe to average only because the stability gate has already
-    rejected it when the spread is too wide, so this never smooths a moving ball.
+    If a reflection was identified and every frame has a reliable upper arc,
+    compare the same geometry in all frames. Mixing estimators can create a
+    depth jump for a stationary ball. The caller checks the returned spread
+    before projecting the fused estimate into 3-D.
     """
     if not recent:
         raise ValueError('No detections to fuse')
-    xs = [item['center_x'] for item in recent]
-    ys = [item['center_y'] for item in recent]
-    radii = [item['radius_px'] for item in recent]
+    use_upper_arc = (any(item.get('radius_method') == 'upper_arc' for item in recent)
+                     and all(item.get('upper_arc') for item in recent))
+    geometry = [item['upper_arc'] for item in recent] if use_upper_arc else recent
+    xs = [item['center_x'] for item in geometry]
+    ys = [item['center_y'] for item in geometry]
+    radii = [item['radius_px'] for item in geometry]
     return {
         'frames': len(recent),
         'center_x': float(np.median(xs)),
         'center_y': float(np.median(ys)),
         'radius_px': float(np.median(radii)),
+        'radius_method': 'upper_arc' if use_upper_arc else 'frame_estimates',
         'center_spread_px': float(max(max(xs) - min(xs), max(ys) - min(ys))),
         'radius_fraction': float((max(radii) - min(radii))
                                  / max(float(np.mean(radii)), 1.0)),
@@ -201,19 +256,16 @@ class RedBallDetector(Node):
     def on_camera_info(self, msg):
         self.camera_info = msg
 
-    def _stable(self):
+    def _stable_fusion(self):
         count = int(self.get_parameter('stability_frames').value)
         if count < 2 or len(self.history) < count:
-            return False
-        recent = list(self.history)[-count:]
-        xs = [v['center_x'] for v in recent]
-        ys = [v['center_y'] for v in recent]
-        rs = [v['radius_px'] for v in recent]
+            return None
+        fusion = fuse_recent_detections(list(self.history)[-count:])
         center_limit = float(self.get_parameter('stability_center_px').value)
         radius_fraction = float(self.get_parameter('stability_radius_fraction').value)
-        return (max(xs) - min(xs) <= center_limit
-                and max(ys) - min(ys) <= center_limit
-                and (max(rs) - min(rs)) / max(float(np.mean(rs)), 1.0) <= radius_fraction)
+        if fusion['center_spread_px'] <= center_limit and fusion['radius_fraction'] <= radius_fraction:
+            return fusion
+        return None
 
     def on_image(self, msg):
         reason = 'no_red_sphere'
@@ -231,7 +283,8 @@ class RedBallDetector(Node):
                 reason = 'ambiguous_or_no_candidate'
             else:
                 self.history.append(detection)
-                if not self._stable():
+                stable_fusion = self._stable_fusion()
+                if stable_fusion is None:
                     reason = 'target_not_stable'
                 elif self.camera_info is None:
                     reason = 'waiting_for_camera_info'
@@ -241,8 +294,7 @@ class RedBallDetector(Node):
                 elif not msg.header.frame_id:
                     reason = 'missing_camera_frame_id'
                 else:
-                    window = max(int(self.get_parameter('stability_frames').value), 1)
-                    fusion = fuse_recent_detections(list(self.history)[-window:])
+                    fusion = stable_fusion
                     point, angle = sphere_center_in_camera(
                         (fusion['center_x'], fusion['center_y']),
                         fusion['radius_px'], self.camera_info,

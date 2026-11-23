@@ -32,6 +32,43 @@ def test_finds_single_synthetic_red_ball():
     assert abs(detection['center_x'] - 284) <= 1
     assert abs(detection['center_y'] - 260) <= 1
     assert 29 <= detection['radius_px'] <= 31
+    assert detection['radius_method'] == 'enclosing_circle'
+
+
+def test_connected_floor_reflection_does_not_inflate_ball_range_estimate():
+    camera = _calibrated_camera()
+    image = np.zeros((480, 640, 3), dtype=np.uint8)
+    cv2.circle(image, (354, 328), 30, (0, 0, 255), -1)
+    clean, _ = find_red_sphere(image)
+    cv2.ellipse(image, (354, 353), (13, 13), 0, 0, 360, (0, 0, 130), -1)
+    reflected, count = find_red_sphere(image)
+    assert count == 1 and reflected is not None
+    assert reflected['radius_method'] == 'upper_arc'
+    assert reflected['bbox'][3] > reflected['bbox'][2] + 5
+    assert reflected['center_y'] == pytest.approx(clean['center_y'], abs=1)
+    assert reflected['radius_px'] == pytest.approx(clean['radius_px'], abs=1)
+    expected, _ = sphere_center_in_camera((clean['center_x'], clean['center_y']), clean['radius_px'], camera, .036)
+    actual, _ = sphere_center_in_camera((reflected['center_x'], reflected['center_y']),
+                                       reflected['radius_px'], camera, .036)
+    assert math.dist(expected, actual) < .01
+
+
+def test_mixed_window_compares_upper_arcs_before_checking_stability():
+    # The same sphere can have a partial lower reflection in every frame, but
+    # only some frames contain enough evidence to choose the upper arc alone.
+    image = np.zeros((480, 640, 3), dtype=np.uint8)
+    cv2.circle(image, (354, 328), 30, (0, 0, 255), -1)
+    cv2.ellipse(image, (354, 351), (12, 10), 0, 0, 360, (0, 0, 130), -1)
+    slight, _ = find_red_sphere(image)
+    cv2.ellipse(image, (354, 353), (13, 13), 0, 0, 360, (0, 0, 130), -1)
+    obvious, _ = find_red_sphere(image)
+    assert slight['radius_method'] == 'enclosing_circle'
+    assert obvious['radius_method'] == 'upper_arc'
+    assert abs(slight['radius_px'] - obvious['radius_px']) > 1
+    result = fuse_recent_detections([slight] * 4 + [obvious])
+    assert result['radius_method'] == 'upper_arc'
+    assert result['radius_px'] == pytest.approx(obvious['radius_px'], abs=.5)
+    assert result['radius_fraction'] < .02
 
 
 def test_rejects_two_similarly_sized_red_targets():

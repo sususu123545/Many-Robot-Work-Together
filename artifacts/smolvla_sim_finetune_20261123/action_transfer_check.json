@@ -1,0 +1,127 @@
+{
+  "schema": "sim_action_transfer_check_v1",
+  "stats": "artifacts\\smolvla_sim_finetune_20261123\\sim_dataset_stats.json",
+  "min_safe_margin_ticks": 30,
+  "joints": [
+    {
+      "joint": "joint1",
+      "radians": [
+        -0.3225,
+        0.3225
+      ],
+      "ticks": [
+        423,
+        577
+      ],
+      "servo_window": [
+        0,
+        1000
+      ],
+      "margin_ticks": 423,
+      "safe": true,
+      "extra_limits": []
+    },
+    {
+      "joint": "joint2",
+      "radians": [
+        -0.8629,
+        0.0084
+      ],
+      "ticks": [
+        294,
+        502
+      ],
+      "servo_window": [
+        125,
+        875
+      ],
+      "margin_ticks": 169,
+      "safe": true,
+      "extra_limits": []
+    },
+    {
+      "joint": "joint3",
+      "radians": [
+        -2.0651,
+        -0.4901
+      ],
+      "ticks": [
+        617,
+        993
+      ],
+      "servo_window": [
+        0,
+        1000
+      ],
+      "margin_ticks": -93,
+      "safe": false,
+      "extra_limits": [
+        {
+          "latch_hard_max": 1000,
+          "pre_shutdown_max": 900,
+          "margin_to_pre_shutdown": -93,
+          "why": "crossing 1000 latches the arm node with no software recovery"
+        }
+      ]
+    },
+    {
+      "joint": "joint4",
+      "radians": [
+        -0.8838,
+        0.0754
+      ],
+      "ticks": [
+        289,
+        518
+      ],
+      "servo_window": [
+        0,
+        1000
+      ],
+      "margin_ticks": 289,
+      "safe": true,
+      "extra_limits": []
+    },
+    {
+      "joint": "joint5",
+      "radians": [
+        0.0,
+        0.0
+      ],
+      "ticks": [
+        500,
+        500
+      ],
+      "servo_window": [
+        0,
+        1000
+      ],
+      "margin_ticks": 500,
+      "safe": true,
+      "extra_limits": []
+    },
+    {
+      "joint": "r_joint",
+      "radians": [
+        -2.0986,
+        -0.999
+      ],
+      "ticks": [
+        32,
+        382
+      ],
+      "servo_window": [
+        0,
+        700
+      ],
+      "margin_ticks": 32,
+      "safe": true,
+      "extra_limits": []
+    }
+  ],
+  "unsafe_joints": [
+    "joint3"
+  ],
+  "safe_to_execute": false,
+  "scope": "servo-travel check only. It says nothing about whether the policy suits the real camera, task or cadence."
+}

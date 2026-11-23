@@ -109,10 +109,29 @@ def main():
 
 
 if __name__ == "__main__":
-    try:
-        raise SystemExit(main())
-    except KeyboardInterrupt:
-        raise SystemExit(0)
-    except Exception as exc:
-        print("SSH tunnel failed: %s" % exc, file=sys.stderr, flush=True)
-        raise SystemExit(1)
+    # Reconnect instead of dying.  A dropped forward used to end this process,
+    # and every reconnect cost a whole grasp round: measured 2026-11-11, the
+    # rosbridge and video tunnels each died several times in an evening and once
+    # mid-grasp, where the tool then crashed fetching a frame.
+    import time as _time
+    failures = 0
+    while True:
+        try:
+            # main() returning is ALSO a dropped session, not a successful exit.
+            # The first version re-raised SystemExit(main()), so a normal return
+            # ended the process and the reconnect loop never ran -- measured
+            # 2026-11-12: both tunnels exited 0 mid-grasp, the client was left
+            # holding a dead socket (WinError 10038) and the round was lost.
+            code = main()
+            print('SSH tunnel ended (rc=%s); reconnecting in 2 s' % code,
+                  file=sys.stderr, flush=True)
+            failures = 0
+            _time.sleep(2)
+        except KeyboardInterrupt:
+            raise SystemExit(0)
+        except Exception as exc:
+            failures += 1
+            wait = min(30, 2 * failures)
+            print("SSH tunnel failed: %s -- reconnecting in %d s"
+                  % (exc, wait), file=sys.stderr, flush=True)
+            _time.sleep(wait)

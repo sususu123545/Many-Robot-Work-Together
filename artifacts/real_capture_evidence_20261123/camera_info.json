@@ -1,0 +1,30 @@
+{
+  "schema": "real_camera_info_v1",
+  "distinct_records": 1,
+  "records": [
+    {
+      "width": 640,
+      "height": 480,
+      "distortion_model": "equidistant",
+      "k": [
+        541.286233208,
+        0.0,
+        308.972422909,
+        0.0,
+        536.831652047,
+        220.80791832,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "d": [
+        -0.173265335147,
+        0.276973718043,
+        -1.97373104458,
+        3.56886883326
+      ],
+      "camera_frame": "rear_camera",
+      "first_seen_run": "grasp_approach_recheck_20261123T062942Z"
+    }
+  ]
+}

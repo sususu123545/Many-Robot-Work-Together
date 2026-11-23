@@ -1,0 +1,215 @@
+{
+  "schema": "real_capture_runs_v1",
+  "runs": [
+    {
+      "run": "grasp_approach_recheck_20261123T062942Z",
+      "frame_count": 180,
+      "duration_s": 9,
+      "status_samples": 18,
+      "valid_status": 17,
+      "robot_commands_sent": 0,
+      "motion_gates_closed": true,
+      "selected_frames": 11
+    },
+    {
+      "run": "grasp_dwell_combined_20261123T071331Z",
+      "frame_count": 195,
+      "duration_s": 9,
+      "status_samples": 18,
+      "valid_status": 18,
+      "robot_commands_sent": 0,
+      "motion_gates_closed": true,
+      "selected_frames": 10
+    },
+    {
+      "run": "grasp_dwell_combined_20261123T071532Z",
+      "frame_count": 185,
+      "duration_s": 9,
+      "status_samples": 19,
+      "valid_status": 17,
+      "robot_commands_sent": 0,
+      "motion_gates_closed": true,
+      "selected_frames": 10
+    },
+    {
+      "run": "grasp_dwell_combined_20261123T072332Z",
+      "frame_count": 165,
+      "duration_s": 9,
+      "status_samples": 18,
+      "valid_status": 17,
+      "robot_commands_sent": 0,
+      "motion_gates_closed": true,
+      "selected_frames": 11
+    },
+    {
+      "run": "grasp_elbow_idle_drift_20261123T064141Z",
+      "frame_count": 197,
+      "duration_s": 10,
+      "status_samples": 20,
+      "valid_status": 20,
+      "robot_commands_sent": 0,
+      "motion_gates_closed": true,
+      "selected_frames": 10
+    },
+    {
+      "run": "grasp_elbow_timing_preflight_20261123T065611Z",
+      "frame_count": 196,
+      "duration_s": 9,
+      "status_samples": 18,
+      "valid_status": 17,
+      "robot_commands_sent": 0,
+      "motion_gates_closed": true,
+      "selected_frames": 10
+    },
+    {
+      "run": "grasp_elbow_timing_refresh_20261123T070727Z",
+      "frame_count": 188,
+      "duration_s": 9,
+      "status_samples": 18,
+      "valid_status": 18,
+      "robot_commands_sent": 0,
+      "motion_gates_closed": true,
+      "selected_frames": 11
+    },
+    {
+      "run": "grasp_high_entry_preflight_20261123T063417Z",
+      "frame_count": 195,
+      "duration_s": 9,
+      "status_samples": 17,
+      "valid_status": 16,
+      "robot_commands_sent": 0,
+      "motion_gates_closed": true,
+      "selected_frames": 11
+    },
+    {
+      "run": "grasp_restart_after_elbow_20261123T065103Z",
+      "frame_count": 220,
+      "duration_s": 10,
+      "status_samples": 20,
+      "valid_status": 19,
+      "robot_commands_sent": 0,
+      "motion_gates_closed": true,
+      "selected_frames": 10
+    },
+    {
+      "run": "grasp_resume_live_20261123T062210Z",
+      "frame_count": 180,
+      "duration_s": 10,
+      "status_samples": 20,
+      "valid_status": 20,
+      "robot_commands_sent": 0,
+      "motion_gates_closed": true,
+      "selected_frames": 11
+    },
+    {
+      "run": "pregrasp_new_scene_clear_20261123T061104Z",
+      "frame_count": 194,
+      "duration_s": 9,
+      "status_samples": 18,
+      "valid_status": 16,
+      "robot_commands_sent": 0,
+      "motion_gates_closed": true,
+      "selected_frames": 10
+    },
+    {
+      "run": "pregrasp_new_scene_recovery_20261123T061212Z",
+      "frame_count": 294,
+      "duration_s": 14,
+      "status_samples": 28,
+      "valid_status": 26,
+      "robot_commands_sent": 0,
+      "motion_gates_closed": true,
+      "selected_frames": 11
+    },
+    {
+      "run": "pregrasp_new_scene_serial_watch_20261123T061330Z",
+      "frame_count": 697,
+      "duration_s": 32,
+      "status_samples": 64,
+      "valid_status": 58,
+      "robot_commands_sent": 0,
+      "motion_gates_closed": true,
+      "selected_frames": 10
+    },
+    {
+      "run": "pregrasp_new_scene_wrist_post_20261123T061630Z",
+      "frame_count": 180,
+      "duration_s": 9,
+      "status_samples": 18,
+      "valid_status": 18,
+      "robot_commands_sent": 0,
+      "motion_gates_closed": true,
+      "selected_frames": 11
+    },
+    {
+      "run": "pregrasp_recovery_20261123T035804Z",
+      "frame_count": 214,
+      "duration_s": 10,
+      "status_samples": 20,
+      "valid_status": 20,
+      "robot_commands_sent": 0,
+      "motion_gates_closed": true,
+      "selected_frames": 11
+    },
+    {
+      "run": "pregrasp_resume_after_interrupt_20261123T060551Z",
+      "frame_count": 218,
+      "duration_s": 10,
+      "status_samples": 15,
+      "valid_status": 15,
+      "robot_commands_sent": 0,
+      "motion_gates_closed": true,
+      "selected_frames": 11
+    },
+    {
+      "run": "pregrasp_route_first_step_20261123T035711Z",
+      "frame_count": 192,
+      "duration_s": 9,
+      "status_samples": 18,
+      "valid_status": 17,
+      "robot_commands_sent": 0,
+      "motion_gates_closed": true,
+      "selected_frames": 9
+    },
+    {
+      "run": "resume_after_shutdown_20261123T034817Z",
+      "frame_count": 262,
+      "duration_s": 12,
+      "status_samples": 24,
+      "valid_status": 24,
+      "robot_commands_sent": 0,
+      "motion_gates_closed": true,
+      "selected_frames": 10
+    },
+    {
+      "run": "resume_confirmed_clear_20261123T034939Z",
+      "frame_count": 263,
+      "duration_s": 12,
+      "status_samples": 24,
+      "valid_status": 22,
+      "robot_commands_sent": 0,
+      "motion_gates_closed": true,
+      "selected_frames": 10
+    },
+    {
+      "run": "resume_shoulder_postcheck_20261123T035257Z",
+      "frame_count": 171,
+      "duration_s": 10,
+      "status_samples": 20,
+      "valid_status": 19,
+      "robot_commands_sent": 0,
+      "motion_gates_closed": true,
+      "selected_frames": 11
+    },
+    {
+      "run": "resume_wrist_postcheck_20261123T035141Z",
+      "frame_count": 153,
+      "duration_s": 8,
+      "status_samples": 16,
+      "valid_status": 15,
+      "robot_commands_sent": 0,
+      "motion_gates_closed": true,
+      "selected_frames": 11
+    }
+  ]
+}

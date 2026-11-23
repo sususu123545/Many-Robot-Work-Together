@@ -1,0 +1,224 @@
+{
+  "schema": "hand_eye_tf_stability_v1",
+  "frame_pair": [
+    "arm_base",
+    "rear_camera"
+  ],
+  "method": "within one capture run the arm pose is fixed, so the spread of the dynamic TF isolates publisher jitter from real pose change",
+  "runs_with_repeats": 21,
+  "max_within_run_delta_mm": {
+    "x": 0.423,
+    "y": 1.129,
+    "z": 1.4
+  },
+  "median_within_run_delta_mm": {
+    "x": 0.037,
+    "y": 0.478,
+    "z": 0.391
+  },
+  "worst_run": {
+    "run": "pregrasp_resume_after_interrupt_20261123T060551Z",
+    "delta_mm": {
+      "x": 0.051,
+      "y": 0.709,
+      "z": 1.4
+    }
+  },
+  "across_all_runs_delta_mm": {
+    "x": 0.821,
+    "y": 11.546,
+    "z": 17.873
+  },
+  "interpretation": "At a fixed pose the transform repeats to within 1.4 mm (x under 0.5 mm), so it is usable for projection checks. The far larger across-runs spread comes from the arm genuinely sitting at different poses across sessions, not from jitter.",
+  "per_run": [
+    {
+      "run": "grasp_approach_recheck_20261123T062942Z",
+      "samples": 10,
+      "delta_mm": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "run": "grasp_dwell_combined_20261123T071331Z",
+      "samples": 9,
+      "delta_mm": [
+        0.032,
+        0.478,
+        0.391
+      ]
+    },
+    {
+      "run": "grasp_dwell_combined_20261123T071532Z",
+      "samples": 9,
+      "delta_mm": [
+        0.423,
+        0.478,
+        0.391
+      ]
+    },
+    {
+      "run": "grasp_dwell_combined_20261123T072332Z",
+      "samples": 10,
+      "delta_mm": [
+        0.032,
+        0.478,
+        0.391
+      ]
+    },
+    {
+      "run": "grasp_elbow_idle_drift_20261123T064141Z",
+      "samples": 9,
+      "delta_mm": [
+        0.389,
+        0.036,
+        0.0
+      ]
+    },
+    {
+      "run": "grasp_elbow_timing_preflight_20261123T065611Z",
+      "samples": 9,
+      "delta_mm": [
+        0.032,
+        0.478,
+        0.74
+      ]
+    },
+    {
+      "run": "grasp_elbow_timing_refresh_20261123T070727Z",
+      "samples": 10,
+      "delta_mm": [
+        0.387,
+        0.059,
+        0.349
+      ]
+    },
+    {
+      "run": "grasp_high_entry_preflight_20261123T063417Z",
+      "samples": 10,
+      "delta_mm": [
+        0.033,
+        0.49,
+        0.388
+      ]
+    },
+    {
+      "run": "grasp_restart_after_elbow_20261123T065103Z",
+      "samples": 9,
+      "delta_mm": [
+        0.032,
+        0.478,
+        0.74
+      ]
+    },
+    {
+      "run": "grasp_resume_live_20261123T062210Z",
+      "samples": 10,
+      "delta_mm": [
+        0.037,
+        0.513,
+        0.381
+      ]
+    },
+    {
+      "run": "pregrasp_new_scene_clear_20261123T061104Z",
+      "samples": 9,
+      "delta_mm": [
+        0.002,
+        0.025,
+        0.349
+      ]
+    },
+    {
+      "run": "pregrasp_new_scene_recovery_20261123T061212Z",
+      "samples": 10,
+      "delta_mm": [
+        0.002,
+        0.025,
+        0.349
+      ]
+    },
+    {
+      "run": "pregrasp_new_scene_serial_watch_20261123T061330Z",
+      "samples": 9,
+      "delta_mm": [
+        0.037,
+        0.521,
+        0.729
+      ]
+    },
+    {
+      "run": "pregrasp_new_scene_wrist_post_20261123T061630Z",
+      "samples": 10,
+      "delta_mm": [
+        0.037,
+        0.513,
+        0.731
+      ]
+    },
+    {
+      "run": "pregrasp_recovery_20261123T035804Z",
+      "samples": 10,
+      "delta_mm": [
+        0.081,
+        1.129,
+        1.041
+      ]
+    },
+    {
+      "run": "pregrasp_resume_after_interrupt_20261123T060551Z",
+      "samples": 10,
+      "delta_mm": [
+        0.051,
+        0.709,
+        1.4
+      ]
+    },
+    {
+      "run": "pregrasp_route_first_step_20261123T035711Z",
+      "samples": 8,
+      "delta_mm": [
+        0.081,
+        1.129,
+        1.041
+      ]
+    },
+    {
+      "run": "resume_after_shutdown_20261123T034817Z",
+      "samples": 9,
+      "delta_mm": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "run": "resume_confirmed_clear_20261123T034939Z",
+      "samples": 9,
+      "delta_mm": [
+        0.072,
+        1.015,
+        0.76
+      ]
+    },
+    {
+      "run": "resume_shoulder_postcheck_20261123T035257Z",
+      "samples": 10,
+      "delta_mm": [
+        0.078,
+        1.099,
+        0.696
+      ]
+    },
+    {
+      "run": "resume_wrist_postcheck_20261123T035141Z",
+      "samples": 10,
+      "delta_mm": [
+        0.076,
+        1.061,
+        1.11
+      ]
+    }
+  ]
+}

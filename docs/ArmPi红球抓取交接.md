@@ -490,6 +490,11 @@ python3 scripts/eval_smolvla_offline.py --checkpoint <run>/checkpoints/003600/pr
 证据：`artifacts/smolvla_sim_finetune_20261123/`（`train_summary.json`、`eval_1800.json`、`eval_3600.json`）。
 ⚠️ `train_summary.json` 里 1000 步以上的 `step` 是 lerobot 打印的 `NK` 四舍五入值，loss 是精确的。
 
+**这个 checkpoint 不能上实体机。** 五条阻断项（joint3 撞闩锁阈值、夹爪行程未标定两头都不对、
+鱼眼畸变与 21.8 mm 外参偏差、任务不同、帧率 3 倍）写在
+[仿真策略上真机的阻断项](./仿真策略上真机的阻断项-2026-11-23.md)——那份文档是**直接给仿真组看的**，
+含证据、后果与解除条件。安全检查脚本 `tools/check_sim_action_transfer.py`。
+
 本机（Windows）没有 `torch`/`lerobot`/本地 checkpoint，且设计上不装——环境在 ycw：
 `/home/ycw/armpi_pro_ws/vla`（`.venv` 里 torch 2.11.0+cu130、lerobot 0.7.0、RTX 3090 24 GB），
 模型缓存在 `cache/huggingface/hub/models--lerobot--smolvla_base`（1.8 GB）。

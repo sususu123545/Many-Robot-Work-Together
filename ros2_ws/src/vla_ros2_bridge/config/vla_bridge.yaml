@@ -1,0 +1,46 @@
+# Parameters for the two VLA "head" nodes.
+#
+# This file deliberately ships with policy_kind: scripted and one_shot: true.
+# The scripted policy only walks the TCP toward a point; it is a closed-loop
+# bring-up tool, NOT a trained VLA.  Switching to a real model requires
+# policy_kind: remote, an endpoint, and -- critically -- a stats_file measured
+# from the dataset that trained it.  The bridge refuses a remote policy without
+# that file instead of guessing a normalisation scale.
+
+vla_observation_node:
+  ros__parameters:
+    image_topic: /rear_camera/image_raw/compressed
+    instruction_topic: /vla/instruction
+    observation_topic: /vla/observation
+    max_skew_s: 0.75
+    require_wrist_image: true
+    frame_id: arm_base
+    # Empty means "wait for /vla/instruction".  Set a string only for bench
+    # bring-up; an instruction is never fabricated at runtime.
+    instruction: ""
+
+vla_bridge_node:
+  ros__parameters:
+    observation_topic: /vla/observation
+    action_name: /vla/execute_chunk
+    policy_kind: scripted          # scripted | remote
+
+    endpoint: http://127.0.0.1:8080/vla
+    timeout_s: 2.0
+    stats_file: ""                 # required when policy_kind is remote
+    stats_file_required_for_remote: true
+
+    goal_position: [0.0, 0.20, 0.12]
+    step_m: 0.010
+    horizon: 16
+    control_dt: 0.35               # bus accepts 0.3..5.0 s timed moves
+    validity_s: 1.0
+    execute_steps: 4
+    max_observation_age_s: 0.75
+    max_chunk_age_s: 1.5
+    allow_projection: false        # never silently drop dry/drz
+
+    # Safety: one goal, then stop.  Do not set false while the arm is
+    # unattended; there is no collision sensing on this platform.
+    one_shot: true
+    wait_for_server_s: 5.0

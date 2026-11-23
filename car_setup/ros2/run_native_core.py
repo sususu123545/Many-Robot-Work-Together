@@ -172,7 +172,8 @@ def main():
     launch = ('source /opt/armpi_ros2/install/setup.bash && exec ros2 launch armpi_ros2 base.launch.py '
               'dry_run:=false enable_motion:=true enable_arm_motion:=false enable_gripper_motion:=false arm:=true lidar:=true imu:=true '
               + launch_camera + ' '
-              'video_server:=true rosbridge_port:=9091 ' + ' '.join(k + ':=' + str(v) for k, v in
+              + ('camera_device:=' + camera + ' ' if camera_present else '')
+              + 'video_server:=true rosbridge_port:=9091 ' + ' '.join(k + ':=' + str(v) for k, v in
               zip(('initial_x', 'initial_y', 'initial_yaw'), seed)))
     # 固定容器名：启动前清掉同名残留，保证全局只有一个核心容器，不再堆积临时容器
     name = 'armpi_ros2_native'
@@ -197,12 +198,16 @@ def main():
             '-v', str(MAPS) + ':/opt/armpi-maps',
             '-v', cfg['bmi_library'] + ':/opt/bmi270_py:ro']
     for d in devices:
-        # The camera is mapped under its historical name INSIDE the container:
-        # the launch file and every tool expect /dev/video0, while the host node
-        # may be video1/video2 after a USB re-enumeration.  Keeping the inside
-        # path fixed is the whole point of the udev symlink.
-        inside = '/dev/video0' if d == '/dev/armpi_cam' else d
-        args.extend(['--device', d + ':' + inside])
+        args.extend(['--device', d + ':' + d])
+    if camera_present:
+        # The camera re-enumerates (video0 -> video1) whenever its USB link
+        # hiccups, and docker pins device nodes at container creation, so a node
+        # mapped once goes stale and the camera dies until the next reboot.
+        # Handing the container the live /dev plus a cgroup rule for every
+        # video4linux minor lets the launch open the udev symlink instead, which
+        # follows the device.  Measured 2026-11-10: a static mapping cost two
+        # grasp runs.
+        args.extend(['-v', '/dev:/dev', '--device-cgroup-rule', 'c 81:* rwm'])
     args.extend([cfg['image'], 'bash', '-lc', launch])
     created = False
     stopping = False

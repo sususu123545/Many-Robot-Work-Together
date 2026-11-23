@@ -60,9 +60,13 @@ def main():
     parser.add_argument('--joint3', type=int, help='Override the joint3 target')
     parser.add_argument('--gate-tries', type=int, default=6)
     parser.add_argument('--max-travel', type=int, default=400)
+    parser.add_argument('--settled-tolerance-ticks', type=int, metavar='TICKS',
+                        help='Require fresh in-tolerance feedback after closing both motion gates')
     parser.add_argument('--confirm-arm-area-clear', action='store_true', required=True)
     parser.add_argument('--plan-only', action='store_true')
     args = parser.parse_args()
+    if args.settled_tolerance_ticks is not None and args.settled_tolerance_ticks < 0:
+        parser.error('--settled-tolerance-ticks must be nonnegative')
 
     pose = json.loads(Path(args.pose).read_text(encoding='utf-8'))
     if args.source == 'startup':
@@ -80,6 +84,9 @@ def main():
            'GATE_TRIES': args.gate_tries,
            'MESSAGE_CAP': limits.get('message_cap', 60),
            'MAX_TRAVEL': args.max_travel}
+    if args.settled_tolerance_ticks is not None:
+        env['ARMPI_VERIFY_SETTLED'] = 1
+        env['TOLERANCE'] = args.settled_tolerance_ticks
     for name, raw in targets.items():
         env['POSE_' + name] = raw
 

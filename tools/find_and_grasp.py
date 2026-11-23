@@ -503,7 +503,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument('--max-rounds', type=int, default=6)
     parser.add_argument('--walk-m', type=float, default=0.5)
-    parser.add_argument('--target', type=float, default=0.24)
+    parser.add_argument('--target', type=float, default=0.22)
     parser.add_argument('--map-frame', action='store_true',
                         help='use nav2_amcl /amcl_pose so ball memory survives '
                              'a reboot (requires a saved map + amcl running)')

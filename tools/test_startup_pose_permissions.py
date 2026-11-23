@@ -16,10 +16,12 @@ SOURCE = (ROOT/'car_setup/ros2/arm_startup_pose_ros.py').read_text(encoding='utf
 
 
 class Harness:
-    def __init__(self, revoke_only=False, failure=None, joints=None, pose=None):
+    def __init__(self, revoke_only=False, failure=None, joints=None, pose=None, verify_settled=False):
         self.now=100.0
         self.revoke_only=revoke_only
         self.failure=failure
+        self.verify_settled=verify_settled
+        self.closed_at=None
         self.joints=joints or ['joint1','joint2','joint3','joint4','joint5']
         self.pose=pose or {}
         self.arm=True if revoke_only else False
@@ -35,17 +37,25 @@ class Harness:
         return self.now
 
     def subscribe(self,typ,topic,callback,depth):
-        self.subscription=callback
+        if topic == '/arm_controller/status':
+            self.subscription=callback
 
     def status(self):
         names=['joint1','joint2','joint3','joint4','joint5','r_joint']
+        post_close=self.closed_at is not None
+        clock=self.closed_at if post_close and self.failure=='settled_stale' else self.now
+        positions={n:{'raw':480 if n=='joint1' and self.failure=='during_travel'
+                      else (500 if n!='r_joint' else 700),'temperature':25,
+                      'position_time':clock} for n in names}
+        if post_close and self.failure=='settled_drift':
+            positions['joint3']['raw']=520
+        gate_reopened=post_close and self.failure=='settled_reopened' and self.now-self.closed_at>.5
         return {'feedback_complete':True,'feedback_real':True,
                 'feedback_age_seconds':{n:0.1 for n in names},
-                'joints':{n:{'raw':480 if n=='joint1' and self.failure=='during_travel'
-                            else (500 if n!='r_joint' else 700),'temperature':25} for n in names},
+                'joints':positions,
                 'reset_eligible':True,'poll_pending':False,'stop_reasons':[],
                 'current_read_error':'read failed' if self.failure=='feedback' else None,
-                'enable_arm_motion':self.arm,'enable_gripper_motion':self.gripper,
+                'enable_arm_motion':self.arm or gate_reopened,'enable_gripper_motion':self.gripper,
                 'estop':self.estop,'fault_count':0,'health_state':'READY'}
 
     def spin(self,*args,**kwargs):
@@ -66,6 +76,8 @@ class Harness:
                 self.events.append('close' if closing else 'open')
                 if not closing or self.failure not in ('refused','ack_missing'):
                     self.arm=parameters['enable_arm_motion'];self.gripper=parameters['enable_gripper_motion']
+                    if closing:
+                        self.closed_at=self.now
                 result=NS(result=NS(successful=not(closing and self.failure=='refused'),reason='test refusal'))
                 if closing and self.failure=='ack_missing':
                     return NS(done=lambda:False,result=lambda:None)
@@ -102,7 +114,8 @@ class Harness:
                  'builtin_interfaces.msg':module('builtin_interfaces.msg',Duration=Message)}
         env={'JOINTS':','.join(self.joints),
              **{'POSE_'+name:str(self.pose.get(name,500)) for name in self.joints},
-             'ARMPI_POSE_REVOKE_ONLY':'1' if self.revoke_only else '0'}
+             'ARMPI_POSE_REVOKE_ONLY':'1' if self.revoke_only else '0',
+             'ARMPI_VERIFY_SETTLED':'1' if self.verify_settled else '0'}
         self.output=io.StringIO()
         with patch.dict(sys.modules,modules),patch.dict(os.environ,env,clear=True),\
              patch('time.monotonic',self.clock),\
@@ -161,6 +174,32 @@ class PermissionCleanupTests(unittest.TestCase):
                 self.assertIsInstance(error,SystemExit);self.assertNotEqual(error.code,0)
                 self.assertIn('"confirmed": false',h.output.getvalue())
                 self.assertNotIn('publisher',h.events)
+
+    def test_settled_mode_accepts_fresh_stationary_feedback(self):
+        h = Harness(verify_settled=True); error = h.run()
+        self.assertEqual(error.code, 0)
+        self.assert_closed(h)
+        output = h.output.getvalue()
+        self.assertLess(output.index('CLEANUP_JSON='), output.index('SETTLED_JSON='))
+        self.assertIn('SETTLED_JSON={"reached": true', output)
+
+    def test_settled_mode_rejects_drift_after_pre_cleanup_success(self):
+        h = Harness(verify_settled=True, failure='settled_drift'); error = h.run()
+        self.assertEqual(error.code, 3)
+        self.assert_closed(h)
+        lines = dict(line.split('=', 1) for line in h.output.getvalue().splitlines() if '_JSON=' in line)
+        self.assertTrue(json.loads(lines['RESULT_JSON'])['reached'])
+        settled = json.loads(lines['SETTLED_JSON'])
+        self.assertFalse(settled['reached'])
+        self.assertEqual(settled['final']['joint3'], 520)
+
+    def test_settled_mode_rejects_stale_samples_or_reopened_gate(self):
+        for failure in ('settled_stale', 'settled_reopened'):
+            with self.subTest(failure=failure):
+                h = Harness(verify_settled=True, failure=failure); error = h.run()
+                self.assertEqual(error.code, 3)
+                self.assert_closed(h)
+                self.assertIn('SETTLED_JSON={"reached": false', h.output.getvalue())
 
 
 class PoseResultTests(unittest.TestCase):

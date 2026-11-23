@@ -14,6 +14,7 @@ this file (stdin is this file, so a bare `X=1` line would parse as an assignment
   GATE_TRIES    bounded reset attempts; each latch costs about 10.5 s recovery
   MESSAGE_CAP   hard ceiling on published messages
   MAX_TRAVEL    refuse to start if any joint must travel further than this
+  ARMPI_VERIFY_SETTLED  1 to require a quiet final window after revocation
 
 It never opens the serial port: the arm node keeps /dev/rrc and remains the only
 reader. It only calls documented services and publishes to the documented topic.
@@ -46,6 +47,7 @@ ARM_JOINTS = ['joint1', 'joint2', 'joint3', 'joint4', 'joint5']
 # Maintenance mode executes ONLY the same finally/revocation path. It must never
 # reset an emergency latch, create a command publisher, or authorize movement.
 REVOKE_ONLY = os.environ.get('ARMPI_POSE_REVOKE_ONLY') == '1'
+VERIFY_SETTLED = not REVOKE_ONLY and os.environ.get('ARMPI_VERIFY_SETTLED') == '1'
 NAMES = [] if REVOKE_ONLY else [n for n in os.environ['JOINTS'].split(',') if n]
 if not REVOKE_ONLY and (not NAMES or any(n not in CENTRE for n in NAMES)):
     raise SystemExit('JOINTS must name known joints')
@@ -225,6 +227,58 @@ def revoke_motion_permissions(timeout=8.0):
     return {'confirmed': False, 'reason': reason}
 
 
+def verify_settled_pose():
+    """Verify a quiet final feedback window after both gates have closed."""
+    started = time.monotonic()
+    end = started + 6.0
+    last_receipt = state.get('received_at', 0)
+    last_position_time = started
+    observations = []
+    while time.monotonic() < end:
+        rclpy.spin_once(node, timeout_sec=0.05)
+        received = state.get('received_at', 0)
+        if received <= last_receipt:
+            continue
+        last_receipt = received
+        view = snapshot()
+        if view.get('enable_arm_motion') is not False or view.get('enable_gripper_motion') is not False:
+            return {'reached': False, 'reason': 'Motion permission changed during settled verification'}
+        if received < end - 1.5:
+            continue
+        gripper_complete = not NEEDS_GRIPPER or (
+            view.get('gripper_feedback_real', view.get('feedback_real'))
+            and view.get('gripper_feedback_complete', view.get('feedback_complete')))
+        if (not fresh_feedback(view) or not gripper_complete or view.get('estop')
+                or view.get('fault') or view.get('current_read_error')):
+            return {'reached': False, 'reason': 'Physical feedback invalid during the final window'}
+        joints = view.get('joints') or {}
+        positions = {}
+        position_times = []
+        for name in NAMES:
+            sample = joints.get(name, {})
+            raw = sample.get('raw')
+            position_time = sample.get('position_time', sample.get('time'))
+            low, high = LIMITS[name]
+            if (type(raw) is not int or not low <= raw <= high
+                    or not isinstance(position_time, (int, float))
+                    or not 0 <= received - position_time < 1.5):
+                return {'reached': False, 'reason': 'Missing or stale position for ' + name}
+            positions[name] = raw
+            position_times.append(position_time)
+        newest_cycle = min(position_times)
+        if newest_cycle > last_position_time:
+            last_position_time = newest_cycle
+            observations.append((newest_cycle, positions))
+
+    if (len(observations) < 2 or observations[-1][0] - observations[0][0] < .35
+            or time.monotonic() - observations[-1][0] > 1.0):
+        return {'reached': False, 'reason': 'Not enough fresh stopped position samples'}
+    max_error = {n: max(abs(pos[n] - TARGETS[n]) for _, pos in observations) for n in NAMES}
+    return {'reached': all(error <= TOLERANCE for error in max_error.values()),
+            'final': observations[-1][1], 'max_error': max_error,
+            'tolerance': TOLERANCE, 'samples': len(observations)}
+
+
 cleanup_started = False
 
 
@@ -314,6 +368,8 @@ def gate_lost(view):
         return True
     return False
 
+settled_pending = False
+settled = None
 try:
     if REVOKE_ONLY:
         raise SystemExit(0)
@@ -433,7 +489,9 @@ try:
         'reached': reached, 'messages': published, 'seconds': round(seconds, 1),
         'estop': snapshot().get('estop'), 'fault_count': snapshot().get('fault_count'),
         'health_state': snapshot().get('health_state')}), flush=True)
-    raise SystemExit(0 if reached else 3)
+    if not VERIFY_SETTLED:
+        raise SystemExit(0 if reached else 3)
+    settled_pending = True
 finally:
     cleanup_started = True
     cleanup = {'confirmed': False, 'reason': 'cleanup did not complete'}
@@ -444,8 +502,15 @@ finally:
     finally:
         print('CLEANUP_JSON=' + json.dumps(cleanup), flush=True)
         try:
-            node.destroy_node()
+            if cleanup['confirmed'] and settled_pending:
+                settled = verify_settled_pose()
+                print('SETTLED_JSON=' + json.dumps(settled), flush=True)
         finally:
-            rclpy.shutdown()
+            try:
+                node.destroy_node()
+            finally:
+                rclpy.shutdown()
     if not cleanup['confirmed']:
         raise SystemExit('FAILED motion permission revocation unconfirmed: ' + cleanup['reason'])
+
+raise SystemExit(0 if settled['reached'] else 3)

@@ -52,7 +52,7 @@ class BootTests(TestCase):
         definitions=[n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name in ('fresh_feedback','reject_fault')]
         names=['joint1','joint2','joint3','joint4','joint5','r_joint']
         state={'received_at':time.monotonic()}
-        scope={'time':time,'state':state,'ALL':names,'LIMITS':{n:(0,1000) for n in names}}
+        scope={'time':time,'state':state,'ARM_JOINTS':names[:5],'LIMITS':{n:(0,1000) for n in names}}
         exec(compile(ast.Module(body=definitions,type_ignores=[]),source,'exec'),scope)
         view={'feedback_complete':True,'feedback_real':True,'feedback_age_seconds':{n:.2 for n in names},'joints':{n:{'raw':500,'temperature':25} for n in names}}
         self.assertTrue(scope['fresh_feedback'](view))

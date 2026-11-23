@@ -44,6 +44,7 @@ sys.path.insert(0, os.path.join(HERE, 'perception'))
 
 import grasp_sequence as gs          # noqa: E402   (setup, jog, drive, FK, solver)
 from rosbridge_client import Rosbridge  # noqa: E402
+from scan_clean import clean_scan, nearest_in  # noqa: E402
 
 LIMIT_TOP = 0.34        # hard IK ceiling measured on 2026-11-04
 # The band is on the BALL, but what has to stay reachable is the aim point, and
@@ -53,6 +54,57 @@ LIMIT_TOP = 0.34        # hard IK ceiling measured on 2026-11-04
 GOOD_BAND = (0.20, 0.26)
 FRAME_TOP = 250         # keep the ball between these rows...
 FRAME_BOTTOM = 420      # ...so it never reaches the 480 edge
+
+AIM_TOL_DEG = 8.0
+CENTRE_STEP_DEG = 12.0  # never aim in one bite larger than this
+# turn_to() breaks out immediately when the command is <= its 5 deg tolerance,
+# so a smaller aim step is silently a no-op: measured 2026-11-10, seven
+# consecutive "+5.0 deg" commands left the pixel at 220 every single time.
+CENTRE_MIN_DEG = 8.0    # must stay above turn_to's tolerance
+MAX_CENTRE_STEPS = 6
+
+# Centre the ball on the IMAGE, not on the 3-D bearing.
+# Measured 2026-11-10: the ground estimator reported -68 deg for a ball sitting
+# at the left edge of a fisheye whose half-field is 34 deg (f=541 px, half-width
+# 320 px), i.e. a factor-of-two error.  Acting on that number turned the ball out
+# of frame in BOTH directions (-68 and +68 each lost it, and undoing either
+# brought it straight back), which is the signature of a doubled bearing.  The
+# pixel column has no such failure mode: it is literally where the camera saw
+# the ball, so the aim loop closes on px-320 instead.
+PIXEL_CENTRE = 234.0
+# NOT the middle of the image.  The camera rides on the wrist, roughly 0.17 m to
+# one side of the gripper's centre line, so a ball that looks centred is a ball
+# the fingers are NOT over.  Measured 2026-11-11 from two grasps:
+#     ball at image column 236  ->  arm_base x = +0.005  ->  GRASPED
+#     ball at image column 307  ->  arm_base x = +0.168  ->  closed on nothing
+# Those two points give x ~= 0.00228 * (column - 234), so the column that puts the
+# ball on the gripper's centre line is ~234, not 320.  Aiming at 320 left the car
+# 0.17 m off, and at that reach the wrist is twisted, which is why every grasp
+# with the ball off to one side failed while the centred one worked.
+PIXEL_TOL = 55.0        # one 8 deg aim step is ~112 px, so this is as good as
+                        # the chassis loop can honestly settle: it stops the car
+                        # within about 0.12 m of the gripper's centre line, and
+                        # the arm's own re-measure does the last few centimetres.
+# Pixels per degree, measured on the car: a 12 deg chassis turn moved the ball
+# ~168 px (14 px/deg), against the 9.4 px/deg a pinhole f=541 would predict --
+# the fisheye spreads the periphery, so the empirical number is the safe one.
+PIXELS_PER_DEG = 14.0
+CENTRE_GAIN = 0.6       # damped: a full correction overshoots on this lens
+# Direction that worked last; the loop below learns it on the first step.
+_AIM_SIGN = [1.0]
+
+# --- coming back out of the dead zone -------------------------------------
+# On 2026-11-10 the approach itself nudged the ball to 0.129 m.  The old code
+# printed "too close now -- stopping" and returned 0 (success), so grasp then
+# ran with the ball 129 mm out and the floor guard aborted three times in a row
+# ("tool point is only 9 mm above the surface").  There was no way back: the
+# only exits were "grasp from a distance that cannot work" or "give up".
+# So: below BACKOFF_TRIGGER, reverse in short bursts until BACKOFF_TARGET.
+BACKOFF_TRIGGER_M = 0.185   # closer than this and the grasp has no room
+BACKOFF_TARGET_M = 0.240    # where to come back to before trying again
+BACKOFF_BURST_M = 0.020     # one reverse burst; re-measure after every burst
+BACKOFF_MAX_BURSTS = 8      # 8 x 20 mm = 160 mm of travel, hard cap
+BACKOFF_REAR_CLEAR_M = 0.30  # never reverse into something this close
 
 
 def log(message):
@@ -271,9 +323,119 @@ def keep_in_view(bridge, ticks, located):
     return (fresh or ticks), True
 
 
+def rear_clearance(bridge):
+    """Nearest obstacle behind the car, in metres, or None if unreadable.
+
+    Reversing is the one motion this file never used to do, so it had no lidar
+    guard at all.  Backing into a chair leg 100 mm behind the tail would be
+    silent damage: the chassis has no bumper switch.
+    """
+    bridge.subscribe('/scan', 'sensor_msgs/msg/LaserScan')
+    bridge.drain(0.5)
+    m = bridge.wait_for_topic('/scan', timeout=4)
+    if m is None:
+        return None
+    points = clean_scan(m['ranges'], m['angle_increment'])
+    # Lidar angle 180 deg = straight behind.  +/-25 deg covers the tail width
+    # at the 0.3 m distance we care about.
+    return nearest_in(points, 180.0, 25.0)
+
+
+def back_off(bridge, args):
+    """Reverse in 20 mm bursts until the ball is back in the comfortable band.
+
+    Every burst re-measures, because the whole point is that the distance was
+    wrong -- stepping blind would just overshoot in the other direction.
+    Returns (ticks, located, reason); located is None when the ball is gone.
+    """
+    located = None
+    for burst in range(1, BACKOFF_MAX_BURSTS + 1):
+        ticks, located, reason = measure(bridge)
+        if located is None:
+            return ticks, None, reason
+        y = located['ball'][1]
+        if y >= BACKOFF_TARGET_M:
+            log('    backed out to y=%.3f m (%d burst(s))' % (y, burst - 1))
+            return ticks, located, ''
+        rear = rear_clearance(bridge)
+        if rear is None:
+            return ticks, located, 'cannot read the lidar to check behind'
+        if rear < BACKOFF_REAR_CLEAR_M:
+            log('    only %.2f m of floor behind (need %.2f) -- not reversing'
+                % (rear, BACKOFF_REAR_CLEAR_M))
+            return ticks, located, 'no room behind to back out'
+        log('  back %d: y=%.3f m, rear clear %.2f m -- reversing %.0f mm'
+            % (burst, y, rear, BACKOFF_BURST_M * 1000))
+        gs.drive(bridge, -args.speed, BACKOFF_BURST_M / args.speed)
+        time.sleep(1.0)
+    ticks, located, reason = measure(bridge)
+    return ticks, located, reason
+
+
+def centre_ball(bridge, args):
+    """Turn the chassis until the ball's image column is near the centre.
+
+    Hill-climbing on the pixel error, not trigonometry.  The sign of a chassis
+    turn and the honesty of an edge-of-fisheye bearing are both things this car
+    has been wrong about, so the loop notices and corrects itself:
+      * pixel error shrank  -> keep turning the same way;
+      * pixel error grew    -> reverse and keep the flipped sign;
+      * ball left the frame -> undo that step, reverse, look again.
+    Returns (ticks, located, reason); located is None when both directions have
+    been tried and the ball still cannot be found.
+    """
+    sign = _AIM_SIGN[0]
+    last = None
+    reversals = 0
+    best = None
+    for attempt in range(1, MAX_CENTRE_STEPS + 1):
+        ticks, located, reason = measure(bridge)
+        if located is None:
+            if reversals >= 2:
+                return ticks, None, reason
+            reversals += 1
+            sign = -sign
+            step = sign * CENTRE_STEP_DEG
+            log('    ball is not in view -- trying %+.0f deg' % step)
+            turn_to(bridge, step)
+            continue
+        px = located['pixel'][0]
+        error = px - PIXEL_CENTRE
+        if abs(error) <= PIXEL_TOL:
+            _AIM_SIGN[0] = sign
+            log('    centred after %d step(s): pixel x=%.0f' % (attempt - 1, px))
+            return ticks, located, ''
+        if best is None or abs(error) < best:
+            best = abs(error)
+        if last is not None and abs(error) > abs(last) + 5.0:
+            sign = -sign
+            log('    pixel error grew %+.0f -> %+.0f -- turning the other way'
+                % (last, error))
+        last = error
+        # Proportional, not fixed: a fixed 12 deg moves the ball ~170 px, four
+        # times the residual error it is trying to remove, so a fixed step can
+        # only ping-pong (measured 2026-11-10: 275 -> 106 -> 263 -> 443 -> 273,
+        # a clean limit cycle that spun the car in place until it timed out).
+        step = min(CENTRE_STEP_DEG,
+                   max(CENTRE_MIN_DEG, abs(error) / PIXELS_PER_DEG * CENTRE_GAIN))
+        log('    centring: pixel x=%.0f (error %+.0f), turning %+.1f'
+            % (px, error, sign * step))
+        turn_to(bridge, sign * step)
+    ticks, located, reason = measure(bridge)
+    if located is not None and best is not None:
+        log('    could not centre (best error %+.0f px) -- carrying on'
+            % best)
+        _AIM_SIGN[0] = sign
+    return ticks, located, reason
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument('--target', type=float, default=0.27,
+    # 0.22 m, not 0.24: measured 2026-11-11, grasps at 0.211-0.231 m land
+    # within 3-9 mm of the aim, while at 0.2525 m the IK branch sits 19-39 mm
+    # too low and the fingers close under the ball.  Closer is more accurate
+    # on this arm, so stop earlier in the band.
+    parser.add_argument('--target', type=float, default=0.22,
                         help='stop when the ball is this far ahead (m)')
     parser.add_argument('--step-seconds', type=float, default=0.6)
     parser.add_argument('--speed', type=float, default=0.08)
@@ -331,12 +493,61 @@ def main():
                 return 2
             ball = located['ball']
             y = ball[1]
-            log('  step %d: y=%.3f m  v=%.0f  (want %.2f)'
-                % (step, y, located['pixel'][1], args.target))
+            log('  step %d: y=%.3f m  x=%+.3f  v=%.0f  (want %.2f)'
+                % (step, y, ball[0], located['pixel'][1], args.target))
 
-            if GOOD_BAND[0] <= y <= GOOD_BAND[1]:
-                log('    inside the comfortable band -- done')
+            # AIM FIRST.  "Inside the distance band" is not the same as
+            # "graspable": on 2026-11-10 the ball sat at arm_base
+            # (-0.60, +0.24) -- 0.24 m ahead but 68 deg off to the side.
+            # The old order returned "done" on y alone, so grasp ran and IK
+            # refused with "no IK at y=0.240 m" eight rounds in a row, and
+            # nothing ever turned the car to face the ball.
+            offset_deg = math.degrees(math.atan2(ball[0], ball[1]))
+            pixel_error = located['pixel'][0] - PIXEL_CENTRE
+            centred = abs(pixel_error) <= PIXEL_TOL
+
+            if centred and GOOD_BAND[0] <= y <= GOOD_BAND[1]:
+                log('    inside the comfortable band and centred -- done')
                 return 0
+            if not centred:
+                log('    aiming: ball is %+.0f px off centre (estimator says '
+                    '%+.0f deg)' % (pixel_error, offset_deg))
+                ticks, located, reason = centre_ball(bridge, args)
+                if located is None:
+                    log('    could not get the ball in front (%s) -- stopping'
+                        % reason)
+                    return 2
+                ball = located['ball']
+                y = ball[1]
+                log('    after aim: y=%.3f  x=%+.3f' % (y, ball[0]))
+                # Turning changes the geometry, so the push guard must not
+                # compare this reading with the pre-turn history.
+                history = [y]
+                continue
+            if y < BACKOFF_TRIGGER_M:
+                # Deep in the dead zone: the grasp cannot work from here, so
+                # reverse instead of handing a doomed distance to grasp.
+                log('    %.3f m is inside the dead zone -- backing out' % y)
+                ticks, located, reason = back_off(bridge, args)
+                if located is None:
+                    log('    lost the ball while backing out (%s) -- stopping'
+                        % reason)
+                    return 2
+                ball = located['ball']
+                y = ball[1]
+                log('    after back-out: y=%.3f  x=%+.3f' % (y, ball[0]))
+                history = [y]
+                ticks, moved = keep_in_view(bridge, ticks, located)
+                if moved:
+                    time.sleep(0.6)
+                if GOOD_BAND[0] <= y <= GOOD_BAND[1]:
+                    log('    inside the comfortable band -- done')
+                    return 0
+                if y < BACKOFF_TRIGGER_M:
+                    log('    still only %.3f m away and there is no more room to '
+                        'reverse -- stopping' % y)
+                    return 2
+                continue
             if y < GOOD_BAND[0]:
                 log('    too close now -- stopping')
                 return 0
@@ -355,35 +566,10 @@ def main():
             if moved:
                 time.sleep(0.6)
 
-            # AIM: rotate the chassis so the ball sits dead ahead before walking.
-            # arm_base: y = forward distance, x = lateral.  Beyond 8 degrees the
-            # wrist twist wastes travel and risks pushing the ball sideways, so
-            # hand the turn to the chassis (turn_to, odometry-corrected).
-            # SIGN NOTE 2026-11-05: the x-axis polarity is confirmed on the first
-            # live run -- if the ball drifts FARTHER off-centre after this turn,
-            # negate theta below.
-            # SIGN CONFIRMED 2026-11-06: x<0 means the ball is LEFT, and a left
-            # correction is a POSITIVE chassis turn (turn_to(+) = left, verified
-            # by odometry).  The first live run sent atan2's raw -32 and the car
-            # turned AWAY from the ball -- it left the frame.  So negate.
-            theta = -math.degrees(math.atan2(located['ball'][0], located['ball'][1]))
-            if abs(theta) > 8.0:
-                log('    aiming: ball sits %+.0f deg off-heading, turning %+0.0f'
-                    % (theta, theta))
-                turn_to(bridge, theta)
-                time.sleep(1.0)
-                ticks, located, reason = measure(bridge)
-                if located is None:
-                    log('    lost the ball while aiming (%s) -- stopping' % reason)
-                    return 2
-                ball = located['ball']
-                y = ball[1]
-                log('    after aim: y=%.3f  x=%+.3f' % (y, ball[0]))
-                # Turning changes the geometry: the next forward step
-                # almost always reads a larger y, which is NOT pushing.
-                # Reset the baseline so the push guard compares like
-                # with like.
-                history = [y]
+            # AIM used to live here, after the push guard and keep_in_view.
+            # It now runs at the top of the loop, before any "done" decision,
+            # because a ball can sit inside the distance band while being far
+            # enough off to the side that IK has no solution (2026-11-10).
 
             gap = y - args.target
             seconds = min(args.step_seconds, max(0.25, gap / args.speed))

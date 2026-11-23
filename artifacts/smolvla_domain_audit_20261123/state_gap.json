@@ -1,0 +1,78 @@
+{
+  "schema": "smolvla_state_gap_v1",
+  "observation": "artifacts\\smolvla_domain_audit_20261123\\observation.json",
+  "results": [
+    {
+      "domain": "so100-blue",
+      "state_mapping": "unadapted_armpi_joint_order",
+      "embodiment_compatible": false,
+      "channels": [
+        {
+          "channel": "shoulder_pan",
+          "armpi_joint": "joint1",
+          "input_rad": -0.07120943348136864,
+          "input_deg": -4.08,
+          "source_mean": 1.3920323848724365,
+          "source_std": 13.815537452697754,
+          "z": -0.396
+        },
+        {
+          "channel": "shoulder_lift",
+          "armpi_joint": "joint2",
+          "input_rad": 0.783303768295055,
+          "input_deg": 44.88,
+          "source_mean": 124.27093505859375,
+          "source_std": 40.265377044677734,
+          "z": -1.972
+        },
+        {
+          "channel": "elbow_flex",
+          "armpi_joint": "joint3",
+          "input_rad": -1.6797048721193426,
+          "input_deg": -96.24,
+          "source_mean": 126.75360107421875,
+          "source_std": 17.55931854248047,
+          "z": -12.699
+        },
+        {
+          "channel": "wrist_flex",
+          "armpi_joint": "joint4",
+          "input_rad": -1.2566370614359172,
+          "input_deg": -72.0,
+          "source_mean": 63.71969223022461,
+          "source_std": 23.59139060974121,
+          "z": -5.753
+        },
+        {
+          "channel": "wrist_roll",
+          "armpi_joint": "joint5",
+          "input_rad": -0.0041887902047863905,
+          "input_deg": -0.24,
+          "source_mean": -104.07276153564453,
+          "source_std": 33.371917724609375,
+          "z": 3.111
+        },
+        {
+          "channel": "gripper",
+          "armpi_joint": "r_joint",
+          "input_rad": -1.7121679962064373,
+          "input_deg": -98.1,
+          "source_mean": 3.957056760787964,
+          "source_std": 4.50685453414917,
+          "z": -22.645
+        }
+      ],
+      "channels_beyond_3_sigma": 4,
+      "worst": {
+        "channel": "gripper",
+        "armpi_joint": "r_joint",
+        "input_rad": -1.7121679962064373,
+        "input_deg": -98.1,
+        "source_mean": 3.957056760787964,
+        "source_std": 4.50685453414917,
+        "z": -22.645
+      }
+    }
+  ],
+  "scope": "the input side is independent of the output audit: a clean domain reverse-normalization says nothing about whether the model has ever seen this robot state"
+}

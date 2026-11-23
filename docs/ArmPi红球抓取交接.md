@@ -202,12 +202,16 @@ ycw 已用现有环境和缓存 `lerobot/smolvla_base` 做过离线推理。一�
 
 真机抓球链稳定后，按以下顺序接入模型。
 
-1. 确定源模型适用的数据域与训练时的字段顺序，复核 `observation.state` 和 `action` 的归一化及反归一化。现有三套 SO100 统计都有离线复测，真机默认域尚未选定。短时真车同步样本已足以验证模型能前向推理。
+1. 确定源模型适用的数据域与训练时的字段顺序，复核 `observation.state` 和 `action` 的归一化及反归一化。
+   ✅ **数据域已定：`so100-blue`**（50 步全量复核零越界，`so100` 排除，见 §7.1）；**归一化仍是跳过的，未解决**。
+   真正卡住的是输入侧的关节坐标系（§7.3），不是统计量选择。
 2. 核实 6 维输出的语义、单位、零点、方向和量级。现有 ROS 2 VLA 执行入口使用另一路 7 维动作表示，先设计明确转换。需要时用源机器人正算、任务坐标与 ArmPi 逆算来做物理映射，同时校准夹爪。
 3. 用固定画面和同步反馈做可重复的离线回放，再用实时帧运行影子模式，保存候选动作、限位、预计末端轨迹和模型结果。校对底盘、机械臂、夹爪权限和停止条件。
 4. 确认映射与保护流程后，从有界单段真机动作开始，逐项验收跟踪、净空和夹持。现有 `command_output_enabled` 为 `false`，应将适配和验证完成后再决定启用。
+5. **前置硬条件（§7.3 得出）：先做 ArmPi↔SO100 的逐关节仿射标定（符号、零点、斜率）**，把状态拉回训练分布内，
+   否则第 2~4 步做的动作转换没有可用的输入基础。
 
-[待定适配配置](../tools/config/armpi_smolvla_adapter.pending.json) · [三组源统计](../tools/config/smolvla_source_stats/) · [离线探针](../tools/smolvla_probe.py) · [ROS 2 VLA 配置](../ros2_ws/src/vla_controller/config/vla_controller.yaml)
+[待定适配配置](../tools/config/armpi_smolvla_adapter.pending.json) · [三组源统计](../tools/config/smolvla_source_stats/) · [离线探针](../tools/smolvla_probe.py) · [域审计工具](../tools/smolvla_domain_audit.py) · [ROS 2 VLA 配置](../ros2_ws/src/vla_controller/config/vla_controller.yaml)
 
 ### 7.1 归一化阻塞点已定位，选错域的代价已量化（2026-11-23）
 
@@ -247,14 +251,117 @@ checkpoint 里存的统计键是 `so100.buffer.action`、`so100-red.buffer.actio
 `postprocessor_output_equal_model_output` 为真，官方 pre/post 变换确实被跳过，输出停留在归一化空间。
 
 **这次验证的边界（不要当成"已选定域"）：**
-- 只拿到 `postprocessor_output_preview` 的 **3 步**，不是完整 50 步；
-- 模型 `configured_cameras=3` 而本地只喂了 **1 路**相机（`supplied_cameras=1`），视觉输入不足；
+- ~~只拿到 3 步~~ → 已补全 50 步，见下；
 - 反归一化是**手工套公式**做的（`raw = z*std + mean`），不是官方 transform；
 - `target_robot_mapping_verified`、`checkpoint_to_urdf_calibration_verified`、`absolute_zero_verified`
   在 `armpi_smolvla_adapter.pending.json` 里**仍然全是 false**，跨域标定一项都没解决。
 
-**下一步（要真正定域，仍需补两件事）：** ①把 `tools/smolvla_probe.py` 的 preview 改成落盘完整 50 步；
-②用三路相机喂满 `configured_cameras`。两项齐了再把 `so100-blue` 写进 `source_statistics_profile`。
+**50 步全量复核（2026-11-23）。** `actions.json` 里本来就存了完整 `[1,50,6]`，之前只看 3 步是漏了。
+按三套统计各反归一化 50 步（共 300 个通道值），判定"物理上是否可能存在"：
+
+| 统计 | 越界步数 | 具体表现 |
+| --- | --- | --- |
+| `so100` | **17 / 300** | `elbow_flex` **15 步**落在 −280.1~11.5°（超 ±180），`gripper` 2 步为负（−0.4%） |
+| `so100-red` | 2 / 300 | 仅 `gripper` 2 步为 −0.03% 量级的浮点边界 |
+| `so100-blue` | **0 / 300** | 全 50 步全部落在 ±180° / 0~100% 内 |
+
+`so100-blue` 全 50 步轨迹（度 / 百分比）与跨步最大跳变：
+
+| 通道 | 对应关节 | 首值 | 末值 | 区间 | 净变化 | 最大跨步 |
+| --- | --- | --- | --- | --- | --- | --- |
+| shoulder_pan | joint1 | −0.27 | −10.13 | −10.26 ~ 26.91 | −9.9 | 7.51 |
+| shoulder_lift | joint2 | 131.33 | 103.02 | 82.44 ~ 131.33 | −28.3 | 13.65 |
+| elbow_flex | joint3 | −17.22 | 79.46 | −17.22 ~ 89.47 | +96.7 | 27.83 |
+| wrist_flex | joint4 | 44.64 | 36.60 | 17.00 ~ 52.23 | −8.0 | 11.72 |
+| wrist_roll | joint5 | −88.89 | −85.24 | −126.56 ~ −81.14 | +3.7 | 17.97 |
+| gripper | r_joint | 0.05 | 16.30 | 0.05 ~ 24.25 | +16.3 | 16.39 |
+
+**域的选择就此定案：`so100-blue`，`so100` 排除。** 这条只说明**输出侧**换算自洽；
+输入侧仍然是坏的，见 §7.3。
+
+### 7.2 相机数量不是阻塞点（2026-11-23 修正，源码级结论）
+
+**此前我写过"`configured_cameras=3` 而只喂 1 路 → 视觉输入不足"，这条是错的，作废。**
+SmolVLA 的 `prepare_images()`（`code/lerobot/src/lerobot/policies/smolvla/modeling_smolvla.py:385`）逻辑是：
+
+```python
+present_img_keys = [key for key in self.config.image_features if key in batch]
+missing_img_keys = [key for key in self.config.image_features if key not in batch]
+if len(present_img_keys) == 0:
+    raise ValueError("All image features are missing from the batch. At least one expected.")
+# ...只处理 present 的部分，各自 resize_with_pad 到 512x512、归一化到 [-1,1]...
+for num_empty_cameras in range(len(missing_img_keys)):
+    if num_empty_cameras >= self.config.empty_cameras:
+        break                      # ← empty_cameras=0 时第一次就 break，一张空图都不补
+    images.append(torch.ones_like(img) * -1); img_masks.append(torch.zeros_like(mask))
+```
+
+即 **`empty_cameras: 0` 的设计语义就是"你给几路就用几路，至少一路"**：缺失相机被整段丢弃，不进序列、
+也不进 mask，只保留实际提供的那几路。所以：
+
+- **单路腕部相机是原生支持的工作方式，不需要改 config、不需要复制图像凑数。**
+- 这也与 ycw 上真机数据集的写法一致：`scripts/t07_convert_remote.py` 的 features 只有
+  `observation.state(6)` + `action(6)` + `observation.images.camera1`，`t07_completion_audit_remote.py`
+  断言读回形状为 `[2,6]` / `[2,50,6]` / `[2,3,480,640]`——**一路相机、六维关节**。
+- `configs/t02_policy_config.json` 里那套 `camera1+camera2 / state 8 / action 7` 是 **LIBERO** 的配置
+  （agentview + wrist），不是 Gazebo 抓球实验的；HANDOFF §6 明确写了"LIBERO 状态8维、动作7维"与
+  "ArmPi 六维关节目标"是两套东西。拿它当 ArmPi 的相机数依据是引错了配置。
+
+同一份源码还说明：喂 1 路时视觉 token 比 3 路少，这是**信息量差异**（视野缺一路），不是能否运行的结构问题。
+若要补第二路，成本是加一路相机与标定，而不是改模型。
+
+**下一步（要真正定域）：** ①把 `tools/smolvla_probe.py` 的 preview 改成落盘完整 50 步；
+②确认源域（现有证据指向 `so100-blue`）后写进 `source_statistics_profile`；③做 §7 前面列出的六维↔七维动作映射与跨域标定。
+相机这一项可以从待办里划掉。
+
+### 7.3 输入侧才是真正过不去的坎：状态偏离训练分布 12~22 sigma（2026-11-23）
+
+§7.1 只证明了输出侧换算自洽。输入侧的问题是另一个量级。SmolVLA 预训练用 **SO100 关节角（度）**，
+而探针喂进去的是 **ArmPi 关节弧度原值**（`state_mapping: unadapted_armpi_joint_order`、
+`embodiment_compatible: false`）。把那次真实输入换算成度，再对 `so100-blue` 的 `observation.state`
+统计做 z 分数：
+
+| 通道 | ArmPi 关节 | 输入值（度） | 源均值 | 源 std | z |
+| --- | --- | --- | --- | --- | --- |
+| shoulder_pan | joint1 | −4.08 | 1.39 | 13.82 | −0.40 |
+| shoulder_lift | joint2 | 44.88 | 124.27 | 40.27 | −1.97 |
+| elbow_flex | joint3 | −96.24 | 126.75 | 17.56 | **−12.70** |
+| wrist_flex | joint4 | −72.00 | 63.72 | 23.59 | **−5.75** |
+| wrist_roll | joint5 | −0.24 | −104.07 | 33.37 | **+3.11** |
+| gripper | r_joint | −98.10 | 3.96 | 4.51 | **−22.64** |
+
+**6 路里有 4 路落在 ±3σ 以外，最远 22.6σ（夹爪）、12.7σ（肘）。** 这意味着：给定这个状态，
+模型不是在插值，而是在**外推**。外推出来的动作即使是自洽的（§7.1 那 50 步确实自洽），也不代表它对
+ArmPi 有意义——SO100 从没在这个位姿上演示过任何东西。
+
+还有一层更隐蔽的：因为规范化键名缺失（§7.1），官方 transform 被跳过，模型**实际收到的就是弧度原值**
+（joint3 = −1.68），而训练时收到的是 MEAN_STD 后的 z 值（joint3 ≈ 0）。也就是说当前这次推理
+**连单位都是错的**，只是这些弧度数字碰巧落在 z 值的常见数值区间里，所以没有报错。
+
+**为什么不能靠"换算单位"一把过：** 光把弧度换成度，joint3 已经是 −12.7σ。真正的差距在于 ArmPi 在开机
+姿态（joint3 = 907 tick，肘是**反方向**弯的），而 SO100 的 elbow_flex 均值是 **+126.75°**。两家的符号与零点
+本来就不是一套。要把状态拉回分布内，必须做**逐关节的仿射映射（符号 + 零点 + 斜率）标定**，这正是
+`target_robot_mapping_verified` / `absolute_zero_verified` 那两个 false 所代表的未完成工作。
+
+**对"现在为什么不能用 VLA"的一句话回答：**
+不是缺相机，不是缺显存，也不是模型跑不起来——是**预训练模型的输入口只认 SO100 的关节坐标系，
+而 ArmPi 的六轴和它差了 12~22 个标准差；不先把两套关节坐标系标定对齐，模型输出的 50 步动作再自洽也不能下发。**
+
+**复现方式**（两个子命令，纯 Python，不需要 GPU）：
+
+```bash
+python3 tools/smolvla_domain_audit.py domains \
+  --actions artifacts/smolvla_domain_audit_20261123/actions.json \
+  --out   artifacts/smolvla_domain_audit_20261123/domain_audit.json
+python3 tools/smolvla_domain_audit.py state \
+  --observation artifacts/smolvla_domain_audit_20261123/observation.json \
+  --domain so100-blue \
+  --out artifacts/smolvla_domain_audit_20261123/state_gap.json
+python3 -B tools/test_smolvla_domain_audit.py     # 15 项，含"弧度必须先转度"的回归
+```
+
+证据：`artifacts/smolvla_domain_audit_20261123/`（`actions.json` 原样取自 ycw 的
+`probe_20261123/run1.json/actions.json`，`observation.json` 取自 `probe_20261123/input1/`）。
 
 本机（Windows）没有 `torch`/`lerobot`/本地 checkpoint，且设计上不装——环境在 ycw：
 `/home/ycw/armpi_pro_ws/vla`（`.venv` 里 torch 2.11.0+cu130、lerobot 0.7.0、RTX 3090 24 GB），

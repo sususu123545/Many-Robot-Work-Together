@@ -1,0 +1,39 @@
+{
+  "schema": "armpi_smolvla_probe_v1",
+  "mode": "offline_diagnostic",
+  "instruction": "Pick up the red ball.",
+  "robot": "armpi_pro",
+  "state": [
+    -0.07120943348136864,
+    0.783303768295055,
+    -1.6797048721193426,
+    -1.2566370614359172,
+    -0.0041887902047863905,
+    -1.7121679962064373
+  ],
+  "state_names": [
+    "joint1",
+    "joint2",
+    "joint3",
+    "joint4",
+    "joint5",
+    "r_joint"
+  ],
+  "state_unit": "rad",
+  "state_mapping": "unadapted_armpi_joint_order",
+  "embodiment_compatible": false,
+  "executable": false,
+  "image": {
+    "path": "camera.jpg",
+    "sha256": "e8297e43b68ddaba5bdb68496e31aa853858e48f5233dbe0b568586d0716dc4a",
+    "feature": "observation.images.camera1",
+    "source_frame": "rear_camera"
+  },
+  "source": {
+    "image_stamp_ns": 1795320470192806178,
+    "joint_stamp_ns": 1795320470196367682,
+    "robot_skew_s": 0.003561504,
+    "receiver_skew_s": 0.008579852,
+    "alignment": "read_only_header_and_receiver_timestamp_pair"
+  }
+}

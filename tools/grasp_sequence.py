@@ -173,7 +173,13 @@ VISION = {'backend': 'color', 'model': None, 'label': None, 'plane': -0.094}
 # The close then runs to 452 (pads touching, nothing between them).
 # dz=+8 is the level that has actually worked: 2026-11-12 measured miss 6.2 mm
 # and r_closed 390 with the pads on the ball.
-DZ_LEVELS = (0.008, 0.016)
+# 0.004 first (deepest): the funnel ejects balls contacted on their upper
+# hemisphere -- 2026-11-24 run10 missed laterally by only 9 mm yet the taper
+# slid the ball out of the V (pads closed to 450, empty), while run9's descent
+# happened to land the tool at ball-centre height and held.  Contact depth,
+# not lateral aim alone, decides wedge vs eject.  Aims below 0.004 sit on the
+# floor-guard line, so 0.004 is the deepest reachable level.
+DZ_LEVELS = (0.004, 0.008, 0.016)
 EDGE_GRIP = 395       # r_closed above this means only the ball's edge is held
 # Every level must be ABOVE the ball centre, and positive means "tool point
 # higher than the centre".  The old (-0.010, -0.006, 0.000) trio was impossible

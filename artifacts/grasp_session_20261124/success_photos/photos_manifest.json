@@ -1,0 +1,15 @@
+{
+  "car_topdown_holding.jpg": {
+    "bytes": 108479,
+    "sha256": "ea6240312bf8beaf8bad5098dde92520"
+  },
+  "grip_closeup_base_side.jpg": {
+    "bytes": 182761,
+    "sha256": "bcef14cb44bc71b0bcc12557cced1a3a"
+  },
+  "grip_front_view.jpg": {
+    "bytes": 173209,
+    "sha256": "2adbd0f6d09a63c80ab96d2e051ccdba"
+  },
+  "_context": "run9 successful grasp, RESULT r_closed=397 r_after_lift=386, ball 37mm, photos taken by operator 2026-11-24 ~17:40"
+}

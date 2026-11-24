@@ -265,7 +265,13 @@ def command_run(arguments):
                 # 1201 states on disk but no meta and exit code 1).
                 if 'timed out' in str(error):
                     continue
-                if 'closed the connection' in str(error) or 'not connected' in str(error):
+                # rosbridge_client raises more than one wording for a dead
+                # socket ('server closed the connection' from the header read,
+                # 'connection closed' from the frame read), and there is no
+                # recovering from either -- fall out to the summary instead of
+                # crashing without one (measured 2026-11-24 17:41: a tunnel
+                # drop killed a 946 s recording at the meta step).
+                if isinstance(error, Exception) and 'timed out' not in str(error):
                     drop_reason = str(error)
                     print('connection dropped after %.0f s: %s'
                           % (time.monotonic() - started_mono, error))

@@ -1278,5 +1278,123 @@
       }
     ]
   },
-  "_notes_run16": "球位标准（24cm）仍弹出：z_bias +3.4/+5.9mm 浅接触。12 次规律确认：成功仅出现在工具点落到球心高度附近的两次（run9/14），而那是 joint3 停滞彩票的幸运落点，不是可控量。"
+  "_notes_run16": "球位标准（24cm）仍弹出：z_bias +3.4/+5.9mm 浅接触。12 次规律确认：成功仅出现在工具点落到球心高度附近的两次（run9/14），而那是 joint3 停滞彩票的幸运落点，不是可控量。",
+  "run17": {
+    "ok": true,
+    "stage": "done",
+    "detail": "jaws held at 395 -> the ball is still between them",
+    "joints_start": {
+      "joint1": 489,
+      "joint2": 678,
+      "joint3": 922,
+      "joint4": 196
+    },
+    "ball": [
+      0.0247,
+      0.2221,
+      -0.0379
+    ],
+    "pixel": [
+      349.0,
+      403.9,
+      32.9
+    ],
+    "attempts": [
+      {
+        "dz": 0.006,
+        "joints": {
+          "joint1": 480,
+          "joint2": 499,
+          "joint3": 929,
+          "joint4": 408
+        },
+        "tool": [
+          0.0188,
+          0.2243,
+          0.023
+        ],
+        "wanted": [
+          0.0247,
+          0.2321,
+          -0.0319
+        ],
+        "z_bias_mm": 0.0,
+        "miss_mm": null,
+        "aborted_by_floor_guard": true
+      },
+      {
+        "dz": 0.006,
+        "joints": {
+          "joint1": 480,
+          "joint2": 494,
+          "joint3": 926,
+          "joint4": 418
+        },
+        "tool": [
+          0.0186,
+          0.2218,
+          -0.0068
+        ],
+        "wanted": [
+          0.0247,
+          0.2321,
+          -0.0319
+        ],
+        "z_bias_mm": 0.0,
+        "miss_mm": null,
+        "aborted_by_floor_guard": true
+      },
+      {
+        "dz": 0.008,
+        "joints": {
+          "joint1": 478,
+          "joint2": 377,
+          "joint3": 896,
+          "joint4": 418
+        },
+        "tool": [
+          0.0205,
+          0.222,
+          -0.0342
+        ],
+        "wanted": [
+          0.0247,
+          0.2321,
+          -0.0299
+        ],
+        "z_bias_mm": -4.3,
+        "miss_mm": 11.8,
+        "aborted_by_floor_guard": false
+      }
+    ],
+    "r_open": 128,
+    "close_attempts": [
+      {
+        "dz": 0.008,
+        "nudge": "as is",
+        "opened": 128,
+        "trace": [
+          128,
+          174,
+          223,
+          274,
+          321,
+          364,
+          386,
+          402,
+          405,
+          405,
+          406,
+          405,
+          405
+        ],
+        "r": 405
+      }
+    ],
+    "dz_used": 0.008,
+    "r_closed": 405,
+    "r_after_lift": 395,
+    "_platform": "ball raised 40mm on a platform, --plane -0.054"
+  },
+  "_notes_run17": "垫高 40mm + --plane -0.054：第三次成功（22.2cm，闭合 405→抬升保持 395）。关键发现：平台上即使 405 的边缘咬合也稳稳保持——平台挡住了球的向下弹出路径，V 口只需防上抛。垫高让抓取变宽容。"
 }

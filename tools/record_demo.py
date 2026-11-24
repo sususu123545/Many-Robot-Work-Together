@@ -180,17 +180,27 @@ def command_run(arguments):
 
     states_handle = states_path.open('w')
     index_handle = index_path.open('w')
+    drop_reason = None
     try:
         while time.monotonic() < deadline:
             try:
                 raw = bridge.recv_any(timeout=1.0)
             except Exception as error:
                 # Only a quiet stream is expected here.  Anything else -- a typo
-                # in an attribute name, a closed socket -- must not be swallowed,
-                # which is exactly how a silent zero-message recording happened.
-                if 'timed out' not in str(error):
-                    raise
-                continue
+                # in an attribute name -- must not be swallowed, which is exactly
+                # how a silent zero-message recording happened.  A dropped
+                # connection, though, ends the stream for good: fall out to the
+                # summary instead of dying without one (measured 2026-11-24:
+                # rosbridge closed a 10-minute recording and the run died with
+                # 1201 states on disk but no meta and exit code 1).
+                if 'timed out' in str(error):
+                    continue
+                if 'closed the connection' in str(error) or 'not connected' in str(error):
+                    drop_reason = str(error)
+                    print('connection dropped after %.0f s: %s'
+                          % (time.monotonic() - started_mono, error))
+                    break
+                raise
             if not raw:
                 continue
             try:
@@ -257,6 +267,7 @@ def command_run(arguments):
         'task': arguments.task,
         'joint_state_messages': joint_state_messages,
         'status_messages': status_messages,
+        'connection_dropped': drop_reason,
         'passive': True,
         'published_anything': False,
         'touched_motion_gate': False,

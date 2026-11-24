@@ -1,0 +1,387 @@
+{
+  "run4": {
+    "ok": false,
+    "stage": "close",
+    "detail": "jaws never stalled on the ball at dz=[8, 16] mm",
+    "joints_start": {
+      "joint1": 489,
+      "joint2": 678,
+      "joint3": 934,
+      "joint4": 202
+    },
+    "ball": [
+      0.0317,
+      0.2398,
+      -0.0787
+    ],
+    "pixel": [
+      357.0,
+      394.4,
+      27.4
+    ],
+    "attempts": [
+      {
+        "dz": 0.008,
+        "joints": {
+          "joint1": 475,
+          "joint2": 407,
+          "joint3": 877,
+          "joint4": 411
+        },
+        "tool": [
+          0.0254,
+          0.2413,
+          0.0071
+        ],
+        "wanted": [
+          0.0317,
+          0.2498,
+          -0.0707
+        ],
+        "z_bias_mm": 0.0,
+        "miss_mm": null,
+        "aborted_by_floor_guard": true
+      },
+      {
+        "dz": 0.016,
+        "joints": {
+          "joint1": 475,
+          "joint2": 407,
+          "joint3": 881,
+          "joint4": 411
+        },
+        "tool": [
+          0.0251,
+          0.2388,
+          0.0037
+        ],
+        "wanted": [
+          0.0317,
+          0.2498,
+          -0.0627
+        ],
+        "z_bias_mm": 0.0,
+        "miss_mm": null,
+        "aborted_by_floor_guard": true
+      }
+    ],
+    "_log_excerpt": "=True gripper=False -> ok=True \n     the tool point never reached this level -> skipping it\nRESULT {\"ok\": false, \"stage\": \"close\", \"detail\": \"jaws never stalled on the ball at dz=[8, 16] mm\", \"joints_start\": {\"joint1\": 489, \"joint2\": 678, \"joint3\": 934, \"joint4\": 202}, \"ball\": [0.0317, 0.2398, -0.0787], \"pixel\": [357.0, 394.4, 27.4], \"attempts\": [{\"dz\": 0.008, \"joints\": {\"joint1\": 475, \"joint2\": 407, \"joint3\": 877, \"joint4\": 411}, \"tool\": [0.0254, 0.2413, 0.0071], \"wanted\": [0.0317, 0.2498, -0.0707], \"z_bias_mm\": 0.0, \"miss_mm\": null, \"aborted_by_floor_guard\": true}, {\"dz\": 0.016, \"joints\": {\"joint1\": 475, \"joint2\": 407, \"joint3\": 881, \"joint4\": 411}, \"tool\": [0.0251, 0.2388, 0.0037], \"wanted\": [0.0317, 0.2498, -0.0627], \"z_bias_mm\": 0.0, \"miss_mm\": null, \"aborted_by_floor_guard\": true}]}\n"
+  },
+  "run5": {
+    "ok": false,
+    "stage": "lift",
+    "detail": "jaws returned to 437 (the ball slipped)",
+    "joints_start": {
+      "joint1": 480,
+      "joint2": 678,
+      "joint3": 926,
+      "joint4": 195
+    },
+    "ball": [
+      0.0137,
+      0.2192,
+      -0.0776
+    ],
+    "pixel": [
+      311.0,
+      431.9,
+      29.9
+    ],
+    "attempts": [
+      {
+        "dz": 0.008,
+        "joints": {
+          "joint1": 480,
+          "joint2": 322,
+          "joint3": 863,
+          "joint4": 410
+        },
+        "tool": [
+          0.0183,
+          0.2182,
+          -0.0657
+        ],
+        "wanted": [
+          0.0137,
+          0.2292,
+          -0.0696
+        ],
+        "z_bias_mm": 3.9,
+        "miss_mm": 12.6,
+        "aborted_by_floor_guard": false
+      }
+    ],
+    "r_open": 128,
+    "close_attempts": [
+      {
+        "dz": 0.008,
+        "nudge": "as is",
+        "opened": 128,
+        "trace": [
+          177,
+          222,
+          266,
+          310,
+          357,
+          395
+        ],
+        "r": 395
+      }
+    ],
+    "dz_used": 0.008,
+    "r_closed": 395,
+    "r_after_lift": 437,
+    "_log_excerpt": "r=False -> ok=True \n    joint2 +45 ok  (target 365, moved 38 of 45, error 7)\n    joint2 +45 ok  (target 403, moved 38 of 45, error 7)\nRESULT {\"ok\": false, \"stage\": \"lift\", \"detail\": \"jaws returned to 437 (the ball slipped)\", \"joints_start\": {\"joint1\": 480, \"joint2\": 678, \"joint3\": 926, \"joint4\": 195}, \"ball\": [0.0137, 0.2192, -0.0776], \"pixel\": [311.0, 431.9, 29.9], \"attempts\": [{\"dz\": 0.008, \"joints\": {\"joint1\": 480, \"joint2\": 322, \"joint3\": 863, \"joint4\": 410}, \"tool\": [0.0183, 0.2182, -0.0657], \"wanted\": [0.0137, 0.2292, -0.0696], \"z_bias_mm\": 3.9, \"miss_mm\": 12.6, \"aborted_by_floor_guard\": false}], \"r_open\": 128, \"close_attempts\": [{\"dz\": 0.008, \"nudge\": \"as is\", \"opened\": 128, \"trace\": [177, 222, 266, 310, 357, 395], \"r\": 395}], \"dz_used\": 0.008, \"r_closed\": 395, \"r_after_lift\": 437}\n"
+  },
+  "run6": {
+    "ok": false,
+    "stage": "close",
+    "detail": "jaws never stalled on the ball at dz=[8, 16] mm",
+    "joints_start": {
+      "joint1": 481,
+      "joint2": 678,
+      "joint3": 929,
+      "joint4": 196
+    },
+    "ball": [
+      0.0164,
+      0.2229,
+      -0.0785
+    ],
+    "pixel": [
+      317.0,
+      420.3,
+      28.3
+    ],
+    "attempts": [
+      {
+        "dz": 0.008,
+        "joints": {
+          "joint1": 482,
+          "joint2": 500,
+          "joint3": 928,
+          "joint4": 265
+        },
+        "tool": [
+          0.0113,
+          0.1419,
+          -0.0263
+        ],
+        "wanted": [
+          0.0164,
+          0.2329,
+          -0.0705
+        ],
+        "z_bias_mm": 0.0,
+        "miss_mm": null,
+        "aborted_by_floor_guard": true
+      },
+      {
+        "dz": 0.016,
+        "joints": {
+          "joint1": 482,
+          "joint2": 412,
+          "joint3": 896,
+          "joint4": 413
+        },
+        "tool": [
+          0.0165,
+          0.2075,
+          -0.0617
+        ],
+        "wanted": [
+          0.0273,
+          0.2188,
+          -0.0598
+        ],
+        "z_bias_mm": 0.0,
+        "miss_mm": null,
+        "aborted_by_floor_guard": true
+      }
+    ],
+    "relocations": [
+      {
+        "dz": 0.016,
+        "drift_mm": 18.0,
+        "ball": [
+          0.0273,
+          0.2088,
+          -0.0758
+        ]
+      }
+    ],
+    "_log_excerpt": "g it\nRESULT {\"ok\": false, \"stage\": \"close\", \"detail\": \"jaws never stalled on the ball at dz=[8, 16] mm\", \"joints_start\": {\"joint1\": 481, \"joint2\": 678, \"joint3\": 929, \"joint4\": 196}, \"ball\": [0.0164, 0.2229, -0.0785], \"pixel\": [317.0, 420.3, 28.3], \"attempts\": [{\"dz\": 0.008, \"joints\": {\"joint1\": 482, \"joint2\": 500, \"joint3\": 928, \"joint4\": 265}, \"tool\": [0.0113, 0.1419, -0.0263], \"wanted\": [0.0164, 0.2329, -0.0705], \"z_bias_mm\": 0.0, \"miss_mm\": null, \"aborted_by_floor_guard\": true}, {\"dz\": 0.016, \"joints\": {\"joint1\": 482, \"joint2\": 412, \"joint3\": 896, \"joint4\": 413}, \"tool\": [0.0165, 0.2075, -0.0617], \"wanted\": [0.0273, 0.2188, -0.0598], \"z_bias_mm\": 0.0, \"miss_mm\": null, \"aborted_by_floor_guard\": true}], \"relocations\": [{\"dz\": 0.016, \"drift_mm\": 18.0, \"ball\": [0.0273, 0.2088, -0.0758]}]}\n"
+  },
+  "run7": {
+    "ok": false,
+    "stage": "close",
+    "detail": "jaws never stalled on the ball at dz=[8, 16] mm",
+    "joints_start": {
+      "joint1": 481,
+      "joint2": 678,
+      "joint3": 917,
+      "joint4": 196
+    },
+    "ball": [
+      0.0159,
+      0.2273,
+      -0.0801
+    ],
+    "pixel": [
+      316.0,
+      443.6,
+      24.6
+    ],
+    "attempts": [
+      {
+        "dz": 0.008,
+        "joints": {
+          "joint1": 481,
+          "joint2": 431,
+          "joint3": 900,
+          "joint4": 407
+        },
+        "tool": [
+          0.0171,
+          0.2258,
+          -0.0175
+        ],
+        "wanted": [
+          0.0159,
+          0.2373,
+          -0.0721
+        ],
+        "z_bias_mm": 0.0,
+        "miss_mm": 8.7,
+        "aborted_by_floor_guard": true
+      },
+      {
+        "dz": 0.016,
+        "joints": {
+          "joint1": 495,
+          "joint2": 399,
+          "joint3": 874,
+          "joint4": 415
+        },
+        "tool": [
+          0.005,
+          0.2001,
+          -0.0911
+        ],
+        "wanted": [
+          0.0015,
+          0.1998,
+          -0.0611
+        ],
+        "z_bias_mm": 0.0,
+        "miss_mm": null,
+        "aborted_by_floor_guard": true
+      }
+    ],
+    "r_open": 128,
+    "relocations": [
+      {
+        "dz": 0.016,
+        "drift_mm": 40.3,
+        "ball": [
+          0.0015,
+          0.1898,
+          -0.0771
+        ]
+      }
+    ],
+    "_log_excerpt": "\"ok\": false, \"stage\": \"close\", \"detail\": \"jaws never stalled on the ball at dz=[8, 16] mm\", \"joints_start\": {\"joint1\": 481, \"joint2\": 678, \"joint3\": 917, \"joint4\": 196}, \"ball\": [0.0159, 0.2273, -0.0801], \"pixel\": [316.0, 443.6, 24.6], \"attempts\": [{\"dz\": 0.008, \"joints\": {\"joint1\": 481, \"joint2\": 431, \"joint3\": 900, \"joint4\": 407}, \"tool\": [0.0171, 0.2258, -0.0175], \"wanted\": [0.0159, 0.2373, -0.0721], \"z_bias_mm\": 0.0, \"miss_mm\": 8.7, \"aborted_by_floor_guard\": true}, {\"dz\": 0.016, \"joints\": {\"joint1\": 495, \"joint2\": 399, \"joint3\": 874, \"joint4\": 415}, \"tool\": [0.005, 0.2001, -0.0911], \"wanted\": [0.0015, 0.1998, -0.0611], \"z_bias_mm\": 0.0, \"miss_mm\": null, \"aborted_by_floor_guard\": true}], \"r_open\": 128, \"relocations\": [{\"dz\": 0.016, \"drift_mm\": 40.3, \"ball\": [0.0015, 0.1898, -0.0771]}]}\n"
+  },
+  "run8": {
+    "ok": false,
+    "stage": "close",
+    "detail": "jaws never stalled on the ball at dz=[8, 16] mm",
+    "joints_start": {
+      "joint1": 490,
+      "joint2": 678,
+      "joint3": 925,
+      "joint4": 197
+    },
+    "ball": [
+      -0.0129,
+      0.1942,
+      -0.0792
+    ],
+    "pixel": [
+      279.0,
+      483.8,
+      27.8
+    ],
+    "attempts": [
+      {
+        "dz": 0.008,
+        "joints": {
+          "joint1": 512,
+          "joint2": 506,
+          "joint3": 931,
+          "joint4": 339
+        },
+        "tool": [
+          -0.0097,
+          0.1934,
+          0.0191
+        ],
+        "wanted": [
+          -0.0129,
+          0.2042,
+          -0.0712
+        ],
+        "z_bias_mm": 0.0,
+        "miss_mm": null,
+        "aborted_by_floor_guard": true
+      },
+      {
+        "dz": 0.016,
+        "joints": {
+          "joint1": 512,
+          "joint2": 358,
+          "joint3": 935,
+          "joint4": 437
+        },
+        "tool": [
+          -0.0096,
+          0.1915,
+          -0.0694
+        ],
+        "wanted": [
+          -0.0129,
+          0.2042,
+          -0.0632
+        ],
+        "z_bias_mm": -6.2,
+        "miss_mm": 14.5,
+        "aborted_by_floor_guard": false
+      }
+    ],
+    "r_open": 128,
+    "close_attempts": [
+      {
+        "dz": 0.016,
+        "nudge": "as is",
+        "opened": 128,
+        "trace": [
+          174,
+          220,
+          266,
+          312,
+          357,
+          394,
+          424,
+          433,
+          433,
+          434,
+          435,
+          434,
+          434
+        ],
+        "r": 434
+      }
+    ],
+    "_log_excerpt": "z=[8, 16] mm\", \"joints_start\": {\"joint1\": 490, \"joint2\": 678, \"joint3\": 925, \"joint4\": 197}, \"ball\": [-0.0129, 0.1942, -0.0792], \"pixel\": [279.0, 483.8, 27.8], \"attempts\": [{\"dz\": 0.008, \"joints\": {\"joint1\": 512, \"joint2\": 506, \"joint3\": 931, \"joint4\": 339}, \"tool\": [-0.0097, 0.1934, 0.0191], \"wanted\": [-0.0129, 0.2042, -0.0712], \"z_bias_mm\": 0.0, \"miss_mm\": null, \"aborted_by_floor_guard\": true}, {\"dz\": 0.016, \"joints\": {\"joint1\": 512, \"joint2\": 358, \"joint3\": 935, \"joint4\": 437}, \"tool\": [-0.0096, 0.1915, -0.0694], \"wanted\": [-0.0129, 0.2042, -0.0632], \"z_bias_mm\": -6.2, \"miss_mm\": 14.5, \"aborted_by_floor_guard\": false}], \"r_open\": 128, \"close_attempts\": [{\"dz\": 0.016, \"nudge\": \"as is\", \"opened\": 128, \"trace\": [174, 220, 266, 312, 357, 394, 424, 433, 433, 434, 435, 434, 434], \"r\": 434}]}\n"
+  }
+}

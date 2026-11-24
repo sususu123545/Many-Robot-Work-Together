@@ -383,5 +383,272 @@
       }
     ],
     "_log_excerpt": "z=[8, 16] mm\", \"joints_start\": {\"joint1\": 490, \"joint2\": 678, \"joint3\": 925, \"joint4\": 197}, \"ball\": [-0.0129, 0.1942, -0.0792], \"pixel\": [279.0, 483.8, 27.8], \"attempts\": [{\"dz\": 0.008, \"joints\": {\"joint1\": 512, \"joint2\": 506, \"joint3\": 931, \"joint4\": 339}, \"tool\": [-0.0097, 0.1934, 0.0191], \"wanted\": [-0.0129, 0.2042, -0.0712], \"z_bias_mm\": 0.0, \"miss_mm\": null, \"aborted_by_floor_guard\": true}, {\"dz\": 0.016, \"joints\": {\"joint1\": 512, \"joint2\": 358, \"joint3\": 935, \"joint4\": 437}, \"tool\": [-0.0096, 0.1915, -0.0694], \"wanted\": [-0.0129, 0.2042, -0.0632], \"z_bias_mm\": -6.2, \"miss_mm\": 14.5, \"aborted_by_floor_guard\": false}], \"r_open\": 128, \"close_attempts\": [{\"dz\": 0.016, \"nudge\": \"as is\", \"opened\": 128, \"trace\": [174, 220, 266, 312, 357, 394, 424, 433, 433, 434, 435, 434, 434], \"r\": 434}]}\n"
+  },
+  "run10": {
+    "ok": false,
+    "stage": "close",
+    "detail": "jaws never stalled on the ball at dz=[8, 16] mm",
+    "joints_start": {
+      "joint1": 483,
+      "joint2": 681,
+      "joint3": 921,
+      "joint4": 202
+    },
+    "ball": [
+      0.0228,
+      0.2154,
+      -0.0783
+    ],
+    "pixel": [
+      334.0,
+      472.2,
+      28.2
+    ],
+    "attempts": [
+      {
+        "dz": 0.008,
+        "joints": {
+          "joint1": 481,
+          "joint2": 410,
+          "joint3": 890,
+          "joint4": 407
+        },
+        "tool": [
+          0.0168,
+          0.2103,
+          -0.0609
+        ],
+        "wanted": [
+          0.0228,
+          0.2254,
+          -0.0703
+        ],
+        "z_bias_mm": 0.0,
+        "miss_mm": 9.9,
+        "aborted_by_floor_guard": true
+      },
+      {
+        "dz": 0.016,
+        "joints": {
+          "joint1": 483,
+          "joint2": 308,
+          "joint3": 842,
+          "joint4": 402
+        },
+        "tool": [
+          0.016,
+          0.2238,
+          -0.068
+        ],
+        "wanted": [
+          0.0228,
+          0.2254,
+          -0.0623
+        ],
+        "z_bias_mm": -5.7,
+        "miss_mm": 9.0,
+        "aborted_by_floor_guard": false
+      }
+    ],
+    "r_open": 122,
+    "close_attempts": [
+      {
+        "dz": 0.008,
+        "nudge": "15 mm to one side",
+        "opened": 127,
+        "trace": [
+          177,
+          223,
+          273,
+          322,
+          367,
+          409,
+          448,
+          448,
+          448,
+          447,
+          448,
+          452,
+          451,
+          452,
+          452
+        ],
+        "r": 452
+      },
+      {
+        "dz": 0.016,
+        "nudge": "as is",
+        "opened": 122,
+        "trace": [
+          173,
+          221,
+          273,
+          321,
+          365,
+          405,
+          449,
+          450,
+          450,
+          450,
+          450,
+          450
+        ],
+        "r": 450
+      }
+    ]
+  },
+  "run11": {
+    "ok": false,
+    "stage": "arm_gate",
+    "detail": "cannot secure arm gate"
+  },
+  "run12": {
+    "ok": false,
+    "stage": "close",
+    "detail": "jaws never stalled on the ball at dz=[4, 8, 16] mm",
+    "joints_start": {
+      "joint1": 483,
+      "joint2": 684,
+      "joint3": 923,
+      "joint4": 197
+    },
+    "ball": [
+      0.0537,
+      0.282,
+      -0.0779
+    ],
+    "pixel": [
+      374.0,
+      357.9,
+      25.9
+    ],
+    "attempts": [
+      {
+        "dz": 0.006,
+        "joints": {
+          "joint1": 461,
+          "joint2": 216,
+          "joint3": 714,
+          "joint4": 432
+        },
+        "tool": [
+          0.0471,
+          0.2856,
+          -0.0618
+        ],
+        "wanted": [
+          0.0537,
+          0.292,
+          -0.0719
+        ],
+        "z_bias_mm": 10.1,
+        "miss_mm": 13.6,
+        "aborted_by_floor_guard": false
+      },
+      {
+        "dz": 0.006,
+        "joints": {
+          "joint1": 462,
+          "joint2": 269,
+          "joint3": 722,
+          "joint4": 416
+        },
+        "tool": [
+          0.0429,
+          0.2672,
+          -0.0873
+        ],
+        "wanted": [
+          0.0517,
+          0.3031,
+          -0.0696
+        ],
+        "z_bias_mm": 0.0,
+        "miss_mm": null,
+        "aborted_by_floor_guard": true
+      },
+      {
+        "dz": 0.016,
+        "joints": {
+          "joint1": 462,
+          "joint2": 191,
+          "joint3": 680,
+          "joint4": 431
+        },
+        "tool": [
+          0.0473,
+          0.2946,
+          -0.0648
+        ],
+        "wanted": [
+          0.0517,
+          0.3031,
+          -0.0596
+        ],
+        "z_bias_mm": -5.2,
+        "miss_mm": 10.8,
+        "aborted_by_floor_guard": false
+      }
+    ],
+    "r_open": 131,
+    "close_attempts": [
+      {
+        "dz": 0.006,
+        "nudge": "as is",
+        "opened": 128,
+        "trace": [
+          178,
+          226,
+          273,
+          321,
+          367,
+          405,
+          448,
+          448,
+          451,
+          451,
+          451,
+          451,
+          451
+        ],
+        "r": 451
+      },
+      {
+        "dz": 0.016,
+        "nudge": "as is",
+        "opened": 131,
+        "trace": [
+          182,
+          230,
+          279,
+          329,
+          377,
+          416,
+          450,
+          451,
+          450,
+          450,
+          450,
+          450
+        ],
+        "r": 450
+      }
+    ],
+    "relocations": [
+      {
+        "dz": 0.006,
+        "drift_mm": 11.5,
+        "ball": [
+          0.0517,
+          0.2931,
+          -0.0756
+        ]
+      }
+    ]
+  },
+  "_notes_20261124_evening": {
+    "run10": "漏斗弹出：横向 9mm（历次最佳）但接触浅（球心上方10mm），V口斜面滑挤出去",
+    "run11": "rosbridge 订阅布线损坏（重启服务恢复），未动臂",
+    "run12": "球在 28.2cm 拉伸区：肩压下限/肘展平/腕角变浅，三档全弹出——抓取包络 20~25cm 的实测上界"
   }
 }

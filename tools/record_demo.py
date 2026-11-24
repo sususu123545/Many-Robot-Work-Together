@@ -39,7 +39,9 @@ import argparse
 import hashlib
 import json
 import sys
+import threading
 import time
+import urllib.request
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -51,6 +53,14 @@ from capture_pose_sweep import (_parse_images, _parse_status,  # noqa: E402
 
 JOINT_NAMES = ('joint1', 'joint2', 'joint3', 'joint4', 'joint5', 'r_joint')
 IMAGE_TOPIC = '/rear_camera/image_raw/compressed'
+#: Same endpoint grasp_sequence.grab_frame() has used all day.  Pulling images
+#: over HTTP instead of the rosbridge websocket keeps the ~700 KB/s image stream
+#: off the same connection that carries the 2 Hz state stream -- measured
+#: 2026-11-24: streaming images through rosbridge starved BOTH connections
+#: (the recorder fell to 0.4 Hz and the running grasp lost joint feedback),
+#: while the grasp's own HTTP snapshots never interfered.
+SNAPSHOT_URL = ('http://127.0.0.1:19099/snapshot'
+                '?topic=/rear_camera/image_raw&type=ros_compressed')
 STATUS_TOPIC = '/arm_controller/status'
 JOINT_TOPIC = '/joint_states'
 TF_TOPIC = '/tf'
@@ -73,11 +83,23 @@ def check_pairing(states, images, max_skew_ms=50.0):
     if not states or not images:
         return {'matched': 0, 'rate': 0.0, 'worst_skew_ms': None,
                 'median_skew_ms': None, 'budget_ms': max_skew_ms}
+    # HTTP-snapshot images carry no header stamp, so their pairing runs on the
+    # receiver clock (t_mono vs t_mono).  That measures the same thing -- how
+    # far the nearest frame is from the state in time -- just on a different
+    # clock, and the budget must then absorb half the poll interval.
+    stamped = [i for i in images if i.get('stamp_ns') is not None]
     skews = []
-    for state in states:
-        _, skew = nearest_by_stamp(images, state['stamp_ns'])
-        if skew is not None:
-            skews.append(skew)
+    if stamped:
+        for state in states:
+            _, skew = nearest_by_stamp(stamped, state['stamp_ns'])
+            if skew is not None:
+                skews.append(skew)
+    else:
+        for state in states:
+            best = min((abs(i['t_mono'] - state['t_mono']) for i in images
+                        if i.get('t_mono') is not None), default=None)
+            if best is not None:
+                skews.append(best * 1000.0)
     matched = sum(1 for s in skews if s <= max_skew_ms)
     return {
         'matched': matched,
@@ -152,22 +174,70 @@ def command_run(arguments):
         print('  usual cause: the tunnel is not up.  Start it with')
         print('  python tools/ssh_tunnel.py --host 100.102.57.19 --local-port 19091 --remote-port 9091')
         return 2
-    # Images are throttled server-side rather than dropped after arrival: letting
-    # rosbridge skip the frames is far cheaper than decoding and discarding them
-    # in Python, and the earlier client-side version starved the state stream.
-    throttle = int(arguments.image_throttle_ms) if arguments.image_throttle_ms else 0
-    for topic, kind in ((JOINT_TOPIC, 'sensor_msgs/msg/JointState'),
-                        (STATUS_TOPIC, 'std_msgs/msg/String'),
-                        (IMAGE_TOPIC, 'sensor_msgs/msg/CompressedImage'),
-                        (TF_TOPIC, 'tf2_msgs/msg/TFMessage')):
-        bridge.subscribe(topic, kind, throttle_rate=throttle if topic == IMAGE_TOPIC else 0)
-
     states, images = [], []
     latest_tf = None
     joint_state_messages = 0
     status_messages = 0
     started_wall, started_mono = time.time(), time.monotonic()
     deadline = started_mono + arguments.seconds
+    image_seq = 0
+    stop_images = threading.Event()
+
+    def poll_snapshots():
+        """Pull frames over HTTP on the video tunnel.
+
+        Runs in its own thread on its own tunnel so the image volume never
+        shares a connection with the state stream (see SNAPSHOT_URL note).
+        """
+        nonlocal image_seq
+        interval = max(0.05, arguments.image_interval_s)
+        next_due = time.monotonic()
+        while not stop_images.is_set() and time.monotonic() < deadline:
+            pause = next_due - time.monotonic()
+            if pause > 0:
+                time.sleep(pause)
+            next_due = time.monotonic() + interval
+            try:
+                with urllib.request.urlopen(arguments.snapshot_url,
+                                            timeout=3.0) as response:
+                    data = response.read()
+            except Exception as error:
+                print('snapshot failed: %s' % error)
+                continue
+            if not data:
+                continue
+            image_seq += 1
+            name = '%06d.jpg' % image_seq
+            (out_dir / 'images' / name).write_bytes(data)
+            entry = {'file': name, 'stamp_ns': None, 'source': 'http_snapshot',
+                     't_mono': round(time.monotonic() - started_mono, 4),
+                     't_wall': round(time.time(), 4),
+                     'bytes': len(data),
+                     'sha256': hashlib.sha256(data).hexdigest()}
+            images.append(entry)
+            index_handle.write(json.dumps(entry) + '\n')
+
+    if arguments.image_source == 'http':
+        threading.Thread(target=poll_snapshots, daemon=True,
+                         name='snapshot-poller').start()
+
+    # Server-side throttling for rosbridge images (legacy mode only): letting
+    # rosbridge skip frames is far cheaper than decoding and discarding them.
+    throttle = int(arguments.image_throttle_ms) if arguments.image_throttle_ms else 0
+    topics = [(JOINT_TOPIC, 'sensor_msgs/msg/JointState'),
+              (STATUS_TOPIC, 'std_msgs/msg/String'),
+              (TF_TOPIC, 'tf2_msgs/msg/TFMessage')]
+    if arguments.image_source != 'http':
+        topics.append((IMAGE_TOPIC, 'sensor_msgs/msg/CompressedImage'))
+    for topic, kind in topics:
+        bridge.subscribe(topic, kind,
+                         throttle_rate=throttle if topic == IMAGE_TOPIC else 0)
+
+    if arguments.image_source == 'http':
+        print('images: HTTP snapshots at ~%.0f Hz on the video tunnel'
+              % (1.0 / max(0.05, arguments.image_interval_s)))
+    else:
+        print('images: rosbridge topic (mutually starves the state stream!)')
     last_report = started_mono
     image_seq = 0
     last_image_mono = -1e9
@@ -258,6 +328,8 @@ def command_run(arguments):
         states_handle.close()
         index_handle.close()
 
+    stop_images.set()
+    time.sleep(0.3)
     result = summarise_recording(states, images, arguments.max_skew_ms)
     meta = {
         'schema': 'armpi_demo_recording_v1',
@@ -267,6 +339,7 @@ def command_run(arguments):
         'task': arguments.task,
         'joint_state_messages': joint_state_messages,
         'status_messages': status_messages,
+        'image_source': arguments.image_source,
         'connection_dropped': drop_reason,
         'passive': True,
         'published_anything': False,
@@ -362,6 +435,15 @@ def main(argv=None):
     run.add_argument('--bridge-host', default='127.0.0.1')
     run.add_argument('--bridge-port', type=int, default=19091)
     run.add_argument('--max-skew-ms', type=float, default=50.0)
+    run.add_argument('--image-source', choices=('http', 'rosbridge'),
+                     default='http',
+                     help="image capture path: 'http' polls the video-tunnel "
+                          "snapshot endpoint in a side thread (recommended); "
+                          "'rosbridge' streams the image topic, which measured "
+                          "as starving the state stream of a concurrent grasp")
+    run.add_argument('--image-interval-s', type=float, default=0.12,
+                     help='HTTP mode: seconds between snapshot polls')
+    run.add_argument('--snapshot-url', default=SNAPSHOT_URL)
     run.add_argument('--image-throttle-ms', type=int, default=100,
                      help='ask rosbridge to send images at most this often (server side). '
                           '0 keeps every frame; 100 keeps ~10 Hz, still above the 2 Hz state rate')

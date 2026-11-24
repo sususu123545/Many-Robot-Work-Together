@@ -187,6 +187,16 @@ EMPTY_CLOSE = 430     # jaws reach ~445 with nothing between them
 BALL_CLOSE = 420      # anything at or below this means the ball is in the jaws
 MIN_CLOSE_TRAVEL = 60   # ...but only if the jaws actually travelled this far
 
+# Refuse to close when the tool point sits this far above the ball centre --
+# the jaws would stall on air and the attempt would be silently wasted.
+# 2026-11-24: after a floor-abort lift the close ran 79 mm above the ball.
+MIDAIR_CLOSE_LIMIT_M = 0.045
+
+
+def close_blocked_midair(tool_z, ball_z, limit=MIDAIR_CLOSE_LIMIT_M):
+    """True when closing now would grab nothing but air."""
+    return (tool_z - ball_z) > limit
+
 
 def jaws_hold(closed, opened):
     """True only when the jaws really closed onto something.
@@ -1486,12 +1496,18 @@ def main():
                     if not gripper_gate(bridge):
                         log('     cannot re-arm the gripper -- stopping the sweep')
                         break
-                    height = (forward_tool_pose_raw(ticks)['translation_m'][2]
-                              - located['ball'][2])
-                    if height > 0.045:
-                        log('     jaws are still %.0f mm above the ball -- not '
-                            'closing in mid-air' % (height * 1000))
-                        continue
+                # The mid-air guard guards EVERY close, not only nudges.
+                # Measured 2026-11-24: a floor-abort lift raised the tool to
+                # ~93 mm above the plane and the first close then ran there,
+                # ~79 mm above the ball centre -- the jaws stalled at 452 on
+                # nothing while the operator watched them close well above the
+                # ball.  The guard existed only inside the nudge branch.
+                if close_blocked_midair(
+                        forward_tool_pose_raw(ticks)['translation_m'][2],
+                        located['ball'][2]):
+                    log('     jaws are still %.0f mm above the ball -- not '
+                        'closing in mid-air' % (height * 1000))
+                    continue
                 closed, trace = close_until_stall(bridge, args.close_limit)
                 report.setdefault('close_attempts', []).append(
                     {'dz': dz, 'nudge': label, 'opened': position,

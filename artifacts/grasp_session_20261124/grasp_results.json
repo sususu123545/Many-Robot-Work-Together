@@ -650,5 +650,290 @@
     "run10": "漏斗弹出：横向 9mm（历次最佳）但接触浅（球心上方10mm），V口斜面滑挤出去",
     "run11": "rosbridge 订阅布线损坏（重启服务恢复），未动臂",
     "run12": "球在 28.2cm 拉伸区：肩压下限/肘展平/腕角变浅，三档全弹出——抓取包络 20~25cm 的实测上界"
+  },
+  "run13": {
+    "ok": false,
+    "stage": "close",
+    "detail": "jaws never stalled on the ball at dz=[4, 8, 16] mm",
+    "joints_start": {
+      "joint1": 482,
+      "joint2": 677,
+      "joint3": 947,
+      "joint4": 194
+    },
+    "ball": [
+      0.0065,
+      0.2378,
+      -0.0775
+    ],
+    "pixel": [
+      297.0,
+      342.9,
+      30.9
+    ],
+    "attempts": [
+      {
+        "dz": 0.006,
+        "joints": {
+          "joint1": 482,
+          "joint2": 405,
+          "joint3": 890,
+          "joint4": 421
+        },
+        "tool": [
+          0.018,
+          0.2378,
+          -0.0011
+        ],
+        "wanted": [
+          0.0065,
+          0.2478,
+          -0.0715
+        ],
+        "z_bias_mm": 0.0,
+        "miss_mm": null,
+        "aborted_by_floor_guard": true
+      },
+      {
+        "dz": 0.008,
+        "joints": {
+          "joint1": 482,
+          "joint2": 376,
+          "joint3": 848,
+          "joint4": 421
+        },
+        "tool": [
+          0.0179,
+          0.2367,
+          -0.0593
+        ],
+        "wanted": [
+          0.0065,
+          0.2478,
+          -0.0695
+        ],
+        "z_bias_mm": 0.0,
+        "miss_mm": null,
+        "aborted_by_floor_guard": true
+      },
+      {
+        "dz": 0.016,
+        "joints": {
+          "joint1": 482,
+          "joint2": 304,
+          "joint3": 833,
+          "joint4": 421
+        },
+        "tool": [
+          0.0181,
+          0.24,
+          -0.0591
+        ],
+        "wanted": [
+          0.0065,
+          0.2478,
+          -0.0615
+        ],
+        "z_bias_mm": 2.4,
+        "miss_mm": 14.2,
+        "aborted_by_floor_guard": false
+      }
+    ],
+    "r_open": 121,
+    "close_attempts": [
+      {
+        "dz": 0.016,
+        "nudge": "as is",
+        "opened": 121,
+        "trace": [
+          173,
+          220,
+          239,
+          286,
+          332,
+          377,
+          417,
+          453,
+          453,
+          453,
+          452,
+          453,
+          453
+        ],
+        "r": 453
+      }
+    ]
+  },
+  "run14": {
+    "ok": true,
+    "stage": "done",
+    "detail": "jaws held at 383 -> the ball is still between them",
+    "joints_start": {
+      "joint1": 483,
+      "joint2": 678,
+      "joint3": 927,
+      "joint4": 195
+    },
+    "ball": [
+      0.003,
+      0.2302,
+      -0.0792
+    ],
+    "pixel": [
+      295.0,
+      412.7,
+      26.7
+    ],
+    "attempts": [
+      {
+        "dz": 0.006,
+        "joints": {
+          "joint1": 493,
+          "joint2": 312,
+          "joint3": 858,
+          "joint4": 426
+        },
+        "tool": [
+          0.0067,
+          0.2271,
+          -0.0664
+        ],
+        "wanted": [
+          0.003,
+          0.2402,
+          -0.0732
+        ],
+        "z_bias_mm": 6.8,
+        "miss_mm": 15.2,
+        "aborted_by_floor_guard": false
+      },
+      {
+        "dz": 0.006,
+        "joints": {
+          "joint1": 493,
+          "joint2": 413,
+          "joint3": 859,
+          "joint4": 375
+        },
+        "tool": [
+          0.0057,
+          0.1944,
+          -0.0828
+        ],
+        "wanted": [
+          0.0084,
+          0.2167,
+          -0.0729
+        ],
+        "z_bias_mm": 0.0,
+        "miss_mm": null,
+        "aborted_by_floor_guard": true
+      },
+      {
+        "dz": 0.016,
+        "joints": {
+          "joint1": 493,
+          "joint2": 350,
+          "joint3": 879,
+          "joint4": 391
+        },
+        "tool": [
+          0.0061,
+          0.2085,
+          -0.0567
+        ],
+        "wanted": [
+          0.0084,
+          0.2167,
+          -0.0629
+        ],
+        "z_bias_mm": 6.2,
+        "miss_mm": 10.5,
+        "aborted_by_floor_guard": false
+      }
+    ],
+    "r_open": 128,
+    "close_attempts": [
+      {
+        "dz": 0.006,
+        "nudge": "as is",
+        "opened": 128,
+        "trace": [
+          178,
+          228,
+          273,
+          321,
+          367,
+          405,
+          444,
+          444,
+          443,
+          445,
+          445,
+          445
+        ],
+        "r": 445
+      },
+      {
+        "dz": 0.016,
+        "nudge": "as is",
+        "opened": 128,
+        "trace": [
+          180,
+          230,
+          281,
+          329,
+          374,
+          411,
+          451,
+          451,
+          451,
+          451,
+          449,
+          449
+        ],
+        "r": 449
+      },
+      {
+        "dz": 0.016,
+        "nudge": "15 mm to one side",
+        "opened": 125,
+        "trace": [
+          174,
+          224,
+          273,
+          320,
+          361,
+          386,
+          390,
+          390,
+          390,
+          383,
+          390,
+          390,
+          390,
+          392
+        ],
+        "r": 390
+      }
+    ],
+    "relocations": [
+      {
+        "dz": 0.006,
+        "drift_mm": 24.1,
+        "ball": [
+          0.0084,
+          0.2067,
+          -0.0789
+        ]
+      }
+    ],
+    "dz_used": 0.016,
+    "r_closed": 390,
+    "r_after_lift": 383
+  },
+  "_notes_run13_14": {
+    "run13": "joint3 深屈曲停滞（温度 31°C 正常），最深两档没够到，浅档 14.2mm 弹出",
+    "run14": "成功：两次弹出后 ±15mm 平移重试环完整走完，第三次闭合 390 咬合（超过 EDGE_GRIP=395 的安全线），抬升坐深到 383——与 11-23 经典值一致"
   }
 }

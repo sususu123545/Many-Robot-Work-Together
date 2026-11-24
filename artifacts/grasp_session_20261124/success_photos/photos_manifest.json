@@ -11,5 +11,17 @@
     "bytes": 173209,
     "sha256": "2adbd0f6d09a63c80ab96d2e051ccdba"
   },
-  "_context": "run9 successful grasp, RESULT r_closed=397 r_after_lift=386, ball 37mm, photos taken by operator 2026-11-24 ~17:40"
+  "_context": "run9 successful grasp, RESULT r_closed=397 r_after_lift=386, ball 37mm, photos taken by operator 2026-11-24 ~17:40; contact close-ups taken after power-off (arm dropped, ball released) 2026-11-24 ~17:52 - the V-constriction caught the ball even in the dropped pose",
+  "contact_closeup_finger1.jpg": {
+    "bytes": 147894,
+    "sha256": "10e879fb455c85c8a00b141ed6a33256"
+  },
+  "contact_closeup_finger2.jpg": {
+    "bytes": 88459,
+    "sha256": "fbf29a4b2007eb56e086979169473bc4"
+  },
+  "contact_V_catch_after_drop.jpg": {
+    "bytes": 104331,
+    "sha256": "8cebd46ed5c8fe7f9abf99e19d9c6bc0"
+  }
 }

@@ -363,9 +363,21 @@ def ball_in_jaw():
         return False, 'no red blob in the camera'
     best = max(components, key=lambda c: c['area'])
     radius = (best['area'] / 3.14159) ** 0.5
-    return (radius >= HELD_BALL_RADIUS_PX,
-            'largest red blob r=%.0f px at (%d,%d)'
-            % (radius, best['center_x'], best['center_y']))
+    # Size alone is not the test.  A held ball sits ~10 cm from the lens, so it
+    # is BIGGER than the frame -- it gets clipped by the bottom edge and only an
+    # arc is left, whose area-derived radius comes out SMALL (measured
+    # 2026-11-25 episode 4: a genuinely held ball read r=42 px, under the 45 px
+    # threshold, and the run was wrongly reported as a shed grip).  A ball that
+    # fell off is fully inside the frame -- it has room to be a complete circle.
+    # So: touching the bottom edge while being wide means it is right at the
+    # jaws; a complete small circle lower down means it landed somewhere.
+    bottom_y = best['center_y'] + best.get('height', 0) / 2.0
+    touches_bottom = bottom_y >= image.size[1] - 6
+    wide = best.get('width', 0) >= 90
+    held = (touches_bottom and wide) or radius >= HELD_BALL_RADIUS_PX
+    return held, ('largest red blob r=%.0f px, w=%d, bottom=%.0f (frame %d) at '
+                  '(%d,%d)' % (radius, best.get('width', 0), bottom_y,
+                               image.size[1], best['center_x'], best['center_y']))
 
 
 def ball_in_base(ticks):

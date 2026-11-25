@@ -890,7 +890,14 @@ def close_until_stall(bridge, limit=470):
     stalled = 0
     regates = 0
     trace = []
+    steps = 0
     while position < limit:
+        # Belt and braces: even if the stall detector is fooled again, the close
+        # must end.  15 steps is well above the ~6 a 128 -> 470 sweep needs.
+        steps += 1
+        if steps > 15:
+            log('    close loop hit its step cap at %d -- stopping' % position)
+            break
         target = min(position + 60, limit)
         gripper_send(bridge, target, duration=2.0)
         time.sleep(3.0)
@@ -904,7 +911,15 @@ def close_until_stall(bridge, limit=470):
         # accumulated a stall, ran 55 reads (3 s each = 165 s of dead waiting),
         # and only stopped when three 131s happened to line up.  Compare with a
         # tolerance and bail out quickly on a jaw that is genuinely stuck.
-        if abs(fresh - position) <= 2:
+        #
+        # The tolerance is 12, not 2.  Measured 2026-11-25 on a ball held at a
+        # deep bite: the pads pressed into the foam and the jaw oscillated
+        # 334 <-> 341 -- a 7-tick wobble under load, well outside +/-2 -- so
+        # every step looked like progress and the loop ran 40 close commands
+        # (200 s of sustained stalling, gripper servo 43 C) before being killed
+        # by hand.  A real step advances ~55 of the 60 asked, so 12 separates
+        # motion from wobble with a wide margin.
+        if abs(fresh - position) <= 12:
             # A jaw that never leaves its open value was not commanded at all.
             # The motion gate has a lifetime and it expires on its own mid-run --
             # measured 2026-11-11: the status stream showed estate=False

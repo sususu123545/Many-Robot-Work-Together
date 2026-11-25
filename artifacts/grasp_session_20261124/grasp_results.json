@@ -1396,5 +1396,77 @@
     "r_after_lift": 395,
     "_platform": "ball raised 40mm on a platform, --plane -0.054"
   },
-  "_notes_run17": "垫高 40mm + --plane -0.054：第三次成功（22.2cm，闭合 405→抬升保持 395）。关键发现：平台上即使 405 的边缘咬合也稳稳保持——平台挡住了球的向下弹出路径，V 口只需防上抛。垫高让抓取变宽容。"
+  "_notes_run17": "垫高 40mm + --plane -0.054：第三次成功（22.2cm，闭合 405→抬升保持 395）。关键发现：平台上即使 405 的边缘咬合也稳稳保持——平台挡住了球的向下弹出路径，V 口只需防上抛。垫高让抓取变宽容。",
+  "run_20261125_01": {
+    "ok": true,
+    "stage": "done",
+    "detail": "jaws held at 325 -> the ball is still between them",
+    "joints_start": {
+      "joint1": 478,
+      "joint2": 682,
+      "joint3": 938,
+      "joint4": 202
+    },
+    "ball": [
+      0.039,
+      0.2379,
+      -0.0328
+    ],
+    "pixel": [
+      353.0,
+      353.9,
+      42.9
+    ],
+    "attempts": [
+      {
+        "dz": 0.006,
+        "joints": {
+          "joint1": 467,
+          "joint2": 356,
+          "joint3": 851,
+          "joint4": 411
+        },
+        "tool": [
+          0.0337,
+          0.2423,
+          -0.0237
+        ],
+        "wanted": [
+          0.039,
+          0.2479,
+          -0.0268
+        ],
+        "z_bias_mm": 3.1,
+        "miss_mm": 8.3,
+        "aborted_by_floor_guard": false
+      }
+    ],
+    "r_open": 128,
+    "close_attempts": [
+      {
+        "dz": 0.006,
+        "nudge": "as is",
+        "opened": 128,
+        "trace": [
+          128,
+          178,
+          228,
+          273,
+          309,
+          329,
+          336,
+          336,
+          334,
+          334,
+          334
+        ],
+        "r": 334
+      }
+    ],
+    "dz_used": 0.006,
+    "r_closed": 334,
+    "r_after_lift": 325,
+    "_platform": "40mm platform, --plane -0.054"
+  },
+  "_notes_20261125": "垫高 40mm 第一次尝试即成功，且咬合最深：r=334（抬升坐深 325），对比地面最佳 383-390 / EDGE_GRIP 395 —— 深 50~60 tick。单次尝试、零重试。平台挡住向下弹出路径 + 工具点无保护线冲突，可直接落到球心高度夹球赤道。这应作为演示/数据采集的标准布置。"
 }

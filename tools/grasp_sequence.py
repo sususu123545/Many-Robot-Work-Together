@@ -334,6 +334,40 @@ def locate_ball():
     return blob, ''
 
 
+#: The ball is ~10 cm from the wrist camera when the jaws hold it, so it reads
+#: as a big near blob.  Measured 2026-11-24/25: held = 76.9 px radius, dropped
+#: (box 25 cm below) = 11.1 px.  45 px sits between them with margin.
+HELD_BALL_RADIUS_PX = 45.0
+
+
+def ball_in_jaw():
+    """Camera check for "is the ball actually in the jaws?", for after a lift.
+
+    The jaw reading cannot answer this.  It is a position-controlled servo that
+    holds its last commanded target, so it reports ~the closed value whether or
+    not the ball is still there -- measured 2026-11-25 episode 3: the run
+    reported "jaws held at 391" (a false success) while the camera showed an
+    empty gripper and the operator watched the ball drop.
+
+    Returns (held, note); held is None when the camera cannot be read, so a
+    camera fault never turns a real grasp into a failure.
+    """
+    try:
+        image = grab_frame()
+    except Exception as error:                      # noqa: BLE001 - report, don't die
+        return None, 'camera unavailable: %s' % error
+    from car_scan import connected_components
+    components = [c for c in connected_components(ca.redness_mask(image))
+                  if c['area'] >= 400]
+    if not components:
+        return False, 'no red blob in the camera'
+    best = max(components, key=lambda c: c['area'])
+    radius = (best['area'] / 3.14159) ** 0.5
+    return (radius >= HELD_BALL_RADIUS_PX,
+            'largest red blob r=%.0f px at (%d,%d)'
+            % (radius, best['center_x'], best['center_y']))
+
+
 def ball_in_base(ticks):
     """Ball centre in arm_base, from whichever detector is configured.
 
@@ -1597,7 +1631,21 @@ def main():
             return finish(report, 2)
         report['r_after_lift'] = held
         # An empty jaw springs back to ~460 once the gate moves to the arm
-        report['ok'] = held <= EMPTY_CLOSE
+        jaw_says_held = held <= EMPTY_CLOSE
+        # ...but the jaw reading cannot prove the ball is there (see ball_in_jaw).
+        # Ask the camera too, and let the camera overrule a jaw false positive.
+        seen, note = ball_in_jaw()
+        report['camera_after_lift'] = {'held': seen, 'note': note}
+        log('    camera after lift: %s (%s)'
+            % ({True: 'ball in the jaws', False: 'no ball',
+                None: 'unknown'}[seen], note))
+        if seen is False and jaw_says_held:
+            report['ok'] = False
+            report['stage'] = 'lift'
+            report['detail'] = ('jaw read %d but the camera sees no ball -- the '
+                                'grip shed it (measured 2026-11-25)' % held)
+            return finish(report, 2)
+        report['ok'] = jaw_says_held
         report['stage'] = 'done' if report['ok'] else 'lift'
         report['detail'] = ('jaws held at %d -> the ball is still between them' % held
                             if report['ok'] else

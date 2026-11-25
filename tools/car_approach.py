@@ -54,16 +54,31 @@ MIN_DIFF = 30                   # R must beat both G and B by this much
 MIN_RED = 85                    # and be reasonably bright
 FLOOR_FROM = 0.35               # ignore the upper part of the frame
 
+# Red-dominance alone also passes ORANGE and BROWN, and the ball has been
+# sitting on a brown cardboard box since 2026-11-25.  Measured on that box:
+# the ball's median hue is 0 deg, the cardboard's is 29 deg (left face) and
+# 59 deg (right face) -- but R-dominance merged ball and box into one 17k-px
+# irregular blob that the roundness filter then threw away, so the grasp
+# refused to start with "the color detector saw nothing" while the ball was
+# plainly in frame.  A hue gate of +-18 deg around red separates them.
+HUE_HALF_WIDTH = 13             # PIL hue units; 255 == 360 deg, so 13 ~= 18 deg
+
 
 def redness_mask(image):
-    """Pixels where red clearly dominates green and blue."""
-    red, green, blue = image.convert('RGB').split()
+    """Pixels that are red -- not merely warm -- and reasonably bright."""
+    rgb = image.convert('RGB')
+    red, green, blue = rgb.split()
     rg = ImageChops.subtract(red, green)
     rb = ImageChops.subtract(red, blue)
     dominance = ImageChops.darker(rg, rb).point(
         lambda value: 255 if value >= MIN_DIFF else 0)
     bright = red.point(lambda value: 255 if value >= MIN_RED else 0)
-    return ImageChops.multiply(dominance, bright)
+    hue = rgb.convert('HSV').split()[0]
+    # Hue wraps: red sits at both ends of the 0..255 scale.
+    hue_ok = hue.point(
+        lambda value: 255 if value <= HUE_HALF_WIDTH
+        or value >= 255 - HUE_HALF_WIDTH else 0)
+    return ImageChops.multiply(ImageChops.multiply(dominance, bright), hue_ok)
 
 
 def locate_ball(image):
@@ -84,10 +99,22 @@ def locate_ball(image):
             continue
         if component['fill'] < 0.45:
             continue
+        # A 37 mm ball spans >=21 px even at 60 cm, so anything smaller cannot
+        # be it.  Without this floor the shape score alone is enough for a
+        # 14 px perfect circle -- a barcode fragment or a printed logo -- to
+        # out-rank the real ball: measured 2026-11-25, the ball (r=37, fill
+        # 0.75, aspect 1.44 because its shaded bottom is clipped) lost to a
+        # 132 px fragment (r=7, fill 0.79), and the grasp then aimed at a
+        # phantom 1.43 m away.
+        radius = (component['area'] / 3.14159) ** 0.5
+        if radius < 16.0:
+            continue
         component['aspect'] = round(aspect, 2)
-        # A sphere projects to a filled disc: aspect 1 and fill ~pi/4.
-        scored.append((abs(math.log(aspect)) + abs(component['fill'] - 0.785),
-                       component))
+        # A sphere projects to a filled disc: aspect 1 and fill ~pi/4.  The
+        # last term is a mild size preference so a real ball beats a smaller
+        # equally-round fragment.
+        scored.append((abs(math.log(aspect)) + abs(component['fill'] - 0.785)
+                       - 0.25 * math.log(radius / 16.0), component))
     if not scored:
         return None, 'no_floor_candidate'
     scored.sort(key=lambda item: item[0])

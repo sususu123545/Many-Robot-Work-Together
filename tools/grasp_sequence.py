@@ -195,7 +195,15 @@ EDGE_GRIP = 395       # r_closed above this means only the ball's edge is held
 # 4 mm above the surface", the tool ended ~12 mm under the ball centre, and the
 # jaws closed beneath the ball three rounds in a row.
 EMPTY_CLOSE = 430     # jaws reach ~445 with nothing between them
-BALL_CLOSE = 420      # anything at or below this means the ball is in the jaws
+# 350, not 420: on the raised-box setup the bite depth DECIDES whether the grip
+# survives the lift.  Measured 2026-11-25 over seven episodes on a 74 mm box:
+# closes at 322-334 (lateral miss 6-7 mm) held; closes at 371, 400 and 406
+# (miss 10-15 mm) all shed the ball during the lift.  Accepting 420 let the
+# script lift a grip it should have rejected, wasting the episode, when the
+# +/-15 mm nudge sweep -- which exists to fix exactly that lateral miss -- would
+# have been tried instead.  A close above this now counts as "not held" and the
+# sweep continues.
+BALL_CLOSE = 350
 MIN_CLOSE_TRAVEL = 60   # ...but only if the jaws actually travelled this far
 
 # Refuse to close when the tool point sits this far above the ball centre --

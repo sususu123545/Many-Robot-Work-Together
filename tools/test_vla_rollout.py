@@ -148,8 +148,6 @@ class ResponseValidationTest(unittest.TestCase):
         self.assertEqual(rollout.validate_response(payload)['policy_id'], 'remote')
 
 
-if __name__ == '__main__':
-    unittest.main(verbosity=2)
 
 
 class LimitEnvelopeTest(unittest.TestCase):
@@ -172,3 +170,7 @@ class LimitEnvelopeTest(unittest.TestCase):
         targets, notes = rollout.gate(state_of(ticks), START)
         self.assertTrue(targets)
         self.assertTrue(any('near its upper limit' in note for note in notes))
+
+
+if __name__ == '__main__':
+    unittest.main(verbosity=2)

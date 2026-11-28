@@ -150,3 +150,25 @@ class ResponseValidationTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
+
+
+class LimitEnvelopeTest(unittest.TestCase):
+    """The 2026-11-28 latched arm: joint3 must be capped at the jog envelope."""
+
+    def test_joint3_has_margin_below_the_latch_line(self):
+        # The servo table allows 1000, but the arm node latches the moment raw
+        # feedback passes 1000, and recovery needs a service restart.  The jog
+        # envelope (40..950) is what the proven scripts use.
+        self.assertEqual(rollout.SAFE_RANGE['joint3'], (40, 950))
+
+    def test_target_that_latched_the_arm_is_rejected(self):
+        ticks = dict(START, joint3=996)
+        targets, notes = rollout.gate(state_of(ticks), START)
+        self.assertEqual(targets, {})
+        self.assertTrue(any('joint3' in note for note in notes))
+
+    def test_target_near_the_cap_passes_but_warns(self):
+        ticks = dict(START, joint3=940)
+        targets, notes = rollout.gate(state_of(ticks), START)
+        self.assertTrue(targets)
+        self.assertTrue(any('near its upper limit' in note for note in notes))

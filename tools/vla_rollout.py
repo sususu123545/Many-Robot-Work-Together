@@ -60,17 +60,29 @@ import servo_protocol as sp          # noqa: E402  (the one tick<->radian rule)
 
 JOINT_ORDER = ('joint1', 'joint2', 'joint3', 'joint4', 'joint5', 'r_joint')
 
-#: Mechanical range each joint may be commanded into.  Taken from
-#: `grasp_sequence.JOG_SAFE` (the vendor node's own jog envelope) rather than
-#: invented here.
+#: Range each joint may be commanded into: the PROVEN jog envelope from
+#: `grasp_sequence.SAFE`, not the raw servo table.
+#:
+#: This distinction cost a latched arm on 2026-11-28.  The servo table says
+#: joint3 is legal to 1000, so the gate happily allowed a policy that kept
+#: pushing it up; the arm reached 1028, the node logged "Invalid physical
+#: feedback: joint3: raw=1028, allowed_raw=0..1000" and latched, after which NO
+#: software command is accepted and only a service restart (whose pose_restore
+#: drives the bus directly, bypassing the node) brings it back.
+#: The jog envelope stops at 950 precisely to keep that margin -- the difference
+#: between 950 and 1000 is the whole remaining safety budget.
 SAFE_RANGE = {
     'joint1': (0, 1000),
-    'joint2': (125, 875),
-    'joint3': (0, 1000),
-    'joint4': (0, 1000),
+    'joint2': (150, 860),
+    'joint3': (40, 950),
+    'joint4': (0, 980),
     'joint5': (0, 1000),
     'r_joint': (0, 700),
 }
+
+#: Warn when a target lands this close to a joint's limit -- an autonomous loop
+#: walking towards a ceiling should say so before it gets there.
+LIMIT_WARNING_MARGIN = 25
 
 MAX_STEP_TICKS = 100          # spec.DEFAULT_MAX_STEP_TICKS
 CONTROL_DT_RANGE = (0.3, 5.0)
@@ -268,6 +280,15 @@ def gate(action_radians, current_ticks: dict) -> tuple[dict, list]:
             return {}, ['%s target %d outside %d..%d'
                         % (joint, targets[joint], low, high)]
 
+    for joint in JOINT_ORDER:
+        low, high = SAFE_RANGE[joint]
+        if targets[joint] > high - LIMIT_WARNING_MARGIN:
+            notes.append('%s near its upper limit (%d, cap %d)'
+                         % (joint, targets[joint], high))
+        elif targets[joint] < low + LIMIT_WARNING_MARGIN:
+            notes.append('%s near its lower limit (%d, floor %d)'
+                         % (joint, targets[joint], low))
+
     deltas = {joint: targets[joint] - current_ticks[joint] for joint in JOINT_ORDER}
     worst = max((abs(v) for v in deltas.values()), default=0)
     if worst > MAX_STEP_TICKS:
@@ -354,6 +375,20 @@ def main(argv=None) -> int:
     parser.add_argument('--no-warmup', action='store_true',
                         help='skip the throwaway first request (it pays the '
                              'server-side model warm-up)')
+    parser.add_argument('--execute-first', type=int, default=0,
+                        help='execute only the first N actions of each chunk and '
+                             're-plan (0 = the whole chunk).  A policy with a '
+                             'small systematic per-channel bias drifts because the '
+                             'loop integrates it: measured 2026-11-28, joint3 was '
+                             'biased +6.6 ticks/step with 100%% sign consistency, '
+                             'which compounds to +30-40 ticks per minute.  A short '
+                             'open-loop window caps that accumulation.')
+    parser.add_argument('--stride', type=int, default=1,
+                        help='execute every Nth action of a chunk and stretch the '
+                             'command duration to N*control_dt.  The per-step servo '
+                             'dead band is ~12 ticks and the policy asks for 9-20, '
+                             'so at stride 1 half of every correction is eaten and '
+                             'the loop oscillates (measured 2026-11-28).')
     parser.add_argument('--warmup', type=int, default=5,
                         help='max warm-up requests; stops early once two in a '
                              'row come in under the control period')
@@ -511,8 +546,14 @@ def main(argv=None) -> int:
                    len(block['actions']), snapshot_ms, policy_ms,
                    '  ← 策略超预算' if policy_ms > control_dt * 1000 else ''))
 
+            stride = max(1, args.stride)
+            command_dt = control_dt * stride
             for index, action in enumerate(block['actions']):
                 if _stop:
+                    break
+                if index % stride:
+                    continue
+                if args.execute_first and index >= args.execute_first:
                     break
                 if args.shadow:
                     current = read_state(bridge, drain=False)[0] or ticks
@@ -593,7 +634,7 @@ def main(argv=None) -> int:
                     continue
                 if notes:
                     stats['scaled'] += 1
-                send_targets(bridge, current, targets, control_dt,
+                send_targets(bridge, current, targets, command_dt,
                              current_stamp or stamp)
                 stats['steps_executed'] += 1
                 for joint in ('joint2', 'joint3', 'joint4'):

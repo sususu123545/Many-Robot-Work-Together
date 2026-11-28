@@ -40,13 +40,14 @@ from __future__ import annotations
 
 import argparse
 import base64
+import http.client
+import io
 import json
 import math
 import signal
 import sys
 import time
-import urllib.error
-import urllib.request
+import urllib.parse
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -103,22 +104,123 @@ def radians_to_ticks(values) -> dict:
     return ticks
 
 
+def read_state(bridge, timeout: float = 8.0,
+               drain: bool = True) -> tuple[dict | None, dict | None]:
+    """All six joints from /joint_states, in servo ticks.
+
+    Deliberately NOT `grasp_sequence.read_ticks_and_stamp`: that helper filters to
+    `SIGNS` (joint1..joint4) because the jog path only commands those, so the
+    gripper and joint5 come back missing and every observation would be rejected
+    (measured 2026-11-26: 100+ samples dropped, "缺 ['joint5','r_joint']").  The
+    policy's sixth input IS the gripper, so it has to be here.
+    """
+    if drain:
+        # Only the first read per cycle needs the flush; doing it per action
+        # costs 0.3 s each and turned a 5 s chunk into 11 s (2026-11-26).
+        bridge.drain(0.3)
+    message = bridge.wait_for_topic('/joint_states', timeout, newest=True)
+    if message is None:
+        return None, None
+    header = (message.get('header') or {}).get('stamp') or {}
+    stamp = ({'sec': int(header['sec']), 'nanosec': int(header.get('nanosec', 0))}
+             if 'sec' in header else None)
+    ticks = {}
+    for name, position in zip(message.get('name') or [], message.get('position') or []):
+        if name in JOINT_ORDER:
+            _, centre, sign, _, _ = sp.JOINTS[name]
+            ticks[name] = int(round(centre + sign * float(position) / sp.tick_radians(name)))
+    missing = [j for j in JOINT_ORDER if j not in ticks]
+    if missing:
+        return None, stamp
+    return ticks, stamp
+
+
 def grab_snapshot(url: str, timeout: float = 8.0) -> bytes:
+    import urllib.request
     with urllib.request.urlopen(url, timeout=timeout) as response:
         return response.read()
+
+
+def recompress(jpeg: bytes, quality: int) -> bytes:
+    """Re-encode the wrist frame smaller before it crosses the network.
+
+    The camera hands us ~83 KB at 640x480.  Over a Tailscale *relay* (the path
+    measured 356-526 ms round trip on 2026-11-26, direct connection not
+    established, ping jitter to 225 ms) that is the dominant cost, not the
+    policy's 180 ms of inference.  Quality 70 gives 23 KB with the resolution
+    the policy was trained on intact; dropping to 320x240 would be 8 KB but
+    would hand the model a different image than the dataset contains.
+    """
+    if quality >= 95:
+        return jpeg
+    from PIL import Image
+    image = Image.open(io.BytesIO(jpeg)).convert('RGB')
+    buffer = io.BytesIO()
+    image.save(buffer, 'JPEG', quality=quality, optimize=True)
+    return buffer.getvalue()
 
 
 def build_state(ticks: dict) -> list:
     return [float(sp.to_radians(joint, ticks[joint])) for joint in JOINT_ORDER]
 
 
-def call_policy(endpoint: str, observation: dict, timeout: float) -> dict:
-    body = json.dumps(observation).encode('utf-8')
-    request = urllib.request.Request(
-        endpoint, data=body, method='POST',
-        headers={'Content-Type': 'application/json'})
-    with urllib.request.urlopen(request, timeout=timeout) as response:
-        return json.loads(response.read().decode('utf-8'))
+class PolicyClient:
+    """POST /act over ONE kept-alive connection.
+
+    A fresh TCP+TLS-less handshake per request is fine on a LAN and ruinous over
+    a relayed tailnet path -- the friend measured 356-526 ms round trip with
+    direct connection unavailable, and a good part of that is connection setup
+    rather than inference.  Reusing the socket removes it.  On any transport
+    error the connection is dropped and rebuilt once, then the call fails.
+    """
+
+    def __init__(self, endpoint: str, timeout: float):
+        parsed = urllib.parse.urlsplit(endpoint)
+        if not parsed.scheme or not parsed.hostname:
+            raise ValueError('endpoint must look like http://host:port/path')
+        self.https = parsed.scheme == 'https'
+        self.host = parsed.hostname
+        self.port = parsed.port or (443 if self.https else 80)
+        self.path = parsed.path or '/'
+        self.timeout = timeout
+        self._connection = None
+
+    def _connect(self):
+        factory = http.client.HTTPSConnection if self.https else http.client.HTTPConnection
+        self._connection = factory(self.host, self.port, timeout=self.timeout)
+        return self._connection
+
+    def call(self, observation: dict) -> dict:
+        body = json.dumps(observation).encode('utf-8')
+        headers = {'Content-Type': 'application/json',
+                   'Content-Length': str(len(body)),
+                   'Connection': 'keep-alive'}
+        last_error = None
+        for attempt in range(2):
+            connection = self._connection or self._connect()
+            try:
+                connection.request('POST', self.path, body=body, headers=headers)
+                response = connection.getresponse()
+                raw = response.read()
+                if response.status != 200:
+                    raise IOError('HTTP %d: %s' % (response.status, raw[:200]))
+                return json.loads(raw.decode('utf-8'))
+            except Exception as error:      # noqa: BLE001 - retry once, then raise
+                last_error = error
+                try:
+                    connection.close()
+                except Exception:           # noqa: BLE001
+                    pass
+                self._connection = None
+        raise IOError('policy call failed: %s' % last_error)
+
+    def close(self):
+        if self._connection is not None:
+            try:
+                self._connection.close()
+            except Exception:               # noqa: BLE001
+                pass
+            self._connection = None
 
 
 def validate_response(payload: dict) -> dict:
@@ -178,33 +280,58 @@ def gate(action_radians, current_ticks: dict) -> tuple[dict, list]:
     return targets, notes
 
 
-def send_targets(bridge, current_ticks: dict, targets: dict, duration: float) -> bool:
-    """One command per joint group, using the command formats this repo proved.
+def send_targets(bridge, current_ticks: dict, targets: dict, duration: float,
+                 stamp: dict | None) -> bool:
+    """One command per joint group, in the formats this stack actually accepts.
 
-    Two different radian scales live in this stack and mixing them silently
-    shortens the gripper's travel to 75%: the arm joints are commanded as
-    `sign * (tick - 500) * pi/750`, the gripper as `(tick - 700) * pi/1000`.
+    Two failure modes were measured here on 2026-11-28 and both are silent from
+    the caller's side -- the arm simply does not move:
+
+    * `Command must carry a fresh robot-clock stamp`.  The header stamp must be
+      the robot's clock taken from the /joint_states message just read, not
+      zero and not the PC's clock.
+    * `Invalid duration or preceding point still executing`.  A 0.5 s move must
+      be sent as sec=0 nanosec=500000000; packing it as `int(duration)` with a
+      zero nanosecond field asks for a zero-length move.
+
+    Two different radian scales live in this stack as well, and mixing them
+    shortens the gripper's travel to 75%: arm joints are `sign*(tick-500)*pi/750`,
+    the gripper is `(tick-700)*pi/1000`.
     """
+    header = {'stamp': stamp or {'sec': 0, 'nanosec': 0}, 'frame_id': ''}
+    time_from_start = {'sec': int(duration),
+                       'nanosec': int(round((duration % 1) * 1e9))}
+
     arm_joints = [j for j in JOINT_ORDER if j != 'r_joint']
     changed = [j for j in arm_joints
                if abs(targets[j] - current_ticks[j]) >= 2]
     if changed:
         message = {
-            'header': {'stamp': {'sec': 0, 'nanosec': 0}, 'frame_id': ''},
+            'header': header,
             'joint_names': changed,
             'points': [{
                 'positions': [gs.SIGNS[j] * (targets[j] - 500.0) * gs.TICK_RAD
                               for j in changed],
                 'velocities': [], 'accelerations': [], 'effort': [],
-                'time_from_start': {'sec': int(duration),
-                                    'nanosec': int(round((duration % 1) * 1e9))},
+                'time_from_start': time_from_start,
             }],
         }
         bridge.publish('/arm_controller/command', message,
                        'trajectory_msgs/msg/JointTrajectory')
 
     if abs(targets['r_joint'] - current_ticks['r_joint']) >= 2:
-        gs.gripper_send(bridge, targets['r_joint'], duration=max(duration, 0.3))
+        # Same message shape, but the gripper's own scale and topic.  Written
+        # out rather than reused from grasp_sequence because `gripper_send`
+        # hardcodes nanosec=0 and therefore cannot express a 0.5 s move.
+        bridge.publish('/gripper_controller/command', {
+            'header': header,
+            'joint_names': ['r_joint'],
+            'points': [{
+                'positions': [(targets['r_joint'] - 700) * math.pi / 1000.0],
+                'velocities': [], 'accelerations': [], 'effort': [],
+                'time_from_start': time_from_start,
+            }],
+        }, 'trajectory_msgs/msg/JointTrajectory')
     return True
 
 
@@ -221,6 +348,15 @@ def main(argv=None) -> int:
                         help='seconds per action (2 Hz); the policy may override')
     parser.add_argument('--timeout', type=float, default=2.0,
                         help='policy request timeout, seconds')
+    parser.add_argument('--image-quality', type=int, default=70,
+                        help='re-encode the wrist frame at this JPEG quality '
+                             '(70 -> ~23 KB; 95 disables re-encoding)')
+    parser.add_argument('--no-warmup', action='store_true',
+                        help='skip the throwaway first request (it pays the '
+                             'server-side model warm-up)')
+    parser.add_argument('--warmup', type=int, default=5,
+                        help='max warm-up requests; stops early once two in a '
+                             'row come in under the control period')
     parser.add_argument('--seconds', type=float, default=120.0,
                         help='how long to run the loop')
     parser.add_argument('--shadow', action='store_true',
@@ -247,6 +383,15 @@ def main(argv=None) -> int:
     host, _, port = args.rosbridge.partition(':')
     bridge = gs.Rosbridge(host, int(port or 19091))
     bridge.drain(0.5)
+    # Pre-register the command topics.  rosbridge treats the FIRST publish to an
+    # unknown topic as "create the registration" and drops that message.  The
+    # symptom is nasty because nothing anywhere reports it: measured 2026-11-28,
+    # two single-step runs announced a command, the arm never moved, and the arm
+    # node logged no rejection at all -- the message simply never arrived.
+    bridge.advertise('/arm_controller/command', 'trajectory_msgs/msg/JointTrajectory')
+    bridge.advertise('/gripper_controller/command', 'trajectory_msgs/msg/JointTrajectory')
+    time.sleep(2.5)
+    log('命令话题已预注册（等待 2.5 s 生效）')
 
     if not args.shadow:
         if not gs.secure_gate(bridge, arm=True, gripper=True):
@@ -254,44 +399,99 @@ def main(argv=None) -> int:
             bridge.close()
             return 2
         log('运动闸门已授权（操作者显式传入 --allow-motion）')
+    else:
+        # Shadow mode must not grant motion, but it still needs to READ the arm:
+        # after a reboot the health sits in RECOVERED_AWAIT_RESET and the node
+        # withholds /joint_states until the latch is cleared, so every sample
+        # came back incomplete and the loop spun on "读数不完整" (measured
+        # 2026-11-26).  Clearing the latch does not authorise anything.
+        if gs.reset_estop(bridge, quiet=True):
+            log('已清急停闩锁（仅恢复状态流，未授权运动）')
+        else:
+            log('清闩锁失败——状态流可能不完整')
 
     out = args.out or Path('tmp/vla_rollout_%s.jsonl' % time.strftime('%Y%m%d_%H%M%S'))
     out.parent.mkdir(parents=True, exist_ok=True)
     log('日志: %s' % out)
 
+    client = PolicyClient(args.endpoint, args.timeout)
+    log('策略端点: %s' % args.endpoint)
+
     started = time.monotonic()
     deadline = started + args.seconds
     stats = {'chunks': 0, 'actions': 0, 'rejected': 0, 'scaled': 0,
-             'steps_executed': 0, 'late_chunks': 0}
+             'steps_executed': 0, 'late_chunks': 0, 'bytes': []}
+    latencies = []
+
+    if not args.no_warmup:
+        # The first request pays for connection setup AND the server's own warm
+        # up: measured 2026-11-26, 5228 ms on the first call, 1.3-2.0 s for the
+        # next few, 400 ms once settled.  Recording those numbers as "latency"
+        # would condemn a working link, so warm up until two consecutive calls
+        # come in under the control period (or give up after --warmup tries).
+        ticks, _ = read_state(bridge)
+        if ticks and all(j in ticks for j in JOINT_ORDER):
+            budget_ms = args.control_dt * 1000
+            fast = 0
+            for attempt in range(1, args.warmup + 1):
+                try:
+                    warm = {
+                        'task': args.task, 'stamp': time.time(),
+                        'state': build_state(ticks), 'image_format': 'jpeg',
+                        'image_b64': base64.b64encode(
+                            recompress(grab_snapshot(args.snapshot),
+                                       args.image_quality)).decode('ascii'),
+                    }
+                    warm_start = time.monotonic()
+                    client.call(warm)
+                    elapsed = (time.monotonic() - warm_start) * 1000
+                    log('预热 %d/%d: %.0f ms%s' % (attempt, args.warmup, elapsed,
+                                                  '' if elapsed <= budget_ms else ' (超出预算)'))
+                    fast = fast + 1 if elapsed <= budget_ms else 0
+                    if fast >= 2:
+                        log('预热完成（连续两次进入预算）')
+                        break
+                except Exception as error:  # noqa: BLE001 - warm-up is best effort
+                    log('预热失败（不影响后续）: %s' % error)
+                    break
     close_values = []
     single_step_done = False
 
     with out.open('w', encoding='utf-8') as handle:
         while time.monotonic() < deadline and not _stop:
             loop_start = time.monotonic()
-            ticks, _ = gs.read_ticks_and_stamp(bridge)
+            ticks, stamp = read_state(bridge)
             if not ticks or any(j not in ticks for j in JOINT_ORDER):
-                log('读数不完整，跳过这一拍')
+                stats['incomplete'] = stats.get('incomplete', 0) + 1
+                if stats['incomplete'] in (1, 10) or stats['incomplete'] % 50 == 0:
+                    missing = ([j for j in JOINT_ORDER if j not in (ticks or {})]
+                               if ticks else '整帧')
+                    log('读数不完整（第 %d 次，缺 %s）'
+                        % (stats['incomplete'], missing))
                 time.sleep(0.2)
                 continue
 
             state = build_state(ticks)
-            request_start = time.monotonic()
+            snapshot_start = time.monotonic()
             try:
                 image = grab_snapshot(args.snapshot)
             except Exception as error:      # noqa: BLE001 - report, keep looping
                 log('取图失败: %s' % error)
                 time.sleep(0.2)
                 continue
+            compact = recompress(image, args.image_quality)
+            stats['bytes'].append(len(compact))
             observation = {
                 'task': args.task,
                 'stamp': time.time(),
                 'state': state,
                 'image_format': 'jpeg',
-                'image_b64': base64.b64encode(image).decode('ascii'),
+                'image_b64': base64.b64encode(compact).decode('ascii'),
             }
+            request_start = time.monotonic()
+            snapshot_ms = (request_start - snapshot_start) * 1000
             try:
-                payload = call_policy(args.endpoint, observation, args.timeout)
+                payload = client.call(observation)
                 block = validate_response(payload)
             except (urllib.error.URLError, ValueError, json.JSONDecodeError) as error:
                 log('策略请求/响应无效: %s' % error)
@@ -299,21 +499,23 @@ def main(argv=None) -> int:
                 time.sleep(0.2)
                 continue
             policy_ms = (time.monotonic() - request_start) * 1000
+            latencies.append(policy_ms)
+            stats.setdefault('snapshot_ms', []).append(snapshot_ms)
             stats['chunks'] += 1
             if policy_ms > args.control_dt * 1000:
                 stats['late_chunks'] += 1
 
             control_dt = block['control_dt']
-            log('[%5.1fs] %s  %d 条动作  %.0f ms%s'
+            log('[%5.1fs] %s  %d 条动作  取图 %.0f + 策略 %.0f ms%s'
                 % (time.monotonic() - started, block['policy_id'],
-                   len(block['actions']), policy_ms,
-                   '  ← 超时预算' if policy_ms > control_dt * 1000 else ''))
+                   len(block['actions']), snapshot_ms, policy_ms,
+                   '  ← 策略超预算' if policy_ms > control_dt * 1000 else ''))
 
             for index, action in enumerate(block['actions']):
                 if _stop:
                     break
                 if args.shadow:
-                    current = gs.read_ticks_and_stamp(bridge)[0] or ticks
+                    current = read_state(bridge, drain=False)[0] or ticks
                     targets, notes = gate(action, current)
                     stats['actions'] += 1
                     if not targets:
@@ -342,7 +544,17 @@ def main(argv=None) -> int:
                     time.sleep(control_dt)
                     continue
 
-                current = gs.read_ticks_and_stamp(bridge)[0]
+                # Order matters: re-securing the gate takes two service round
+                # trips (~1-2 s), which is longer than the arm node's stamp
+                # window (-0.1..+1 s).  Read the stamp AFTER the gate, or the
+                # command is rejected with "fresh robot-clock stamp" while every
+                # status field still says READY (measured 2026-11-28: two
+                # attempts, arm never moved).
+                if not gs.secure_gate(bridge, arm=True, gripper=True):
+                    log('    闸门续期失败，跳过这一步')
+                    stats['rejected'] += 1
+                    continue
+                current, current_stamp = read_state(bridge)
                 if not current:
                     break
                 if args.single_step:
@@ -381,7 +593,8 @@ def main(argv=None) -> int:
                     continue
                 if notes:
                     stats['scaled'] += 1
-                send_targets(bridge, current, targets, control_dt)
+                send_targets(bridge, current, targets, control_dt,
+                             current_stamp or stamp)
                 stats['steps_executed'] += 1
                 for joint in ('joint2', 'joint3', 'joint4'):
                     if abs(delta[joint]) >= 8:
@@ -392,7 +605,7 @@ def main(argv=None) -> int:
                     single_step_done = True
                     break
                 time.sleep(control_dt)
-                after, _ = gs.read_ticks_and_stamp(bridge)
+                after, _ = read_state(bridge)
                 if after and 'r_joint' in after:
                     close_values.append(after['r_joint'])
             if single_step_done or _stop:
@@ -408,6 +621,7 @@ def main(argv=None) -> int:
             if elapsed < planned:
                 time.sleep(min(planned - elapsed, 1.0))
 
+    client.close()
     bridge.close()
 
     log('')
@@ -421,6 +635,16 @@ def main(argv=None) -> int:
     if close_values:
         deepest = min(close_values)
         log('夹爪观测到的最闭合值: %d（≤350 才算真咬合，≥371 会滑脱）' % deepest)
+    if latencies:
+        ordered = sorted(latencies)
+        middle = ordered[len(ordered) // 2]
+        high = ordered[min(len(ordered) - 1, int(len(ordered) * 0.95))]
+        log('往返延迟: 中位 %.0f ms  p95 %.0f ms  最大 %.0f ms（预算 %.0f ms）'
+            % (middle, high, ordered[-1], args.control_dt * 1000))
+    if stats['bytes']:
+        sizes = sorted(stats['bytes'])
+        log('图像体积: 中位 %.0f KB（q=%d）' % (sizes[len(sizes) // 2] / 1024.0,
+                                             args.image_quality))
     if args.shadow:
         log('影子模式：臂未动。检查日志里 joint2/joint3 的抖动——离线数据显示')
         log('这两维比"照抄当前状态"还差，若日志里抖动幅度与轨迹量级相当，')

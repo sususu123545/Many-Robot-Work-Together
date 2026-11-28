@@ -504,8 +504,19 @@ def locate_with_backoff(bridge, ticks, label='locate'):
     located, reason = estimator(ticks)
     if located:
         return located, ''
-    log('    %s: ball not visible (%s) -- not reversing, that only pushes it away'
-        % (label, reason))
+    # Detection is intermittent on a dim scene (R median ~145): measured
+    # 2026-11-28, 1 frame in 3 missed a ball that two other frames found, and a
+    # single miss aborted the whole episode at this stage.  Re-read the frame --
+    # nothing moves, so this is exactly the "is the ball visible right now"
+    # question asked again, not a workaround for a bad pose.
+    for attempt in range(1, 4):
+        time.sleep(0.5)
+        located, reason = estimator(ticks)
+        if located:
+            log('    %s: ball found on retry %d' % (label, attempt))
+            return located, ''
+    log('    %s: ball not visible after 4 frames (%s) -- not reversing, that '
+        'only pushes it away' % (label, reason))
     return None, reason
 
 

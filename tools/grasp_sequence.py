@@ -1425,9 +1425,22 @@ def main():
             # move_to here costs 20-30 s, and on a good run the last hop is within
             # a couple of millimetres anyway (measured: 1-4 mm), so the loop would
             # spend half a minute to gain nothing.
+            # ...but only when the VERTICAL error is small too.  `miss` is the
+            # 3D distance to the aim, and a 7 mm total with 2 mm lateral and
+            # 6 mm of height passes "landed well" while the jaws then close on
+            # the ball's upper hemisphere: measured 2026-11-28, a lateral-offset
+            # grasp closed at 390 (equatorial bites measure 322-350) purely
+            # because the descent stopped ~6 mm high.  The tool height is what
+            # decides the bite, so refine whenever it is off by more than 3 mm.
+            elif (miss is not None and miss <= 0.008
+                  and abs(tool[2] - solution['target'][2]) <= 0.003):
+                log('     within %.0f mm after the hops (z %+.0f mm), skipping '
+                    'refinement'
+                    % (miss * 1000, (tool[2] - solution['target'][2]) * 1000))
             elif miss is not None and miss <= 0.008:
-                log('     within %.0f mm after the hops, skipping refinement'
-                    % (miss * 1000))
+                log('     within %.0f mm but %+.0f mm high/low -- refining the '
+                    'height, it decides where the jaws close'
+                    % (miss * 1000, (tool[2] - solution['target'][2]) * 1000))
             else:
                 for refine in range(2):
                     solution = solve(located['ball'], ticks, dz)
